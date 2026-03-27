@@ -79,9 +79,14 @@ export default function DashboardScreen({ navigation }) {
           color={COLORS.secondary}
         />
         <StatCard
-          title="Overdue"
-          value={stats.overdue_count}
-          color={COLORS.danger}
+          title="Due"
+          value={stats.due_count}
+          color="#F97316"
+        />
+        <StatCard
+          title="Follow Up"
+          value={stats.followup_services}
+          color="#8B5CF6"
         />
         <StatCard
           title="Revenue (Month)"
@@ -133,13 +138,13 @@ export default function DashboardScreen({ navigation }) {
         ))
       )}
 
-      {/* Overdue */}
-      {(data?.overdue_services || []).length > 0 && (
+      {/* Due Services */}
+      {(data?.due_services || []).length > 0 && (
         <>
-          <Text style={[styles.sectionTitle, { color: COLORS.danger }]}>
-            Overdue Services
+          <Text style={[styles.sectionTitle, { color: "#F97316" }]}>
+            Due Services
           </Text>
-          {data.overdue_services.map((service) => (
+          {data.due_services.map((service) => (
             <ServiceCard
               key={service.id}
               service={service}

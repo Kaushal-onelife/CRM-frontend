@@ -6,13 +6,14 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  ScrollView,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { serviceAPI } from "../../services/api";
 import ServiceCard from "../../components/ServiceCard";
 import { COLORS, FONTS, SIZES } from "../../constants/theme";
 
-const FILTERS = ["all", "upcoming", "pending", "completed", "rejected"];
+const FILTERS = ["all", "upcoming", "due", "pending", "followup", "completed", "rejected"];
 
 export default function ServiceListScreen({ navigation }) {
   const [services, setServices] = useState([]);
@@ -37,33 +38,68 @@ export default function ServiceListScreen({ navigation }) {
     }, [activeFilter])
   );
 
+  const getFilterColor = (filter) => {
+    const colors = {
+      all: COLORS.primary,
+      upcoming: "#2563EB",
+      due: "#F97316",
+      pending: "#F59E0B",
+      followup: "#8B5CF6",
+      completed: "#10B981",
+      rejected: "#EF4444",
+    };
+    return colors[filter] || COLORS.primary;
+  };
+
+  const getFilterLabel = (filter) => {
+    const labels = {
+      all: "All",
+      upcoming: "Upcoming",
+      due: "Due",
+      pending: "Pending",
+      followup: "Follow Up",
+      completed: "Completed",
+      rejected: "Rejected",
+    };
+    return labels[filter] || filter;
+  };
+
   return (
     <View style={styles.container}>
       {/* Filter Tabs */}
-      <View style={styles.filters}>
-        {FILTERS.map((filter) => (
-          <TouchableOpacity
-            key={filter}
-            style={[
-              styles.filterTab,
-              activeFilter === filter && styles.filterTabActive,
-            ]}
-            onPress={() => {
-              setActiveFilter(filter);
-              setLoading(true);
-            }}
-          >
-            <Text
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.filtersScroll}
+        contentContainerStyle={styles.filters}
+      >
+        {FILTERS.map((filter) => {
+          const isActive = activeFilter === filter;
+          const filterColor = getFilterColor(filter);
+          return (
+            <TouchableOpacity
+              key={filter}
               style={[
-                styles.filterText,
-                activeFilter === filter && styles.filterTextActive,
+                styles.filterTab,
+                isActive && { backgroundColor: filterColor, borderColor: filterColor },
               ]}
+              onPress={() => {
+                setActiveFilter(filter);
+                setLoading(true);
+              }}
             >
-              {filter}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+              <Text
+                style={[
+                  styles.filterText,
+                  isActive && styles.filterTextActive,
+                ]}
+              >
+                {getFilterLabel(filter)}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
 
       {loading ? (
         <ActivityIndicator
@@ -106,12 +142,16 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
     padding: SIZES.padding,
   },
-  filters: {
-    flexDirection: "row",
+  filtersScroll: {
+    maxHeight: 44,
     marginBottom: 12,
   },
+  filters: {
+    flexDirection: "row",
+    paddingRight: 16,
+  },
   filterTab: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 20,
     backgroundColor: COLORS.white,
@@ -119,13 +159,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.grayBorder,
   },
-  filterTabActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
   filterText: {
     ...FONTS.small,
-    textTransform: "capitalize",
+    fontSize: 13,
+    fontWeight: "500",
   },
   filterTextActive: {
     color: COLORS.white,
