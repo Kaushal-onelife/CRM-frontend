@@ -1,6 +1,6 @@
 import { supabase } from "./supabase";
 
-const API_URL = "http://172.16.1.148:5000/api";
+const API_URL = "http://localhost:5000/api";
 
 async function getAuthHeaders() {
   const {
