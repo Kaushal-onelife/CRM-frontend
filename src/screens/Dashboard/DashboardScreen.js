@@ -61,41 +61,39 @@ export default function DashboardScreen({ navigation }) {
     >
       <Text style={styles.greeting}>Dashboard</Text>
 
-      {/* Stats Grid */}
       <View style={styles.statsGrid}>
         <StatCard
           title="Total Customers"
-          value={stats.total_customers}
+          value={stats.total_customers || 0}
           color={COLORS.primary}
         />
         <StatCard
           title="Pending Services"
-          value={stats.pending_services}
+          value={stats.pending_services || 0}
           color={COLORS.warning}
         />
         <StatCard
           title="Completed (Month)"
-          value={stats.completed_this_month}
+          value={stats.completed_this_month || 0}
           color={COLORS.secondary}
         />
         <StatCard
           title="Overdue"
-          value={stats.overdue_count}
+          value={stats.overdue_count || 0}
           color={COLORS.danger}
         />
         <StatCard
           title="Revenue (Month)"
-          value={`₹${stats.monthly_revenue}`}
+          value={`Rs ${stats.monthly_revenue || 0}`}
           color={COLORS.secondary}
         />
         <StatCard
           title="Unpaid Bills"
-          value={`₹${stats.total_unpaid}`}
+          value={`Rs ${stats.total_unpaid || 0}`}
           color={COLORS.danger}
         />
       </View>
 
-      {/* Today's Services */}
       <Text style={styles.sectionTitle}>Today's Services</Text>
       {(data?.today_services || []).length === 0 ? (
         <Text style={styles.emptyText}>No services scheduled for today</Text>
@@ -114,7 +112,6 @@ export default function DashboardScreen({ navigation }) {
         ))
       )}
 
-      {/* Upcoming Services */}
       <Text style={styles.sectionTitle}>Upcoming (7 days)</Text>
       {(data?.upcoming_services || []).length === 0 ? (
         <Text style={styles.emptyText}>No upcoming services</Text>
@@ -133,7 +130,6 @@ export default function DashboardScreen({ navigation }) {
         ))
       )}
 
-      {/* Overdue */}
       {(data?.overdue_services || []).length > 0 && (
         <>
           <Text style={[styles.sectionTitle, { color: COLORS.danger }]}>

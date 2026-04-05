@@ -15,7 +15,7 @@ import { serviceAPI } from "../../services/api";
 import { COLORS, FONTS, SIZES } from "../../constants/theme";
 
 const STATUS_COLORS = {
-  upcoming: COLORS.primary,
+  scheduled: COLORS.primary,
   pending: COLORS.warning,
   in_progress: "#8B5CF6",
   completed: COLORS.secondary,
@@ -23,7 +23,7 @@ const STATUS_COLORS = {
   cancelled: COLORS.gray,
 };
 
-export default function ServiceDetailScreen({ route, navigation }) {
+export default function ServiceDetailScreen({ route }) {
   const { id } = route.params;
   const [service, setService] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -65,7 +65,10 @@ export default function ServiceDetailScreen({ route, navigation }) {
     try {
       await serviceAPI.markCompleted(id, {
         next_due_date: completeForm.next_due_date || null,
-        amount: completeForm.amount ? parseFloat(completeForm.amount) : service.amount,
+        service_charge: completeForm.amount
+          ? parseFloat(completeForm.amount)
+          : service.service_charge || 0,
+        parts_replaced: service.parts_replaced || [],
         notes: completeForm.notes || service.notes,
       });
       Alert.alert("Success", "Service marked as completed");
@@ -103,18 +106,18 @@ export default function ServiceDetailScreen({ route, navigation }) {
   }
 
   const statusColor = STATUS_COLORS[service.status] || COLORS.gray;
-  const isActive = ["upcoming", "pending", "in_progress"].includes(service.status);
+  const isActive = ["scheduled", "pending", "in_progress"].includes(
+    service.status
+  );
 
   return (
     <ScrollView style={styles.container}>
-      {/* Status Banner */}
       <View style={[styles.statusBanner, { backgroundColor: statusColor + "15" }]}>
         <Text style={[styles.statusText, { color: statusColor }]}>
           {service.status.replace(/_/g, " ").toUpperCase()}
         </Text>
       </View>
 
-      {/* Service Info */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Service Details</Text>
         {[
@@ -122,7 +125,7 @@ export default function ServiceDetailScreen({ route, navigation }) {
           { label: "Scheduled Date", value: service.scheduled_date },
           { label: "Completed Date", value: service.completed_date },
           { label: "Next Due Date", value: service.next_due_date },
-          { label: "Amount", value: service.amount ? `₹${service.amount}` : null },
+          { label: "Amount", value: service.amount ? `Rs ${service.amount}` : null },
           { label: "Notes", value: service.notes },
         ]
           .filter((item) => item.value)
@@ -134,7 +137,6 @@ export default function ServiceDetailScreen({ route, navigation }) {
           ))}
       </View>
 
-      {/* Customer Info */}
       {service.customers && (
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Customer</Text>
@@ -150,7 +152,7 @@ export default function ServiceDetailScreen({ route, navigation }) {
               style={styles.contactBtn}
               onPress={() => Linking.openURL(`tel:${service.customers.phone}`)}
             >
-              <Text style={styles.contactBtnText}>📞 Call</Text>
+              <Text style={styles.contactBtnText}>Call</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.contactBtn}
@@ -160,16 +162,15 @@ export default function ServiceDetailScreen({ route, navigation }) {
                 Linking.openURL(`whatsapp://send?phone=${number}`);
               }}
             >
-              <Text style={styles.contactBtnText}>💬 WhatsApp</Text>
+              <Text style={styles.contactBtnText}>WhatsApp</Text>
             </TouchableOpacity>
           </View>
         </View>
       )}
 
-      {/* Action Buttons */}
       {isActive && (
         <View style={styles.actionSection}>
-          {service.status === "upcoming" && (
+          {service.status === "scheduled" && (
             <TouchableOpacity
               style={[styles.actionBtn, { backgroundColor: COLORS.warning }]}
               onPress={() => handleStatusChange("pending")}
@@ -212,7 +213,6 @@ export default function ServiceDetailScreen({ route, navigation }) {
         </View>
       )}
 
-      {/* Complete Form */}
       {showComplete && (
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Complete Service</Text>
@@ -222,18 +222,18 @@ export default function ServiceDetailScreen({ route, navigation }) {
             style={styles.input}
             placeholder="e.g. 2026-07-23 (leave blank if none)"
             value={completeForm.next_due_date}
-            onChangeText={(v) =>
-              setCompleteForm({ ...completeForm, next_due_date: v })
+            onChangeText={(value) =>
+              setCompleteForm({ ...completeForm, next_due_date: value })
             }
           />
 
-          <Text style={styles.label}>Amount (₹)</Text>
+          <Text style={styles.label}>Amount (Rs)</Text>
           <TextInput
             style={styles.input}
             placeholder={String(service.amount || 0)}
             value={completeForm.amount}
-            onChangeText={(v) =>
-              setCompleteForm({ ...completeForm, amount: v })
+            onChangeText={(value) =>
+              setCompleteForm({ ...completeForm, amount: value })
             }
             keyboardType="numeric"
           />
@@ -243,21 +243,24 @@ export default function ServiceDetailScreen({ route, navigation }) {
             style={[styles.input, { height: 70, textAlignVertical: "top" }]}
             placeholder="Service notes..."
             value={completeForm.notes}
-            onChangeText={(v) =>
-              setCompleteForm({ ...completeForm, notes: v })
+            onChangeText={(value) =>
+              setCompleteForm({ ...completeForm, notes: value })
             }
             multiline
           />
 
           <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: COLORS.secondary, marginTop: 16 }]}
+            style={[
+              styles.actionBtn,
+              { backgroundColor: COLORS.secondary, marginTop: 16 },
+            ]}
             onPress={handleMarkCompleted}
             disabled={submitting}
           >
             {submitting ? (
               <ActivityIndicator color={COLORS.white} />
             ) : (
-              <Text style={styles.actionBtnText}>Confirm & Complete</Text>
+              <Text style={styles.actionBtnText}>Confirm and Complete</Text>
             )}
           </TouchableOpacity>
         </View>

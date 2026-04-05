@@ -4,7 +4,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
 
 const STATUS_CONFIG = {
-  upcoming: {
+  scheduled: {
     color: "#2563EB",
     bg: "#EFF6FF",
     darkBg: "#1E3A5F",
@@ -58,6 +58,10 @@ export default function ServiceCard({ service, onPress }) {
   const badgeBg = isDark ? status.darkBg : status.bg;
   const serviceIcon =
     SERVICE_TYPE_ICONS[service.service_type] || SERVICE_TYPE_ICONS.default;
+  const statusLabel =
+    service.status === "scheduled"
+      ? "scheduled"
+      : service.status.replace(/_/g, " ");
 
   return (
     <TouchableOpacity
@@ -73,7 +77,6 @@ export default function ServiceCard({ service, onPress }) {
       onPress={onPress}
       activeOpacity={0.7}
     >
-      {/* Accent top bar */}
       <View
         style={{
           height: 3,
@@ -84,9 +87,7 @@ export default function ServiceCard({ service, onPress }) {
       />
 
       <View className="p-4">
-        {/* Header row */}
         <View className="flex-row items-center">
-          {/* Service type icon */}
           <View
             className="rounded-xl items-center justify-center mr-3"
             style={{
@@ -102,7 +103,6 @@ export default function ServiceCard({ service, onPress }) {
             />
           </View>
 
-          {/* Name & type */}
           <View className="flex-1 mr-3">
             <Text
               className="text-base font-bold"
@@ -119,7 +119,6 @@ export default function ServiceCard({ service, onPress }) {
             </Text>
           </View>
 
-          {/* Status badge */}
           <View
             className="flex-row items-center px-3 py-1.5 rounded-full"
             style={{ backgroundColor: badgeBg }}
@@ -134,15 +133,17 @@ export default function ServiceCard({ service, onPress }) {
               className="text-xs font-semibold capitalize"
               style={{ color: status.color }}
             >
-              {service.status.replace(/_/g, " ")}
+              {statusLabel}
             </Text>
           </View>
         </View>
 
-        {/* Footer row */}
         <View
           className="flex-row items-center mt-3 pt-3"
-          style={{ borderTopWidth: 1, borderTopColor: isDark ? colors.border : "#F1F5F9" }}
+          style={{
+            borderTopWidth: 1,
+            borderTopColor: isDark ? colors.border : "#F1F5F9",
+          }}
         >
           <MaterialCommunityIcons
             name="calendar-clock"
@@ -172,7 +173,6 @@ export default function ServiceCard({ service, onPress }) {
             </>
           )}
 
-          {/* Arrow indicator */}
           <View className="flex-1 items-end">
             <MaterialCommunityIcons
               name="chevron-right"

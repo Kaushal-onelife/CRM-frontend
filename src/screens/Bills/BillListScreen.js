@@ -50,7 +50,7 @@ export default function BillListScreen({ navigation }) {
           </Text>
         </View>
         <View style={styles.rightCol}>
-          <Text style={styles.amount}>₹{item.total}</Text>
+          <Text style={styles.amount}>Rs {item.total}</Text>
           <View
             style={[
               styles.badge,

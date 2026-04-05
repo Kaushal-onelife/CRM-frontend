@@ -47,7 +47,6 @@ export default function SettingsScreen() {
 
   return (
     <ScrollView style={styles.container}>
-      {/* Profile Card */}
       <View style={styles.profileCard}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>
@@ -58,7 +57,6 @@ export default function SettingsScreen() {
         <Text style={styles.role}>{user?.role || ""}</Text>
       </View>
 
-      {/* Business Info */}
       {user?.tenants && (
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Business Info</Text>
@@ -83,7 +81,6 @@ export default function SettingsScreen() {
         </View>
       )}
 
-      {/* Menu Items */}
       <View style={styles.card}>
         {[
           { label: "About", subtitle: "Water Purifier CRM v1.0.0" },
@@ -94,12 +91,11 @@ export default function SettingsScreen() {
               <Text style={styles.menuLabel}>{item.label}</Text>
               <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
             </View>
-            <Text style={styles.arrow}>›</Text>
+            <Text style={styles.arrow}>{">"}</Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      {/* Logout */}
       <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
         <Text style={styles.logoutText}>Logout</Text>
       </TouchableOpacity>
@@ -129,7 +125,12 @@ const styles = StyleSheet.create({
   },
   avatarText: { fontSize: 28, fontWeight: "700", color: COLORS.primary },
   name: { ...FONTS.h2 },
-  role: { ...FONTS.regular, color: COLORS.gray, marginTop: 4, textTransform: "capitalize" },
+  role: {
+    ...FONTS.regular,
+    color: COLORS.gray,
+    marginTop: 4,
+    textTransform: "capitalize",
+  },
   card: {
     backgroundColor: COLORS.white,
     margin: SIZES.padding,

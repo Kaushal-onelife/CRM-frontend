@@ -1,15 +1,26 @@
 import { supabase } from "./supabase";
+import { Platform } from "react-native";
 
-const API_URL = "http://172.16.1.148:5000/api";
+const API_URL =
+  process.env.EXPO_PUBLIC_API_URL ||
+  (Platform.OS === "web"
+    ? "http://localhost:5000/api"
+    : "http://10.0.2.2:5000/api");
 
 async function getAuthHeaders() {
   const {
     data: { session },
   } = await supabase.auth.getSession();
-  return {
+
+  const headers = {
     "Content-Type": "application/json",
-    Authorization: `Bearer ${session?.access_token}`,
   };
+
+  if (session?.access_token) {
+    headers.Authorization = `Bearer ${session.access_token}`;
+  }
+
+  return headers;
 }
 
 async function apiCall(endpoint, options = {}) {
@@ -19,10 +30,12 @@ async function apiCall(endpoint, options = {}) {
     headers: { ...headers, ...options.headers },
   });
 
-  const data = await response.json();
+  const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(data.error || "Something went wrong");
+    throw new Error(
+      data.error || data.message || `Request failed (${response.status})`
+    );
   }
 
   return data;
