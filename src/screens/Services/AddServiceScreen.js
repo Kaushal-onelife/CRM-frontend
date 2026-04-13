@@ -2,36 +2,37 @@ import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
-  StyleSheet,
   ScrollView,
   Alert,
   ActivityIndicator,
 } from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { customerAPI, serviceAPI } from "../../services/api";
-import { COLORS, FONTS, SIZES } from "../../constants/theme";
+import { useTheme } from "../../context/ThemeContext";
+import FormInput, { FormSection } from "../../components/FormInput";
 
 const SERVICE_TYPES = [
-  "installation",
-  "amc",
-  "repair",
-  "filter_change",
-  "general_service",
+  { id: "installation", label: "Installation", icon: "plus-circle-outline" },
+  { id: "amc", label: "AMC Service", icon: "shield-check-outline" },
+  { id: "repair", label: "Repair", icon: "wrench-outline" },
+  { id: "filter_change", label: "Filter Change", icon: "water-outline" },
+  { id: "general_service", label: "General Service", icon: "cog-outline" },
 ];
 
 export default function AddServiceScreen({ navigation, route }) {
+  const { colors, isDark } = useTheme();
   const preselectedCustomerId = route.params?.customerId;
+  
   const [customers, setCustomers] = useState([]);
-  const [selectedCustomer, setSelectedCustomer] = useState(
-    preselectedCustomerId || null
-  );
+  const [selectedCustomer, setSelectedCustomer] = useState(preselectedCustomerId || null);
   const [customerSearch, setCustomerSearch] = useState("");
   const [serviceType, setServiceType] = useState("");
-  const [scheduledDate, setScheduledDate] = useState("");
+  const [scheduledDate, setScheduledDate] = useState(new Date().toISOString().split('T')[0]);
   const [amount, setAmount] = useState("");
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
+  const [searching, setSearching] = useState(false);
 
   useEffect(() => {
     if (!preselectedCustomerId) {
@@ -40,24 +41,26 @@ export default function AddServiceScreen({ navigation, route }) {
   }, []);
 
   const fetchCustomers = async (search = "") => {
+    setSearching(true);
     try {
       const params = search ? `search=${search}` : "";
       const result = await customerAPI.getAll(params);
       setCustomers(result.customers);
     } catch (error) {
       console.error(error.message);
+    } finally {
+      setSearching(false);
     }
   };
 
   const handleSubmit = async () => {
     if (!selectedCustomer || !serviceType || !scheduledDate) {
-      Alert.alert("Error", "Customer, service type, and date are required");
+      Alert.alert("Required Fields", "Please select a customer, service type, and set a date.");
       return;
     }
 
-    // Basic date validation (YYYY-MM-DD)
     if (!/^\d{4}-\d{2}-\d{2}$/.test(scheduledDate)) {
-      Alert.alert("Error", "Date must be in YYYY-MM-DD format");
+      Alert.alert("Invalid Date", "Please use YYYY-MM-DD format (e.g., 2026-04-15)");
       return;
     }
 
@@ -70,8 +73,9 @@ export default function AddServiceScreen({ navigation, route }) {
         amount: amount ? parseFloat(amount) : 0,
         notes,
       });
-      Alert.alert("Success", "Service scheduled successfully");
-      navigation.goBack();
+      Alert.alert("✓ Scheduled", "Service has been scheduled successfully.", [
+        { text: "View Tasks", onPress: () => navigation.goBack() }
+      ]);
     } catch (error) {
       Alert.alert("Error", error.message);
     }
@@ -79,187 +83,155 @@ export default function AddServiceScreen({ navigation, route }) {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Customer Selection */}
-      {!preselectedCustomerId && (
-        <>
-          <Text style={styles.label}>Select Customer *</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Search customer by name or phone..."
-            value={customerSearch}
-            onChangeText={(text) => {
-              setCustomerSearch(text);
-              if (text.length > 2) fetchCustomers(text);
-            }}
-          />
-          {customerSearch.length > 2 && (
-            <View style={styles.dropdown}>
-              {customers.map((c) => (
-                <TouchableOpacity
-                  key={c.id}
-                  style={[
-                    styles.dropdownItem,
-                    selectedCustomer === c.id && styles.dropdownItemActive,
-                  ]}
-                  onPress={() => {
-                    setSelectedCustomer(c.id);
-                    setCustomerSearch(c.name);
-                  }}
-                >
-                  <Text style={styles.dropdownText}>
-                    {c.name} - {c.phone}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-        </>
-      )}
-
-      {/* Service Type */}
-      <Text style={styles.label}>Service Type *</Text>
-      <View style={styles.typeGrid}>
-        {SERVICE_TYPES.map((type) => (
-          <TouchableOpacity
-            key={type}
-            style={[
-              styles.typeChip,
-              serviceType === type && styles.typeChipActive,
-            ]}
-            onPress={() => setServiceType(type)}
-          >
-            <Text
-              style={[
-                styles.typeText,
-                serviceType === type && styles.typeTextActive,
-              ]}
-            >
-              {type.replace(/_/g, " ")}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* Date */}
-      <Text style={styles.label}>Scheduled Date * (YYYY-MM-DD)</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="2026-04-15"
-        value={scheduledDate}
-        onChangeText={setScheduledDate}
-      />
-
-      {/* Amount */}
-      <Text style={styles.label}>Amount (optional)</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="0"
-        value={amount}
-        onChangeText={setAmount}
-        keyboardType="numeric"
-      />
-
-      {/* Notes */}
-      <Text style={styles.label}>Notes</Text>
-      <TextInput
-        style={[styles.input, { height: 80, textAlignVertical: "top" }]}
-        placeholder="Any additional notes"
-        value={notes}
-        onChangeText={setNotes}
-        multiline
-      />
-
-      <TouchableOpacity
-        style={styles.button}
-        onPress={handleSubmit}
-        disabled={loading}
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <ScrollView 
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 10, paddingBottom: 60 }}
       >
-        {loading ? (
-          <ActivityIndicator color={COLORS.white} />
-        ) : (
-          <Text style={styles.buttonText}>Schedule Service</Text>
+        <FormSection title="Service Context" icon="calendar-check" colors={colors} />
+        
+        {!preselectedCustomerId && (
+          <View style={{ marginBottom: 16 }}>
+            <FormInput
+              label="Find Customer"
+              placeholder="Search by name or phone..."
+              icon="account-search-outline"
+              required={!selectedCustomer}
+              value={customerSearch}
+              onChangeText={(text) => {
+                setCustomerSearch(text);
+                if (text.length > 2) fetchCustomers(text);
+              }}
+            />
+            
+            {customerSearch.length > 2 && (
+              <View 
+                className="rounded-2xl border mb-2 overflow-hidden" 
+                style={{ backgroundColor: colors.card, borderColor: isDark ? "#374151" : "#E2E8F0" }}
+              >
+                {searching ? (
+                  <View className="p-4 items-center"><ActivityIndicator size="small" color={colors.primary} /></View>
+                ) : customers.length === 0 ? (
+                  <View className="p-4 items-center"><Text style={{ color: colors.textSecondary }}>No customers found</Text></View>
+                ) : (
+                  customers.map((c) => (
+                    <TouchableOpacity
+                      key={c.id}
+                      className="flex-row items-center p-4 border-b"
+                      style={{ 
+                        backgroundColor: selectedCustomer === c.id ? `${colors.primary}10` : 'transparent',
+                        borderColor: isDark ? "#374151" : "#F1F5F9"
+                      }}
+                      onPress={() => {
+                        setSelectedCustomer(c.id);
+                        setCustomerSearch(c.name);
+                      }}
+                    >
+                      <MaterialCommunityIcons 
+                        name={selectedCustomer === c.id ? "check-circle" : "account-outline"} 
+                        size={20} 
+                        color={selectedCustomer === c.id ? colors.primary : colors.textSecondary} 
+                        style={{ marginRight: 12 }}
+                      />
+                      <View>
+                        <Text className="font-bold" style={{ color: colors.text }}>{c.name}</Text>
+                        <Text className="text-xs" style={{ color: colors.textSecondary }}>{c.phone}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))
+                )}
+              </View>
+            )}
+          </View>
         )}
-      </TouchableOpacity>
-    </ScrollView>
+
+        <Text className="text-[12px] font-black uppercase tracking-widest mb-3" style={{ color: colors.textSecondary }}>
+            Service Type <Text style={{ color: '#EF4444' }}>*</Text>
+        </Text>
+        <View className="flex-row flex-wrap mb-6" style={{ gap: 10 }}>
+          {SERVICE_TYPES.map((type) => {
+            const isActive = serviceType === type.id;
+            return (
+              <TouchableOpacity
+                key={type.id}
+                className="flex-row items-center px-4 py-3 rounded-2xl border"
+                style={{
+                  backgroundColor: isActive ? colors.primary : colors.card,
+                  borderColor: isActive ? colors.primary : isDark ? "#374151" : "#E2E8F0",
+                }}
+                onPress={() => setServiceType(type.id)}
+              >
+                <MaterialCommunityIcons 
+                    name={type.icon} 
+                    size={18} 
+                    color={isActive ? "#FFFFFF" : colors.textSecondary} 
+                    style={{ marginRight: 8 }}
+                />
+                <Text
+                  className="text-xs font-bold"
+                  style={{ color: isActive ? "#FFFFFF" : colors.text }}
+                >
+                  {type.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        <FormSection title="Scheduling & Financials" icon="cash-clock" colors={colors} />
+        
+        <FormInput
+          label="Scheduled Date"
+          placeholder="YYYY-MM-DD"
+          icon="calendar-month-outline"
+          required
+          value={scheduledDate}
+          onChangeText={setScheduledDate}
+        />
+
+        <FormInput
+          label="Estimated Amount"
+          placeholder="0.00"
+          icon="currency-inr"
+          keyboardType="numeric"
+          value={amount}
+          onChangeText={setAmount}
+        />
+
+        <FormInput
+          label="Job Notes"
+          placeholder="Add any specific instructions for the technician…"
+          icon="clipboard-text-outline"
+          multiline
+          value={notes}
+          onChangeText={setNotes}
+        />
+
+        <TouchableOpacity
+          className="flex-row items-center justify-center p-4 mt-6 rounded-2xl"
+          style={{ 
+            backgroundColor: colors.primary,
+            shadowColor: colors.primary,
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 10,
+            elevation: 8,
+            opacity: loading ? 0.7 : 1
+          }}
+          onPress={handleSubmit}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <>
+              <MaterialCommunityIcons name="calendar-plus" size={22} color="#FFFFFF" style={{ marginRight: 10 }} />
+              <Text className="text-white font-black tracking-tight text-base">Schedule Service Task</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </ScrollView>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  content: {
-    padding: SIZES.padding,
-    paddingBottom: 40,
-  },
-  label: {
-    ...FONTS.medium,
-    marginBottom: 6,
-    marginTop: 14,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: COLORS.grayBorder,
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 14,
-    backgroundColor: COLORS.white,
-  },
-  dropdown: {
-    backgroundColor: COLORS.white,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: COLORS.grayBorder,
-    marginTop: 4,
-    maxHeight: 150,
-  },
-  dropdownItem: {
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.grayLight,
-  },
-  dropdownItemActive: {
-    backgroundColor: COLORS.primaryLight,
-  },
-  dropdownText: {
-    ...FONTS.regular,
-  },
-  typeGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  typeChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: COLORS.white,
-    borderWidth: 1,
-    borderColor: COLORS.grayBorder,
-  },
-  typeChipActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  typeText: {
-    ...FONTS.small,
-    textTransform: "capitalize",
-  },
-  typeTextActive: {
-    color: COLORS.white,
-    fontWeight: "600",
-  },
-  button: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 8,
-    padding: 14,
-    alignItems: "center",
-    marginTop: 28,
-  },
-  buttonText: {
-    color: COLORS.white,
-    ...FONTS.bold,
-  },
-});

@@ -10,43 +10,38 @@ module.exports = {
     extend: {
       colors: {
         primary: {
-          DEFAULT: "#2563EB",
-          dark: "#1D4ED8",
-          light: "#DBEAFE",
+          DEFAULT: "rgb(var(--color-primary))",
+          dark: "rgb(var(--color-primary-dark))",
+          light: "rgb(var(--color-primary-light))",
         },
         secondary: {
-          DEFAULT: "#10B981",
+          DEFAULT: "rgb(var(--color-secondary))",
         },
         danger: {
-          DEFAULT: "#EF4444",
+          DEFAULT: "rgb(var(--color-danger))",
         },
         warning: {
-          DEFAULT: "#F59E0B",
-        },
-        surface: {
-          light: "#FFFFFF",
-          dark: "#1E1E2E",
+          DEFAULT: "rgb(var(--color-warning))",
         },
         background: {
-          light: "#F9FAFB",
-          dark: "#121218",
+          DEFAULT: "rgb(var(--color-background))",
+        },
+        surface: {
+          DEFAULT: "rgb(var(--color-surface))",
         },
         card: {
-          light: "#FFFFFF",
-          dark: "#252536",
+          DEFAULT: "rgb(var(--color-card))",
         },
         text: {
-          light: "#1F2937",
-          dark: "#E5E7EB",
-        },
-        "text-secondary": {
-          light: "#6B7280",
-          dark: "#9CA3AF",
+          DEFAULT: "rgb(var(--color-text))",
+          secondary: "rgb(var(--color-text-secondary))",
         },
         border: {
-          light: "#E5E7EB",
-          dark: "#374151",
+          DEFAULT: "rgb(var(--color-border))",
         },
+      },
+      fontFamily: {
+        sans: ["System"],
       },
     },
   },

@@ -1,10 +1,9 @@
 import React from "react";
-import { View, Platform } from "react-native";
+import { View, Text, Platform } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
-import { COLORS } from "../constants/theme";
 
 // Screens
 import DashboardScreen from "../screens/Dashboard/DashboardScreen";
@@ -25,175 +24,185 @@ const CustomerStack = createNativeStackNavigator();
 const ServiceStack = createNativeStackNavigator();
 const BillStack = createNativeStackNavigator();
 
+const HEADER_THEME = (colors) => ({
+  headerStyle: {
+    backgroundColor: colors.background,
+  },
+  headerShadowVisible: false,
+  headerTitleStyle: {
+    fontWeight: "800",
+    color: colors.text,
+    fontSize: 17,
+    letterSpacing: -0.3,
+  },
+  headerTintColor: colors.primary,
+  headerBackTitleVisible: false,
+});
+
 function CustomerNavigator() {
+  const { colors } = useTheme();
   return (
-    <CustomerStack.Navigator>
+    <CustomerStack.Navigator screenOptions={HEADER_THEME(colors)}>
       <CustomerStack.Screen
         name="CustomerList"
         component={CustomerListScreen}
-        options={{ title: "Customers" }}
+        options={{ headerShown: false }}
       />
       <CustomerStack.Screen
         name="AddCustomer"
         component={AddCustomerScreen}
-        options={{ title: "Add Customer" }}
+        options={{ title: "New Customer" }}
       />
       <CustomerStack.Screen
         name="CustomerDetail"
         component={CustomerDetailScreen}
-        options={({ route }) => ({ title: route.params?.name || "Customer" })}
+        options={({ route }) => ({
+          title: route.params?.name || "Customer",
+        })}
       />
       <CustomerStack.Screen
         name="EditCustomer"
         component={EditCustomerScreen}
-        options={{ title: "Edit Customer" }}
+        options={{ title: "Edit Details" }}
       />
       <CustomerStack.Screen
         name="AddService"
         component={AddServiceScreen}
-        options={{ title: "Add Service" }}
+        options={{ title: "New Service" }}
       />
     </CustomerStack.Navigator>
   );
 }
 
 function ServiceNavigator() {
+  const { colors } = useTheme();
   return (
-    <ServiceStack.Navigator>
+    <ServiceStack.Navigator screenOptions={HEADER_THEME(colors)}>
       <ServiceStack.Screen
         name="ServiceList"
         component={ServiceListScreen}
-        options={{ title: "Services" }}
+        options={{ headerShown: false }}
       />
       <ServiceStack.Screen
         name="AddService"
         component={AddServiceScreen}
-        options={{ title: "Add Service" }}
+        options={{ title: "New Service" }}
       />
       <ServiceStack.Screen
         name="ServiceDetail"
         component={ServiceDetailScreen}
-        options={{ title: "Service Details" }}
+        options={{ title: "Job Details" }}
       />
     </ServiceStack.Navigator>
   );
 }
 
 function BillNavigator() {
+  const { colors } = useTheme();
   return (
-    <BillStack.Navigator>
+    <BillStack.Navigator screenOptions={HEADER_THEME(colors)}>
       <BillStack.Screen
         name="BillList"
         component={BillListScreen}
-        options={{ title: "Bills" }}
+        options={{ headerShown: false }}
       />
       <BillStack.Screen
         name="BillDetail"
         component={BillDetailScreen}
-        options={{ title: "Bill Details" }}
+        options={{ title: "Invoice Details" }}
       />
       <BillStack.Screen
         name="CreateBill"
         component={CreateBillScreen}
-        options={{ title: "Create Bill" }}
+        options={{ title: "Generate Invoice" }}
       />
     </BillStack.Navigator>
   );
 }
 
-const TAB_ICONS = {
-  Dashboard: { active: "view-dashboard", inactive: "view-dashboard-outline" },
-  Customers: { active: "account-group", inactive: "account-group-outline" },
-  Services: { active: "wrench", inactive: "wrench-outline" },
-  Bills: { active: "receipt", inactive: "text-box-outline" },
-  Settings: { active: "cog", inactive: "cog-outline" },
-};
+const TABS = [
+  { name: "Dashboard",  label: "Home",      active: "home-variant",   inactive: "home-variant-outline" },
+  { name: "Customers",  label: "Clients",   active: "account-group",  inactive: "account-group-outline" },
+  { name: "Services",   label: "Services",  active: "hammer-wrench",  inactive: "wrench-outline" },
+  { name: "Bills",      label: "Invoices",  active: "text-box-check", inactive: "text-box-outline" },
+  { name: "Settings",   label: "Settings",  active: "cog",            inactive: "cog-outline" },
+];
+
+// Fixed tab bar height so screens know how to pad their content
+export const TAB_BAR_HEIGHT = Platform.OS === "ios" ? 90 : 80;
 
 export default function AppNavigator() {
   const { isDark, colors } = useTheme();
 
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: isDark ? "#6B7280" : "#9CA3AF",
-        tabBarStyle: {
-          backgroundColor: isDark ? colors.card : "#FFFFFF",
-          borderTopWidth: 0,
-          height: Platform.OS === "ios" ? 88 : 68,
-          paddingTop: 8,
-          paddingBottom: Platform.OS === "ios" ? 28 : 10,
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: -4 },
-          shadowOpacity: isDark ? 0.3 : 0.06,
-          shadowRadius: 12,
-          elevation: 12,
-        },
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: "600",
-          marginTop: 2,
-        },
-        tabBarIcon: ({ focused, color }) => {
-          const iconSet = TAB_ICONS[route.name] || TAB_ICONS.Dashboard;
-          const iconName = focused ? iconSet.active : iconSet.inactive;
-          return (
-            <View
-              style={
-                focused
-                  ? {
-                      backgroundColor: isDark ? "#1E3A5F" : "#EFF6FF",
-                      borderRadius: 12,
-                      paddingHorizontal: 14,
-                      paddingVertical: 4,
-                    }
-                  : undefined
-              }
+      screenOptions={({ route }) => {
+        const tab = TABS.find((t) => t.name === route.name) || TABS[0];
+        return {
+          headerShown: false,
+          tabBarShowLabel: false,
+          tabBarActiveTintColor: "#2563EB",
+          tabBarInactiveTintColor: isDark ? "#6B7280" : "#94A3B8",
+          tabBarStyle: {
+            backgroundColor: isDark ? "#1A1A2E" : "#FFFFFF",
+            borderTopWidth: 0,
+            // Straight bottom tab (no float) — removes the overlap bug
+            height: Platform.OS === "ios" ? 82 : 68,
+            paddingBottom: Platform.OS === "ios" ? 28 : 10,
+            paddingTop: 8,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: -3 },
+            shadowOpacity: isDark ? 0.4 : 0.07,
+            shadowRadius: 16,
+            elevation: 16,
+            // Subtle top separator line
+            borderTopWidth: 1,
+            borderTopColor: isDark ? "#262640" : "#F1F5F9",
+          },
+          tabBarIcon: ({ focused, color }) => {
+            const iconName = focused ? tab.active : tab.inactive;
+            return (
+              <View
+                style={{
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 52,
+                  height: 36,
+                  borderRadius: 12,
+                  backgroundColor: focused
+                    ? isDark ? "#2563EB22" : "#EFF6FF"
+                    : "transparent",
+                }}
+              >
+                <MaterialCommunityIcons
+                  name={iconName}
+                  size={22}
+                  color={focused ? "#2563EB" : color}
+                />
+              </View>
+            );
+          },
+          tabBarLabel: ({ focused, color }) => (
+            <Text
+              style={{
+                fontSize: 10,
+                fontWeight: focused ? "700" : "500",
+                color: focused ? "#2563EB" : color,
+                marginTop: 1,
+                letterSpacing: 0.2,
+              }}
             >
-              <MaterialCommunityIcons
-                name={iconName}
-                size={24}
-                color={color}
-              />
-            </View>
-          );
-        },
-      })}
+              {tab.label}
+            </Text>
+          ),
+        };
+      }}
     >
-      <Tab.Screen
-        name="Dashboard"
-        component={DashboardScreen}
-        options={{
-          headerShown: true,
-          headerTitle: "Water Purifier CRM",
-          tabBarLabel: "Home",
-        }}
-      />
-      <Tab.Screen
-        name="Customers"
-        component={CustomerNavigator}
-        options={{ tabBarLabel: "Customers" }}
-      />
-      <Tab.Screen
-        name="Services"
-        component={ServiceNavigator}
-        options={{ tabBarLabel: "Services" }}
-      />
-      <Tab.Screen
-        name="Bills"
-        component={BillNavigator}
-        options={{ tabBarLabel: "Bills" }}
-      />
-      <Tab.Screen
-        name="Settings"
-        component={SettingsScreen}
-        options={{
-          headerShown: true,
-          headerTitle: "Settings",
-          tabBarLabel: "Settings",
-        }}
-      />
+      <Tab.Screen name="Dashboard" component={DashboardScreen} />
+      <Tab.Screen name="Customers" component={CustomerNavigator} />
+      <Tab.Screen name="Services"  component={ServiceNavigator} />
+      <Tab.Screen name="Bills"     component={BillNavigator} />
+      <Tab.Screen name="Settings"  component={SettingsScreen} />
     </Tab.Navigator>
   );
 }

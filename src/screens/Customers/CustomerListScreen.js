@@ -5,14 +5,15 @@ import {
   FlatList,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   ActivityIndicator,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { customerAPI } from "../../services/api";
-import { COLORS, FONTS, SIZES } from "../../constants/theme";
+import { useTheme } from "../../context/ThemeContext";
 
 export default function CustomerListScreen({ navigation }) {
+  const { colors, isDark } = useTheme();
   const [customers, setCustomers] = useState([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -44,148 +45,155 @@ export default function CustomerListScreen({ navigation }) {
 
   const renderCustomer = ({ item }) => (
     <TouchableOpacity
-      style={styles.card}
+      className="flex-row items-center p-4 mb-3 rounded-2xl border"
+      style={{
+        backgroundColor: colors.card,
+        borderColor: isDark ? "#374151" : "#F3F4F6",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: isDark ? 0.3 : 0.05,
+        shadowRadius: 8,
+        elevation: 2,
+      }}
       onPress={() =>
         navigation.navigate("CustomerDetail", { id: item.id, name: item.name })
       }
+      activeOpacity={0.7}
     >
-      <View style={styles.avatar}>
-        <Text style={styles.avatarText}>
+      <View
+        className="w-12 h-12 rounded-full items-center justify-center mr-4"
+        style={{ backgroundColor: `${colors.primary}20` }}
+      >
+        <Text
+          className="text-lg font-black"
+          style={{ color: "#2563EB" }}
+        >
           {item.name.charAt(0).toUpperCase()}
         </Text>
       </View>
-      <View style={styles.info}>
-        <Text style={styles.name}>{item.name}</Text>
-        <Text style={styles.phone}>{item.phone}</Text>
-        {item.city && <Text style={styles.city}>{item.city}</Text>}
+      
+      <View className="flex-1">
+        <Text
+          className="text-base font-extrabold tracking-tight mb-0.5"
+          style={{ color: colors.text }}
+          numberOfLines={1}
+        >
+          {item.name}
+        </Text>
+        
+        <View className="flex-row items-center">
+          <MaterialCommunityIcons name="phone-outline" size={12} color={colors.textSecondary} style={{ marginRight: 4 }} />
+          <Text className="text-xs font-semibold mr-3" style={{ color: colors.textSecondary }}>
+            {item.phone || "N/A"}
+          </Text>
+          
+          {item.city && (
+            <>
+              <View className="w-1 h-1 rounded-full mr-3" style={{ backgroundColor: colors.textSecondary, opacity: 0.4 }} />
+              <MaterialCommunityIcons name="map-marker-outline" size={12} color={colors.textSecondary} style={{ marginRight: 4 }} />
+              <Text className="text-xs font-semibold" style={{ color: colors.textSecondary }} numberOfLines={1}>
+                {item.city}
+              </Text>
+            </>
+          )}
+        </View>
       </View>
-      <Text style={styles.model}>{item.purifier_model || ""}</Text>
+
+      <View className="items-end justify-center ml-2">
+        <View className="p-1.5 rounded-full" style={{ backgroundColor: isDark ? "#374151" : "#F3F4F6" }}>
+          <MaterialCommunityIcons name="chevron-right" size={16} color={colors.textSecondary} />
+        </View>
+      </View>
     </TouchableOpacity>
   );
 
+  const ListHeader = () => (
+    <View className="mb-6 mt-2 px-1">
+      <Text
+        className="text-3xl font-black tracking-tight"
+        style={{ color: colors.text }}
+      >
+        Customers
+      </Text>
+      <Text
+        className="text-sm font-semibold mt-1"
+        style={{ color: colors.textSecondary }}
+      >
+        Manage your clients and their details
+      </Text>
+    </View>
+  );
+
   return (
-    <View style={styles.container}>
-      <TextInput
-        style={styles.searchInput}
-        placeholder="Search by name or phone..."
-        value={search}
-        onChangeText={handleSearch}
-      />
+    <View className="flex-1" style={{ backgroundColor: colors.background }}>
+      <View className="pt-2 px-4 pb-2">
+        <ListHeader />
+        
+        <View
+          className="flex-row items-center px-4 h-12 rounded-xl border mb-2"
+          style={{
+            backgroundColor: colors.card,
+            borderColor: isDark ? "#374151" : "#E5E7EB",
+          }}
+        >
+          <MaterialCommunityIcons name="magnify" size={20} color={colors.textSecondary} style={{ marginRight: 8 }} />
+          <TextInput
+            className="flex-1 text-sm font-medium"
+            style={{ color: colors.text }}
+            placeholder="Search by name or phone..."
+            placeholderTextColor={colors.textSecondary}
+            value={search}
+            onChangeText={handleSearch}
+          />
+          {search.length > 0 && (
+            <TouchableOpacity onPress={() => handleSearch("")}>
+              <MaterialCommunityIcons name="close-circle" size={16} color={colors.textSecondary} />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
 
       {loading ? (
-        <ActivityIndicator
-          size="large"
-          color={COLORS.primary}
-          style={{ marginTop: 40 }}
-        />
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator size="large" color="#2563EB" />
+        </View>
       ) : (
         <FlatList
           data={customers}
           keyExtractor={(item) => item.id}
           renderItem={renderCustomer}
           ListEmptyComponent={
-            <Text style={styles.emptyText}>No customers found</Text>
+            <View className="items-center justify-center pt-20">
+               <View 
+                  className="w-24 h-24 rounded-full items-center justify-center mb-4"
+                  style={{ backgroundColor: `${colors.primary}15` }}
+                >
+                  <MaterialCommunityIcons name="account-search-outline" size={40} color="#2563EB" />
+                </View>
+              <Text className="text-lg font-bold" style={{ color: colors.text }}>No customers found</Text>
+              <Text className="text-sm mt-1" style={{ color: colors.textSecondary }}>Try a different search query</Text>
+            </View>
           }
-          contentContainerStyle={{ paddingBottom: 80 }}
+          contentContainerStyle={{ paddingBottom: 100, paddingHorizontal: 16, paddingTop: 8 }}
+          showsVerticalScrollIndicator={false}
         />
       )}
 
       <TouchableOpacity
-        style={styles.fab}
+        className="absolute right-6 bottom-6 w-14 h-14 rounded-full items-center justify-center"
+        style={{
+          backgroundColor: "#2563EB",
+          shadowColor: "#2563EB",
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.4,
+          shadowRadius: 8,
+          elevation: 6,
+        }}
         onPress={() => navigation.navigate("AddCustomer")}
+        activeOpacity={0.8}
       >
-        <Text style={styles.fabText}>+</Text>
+        <MaterialCommunityIcons name="plus" size={32} color="#FFFFFF" />
       </TouchableOpacity>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-    padding: SIZES.padding,
-  },
-  searchInput: {
-    backgroundColor: COLORS.white,
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 14,
-    borderWidth: 1,
-    borderColor: COLORS.grayBorder,
-    marginBottom: 12,
-  },
-  card: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: COLORS.white,
-    borderRadius: SIZES.radius,
-    padding: SIZES.padding,
-    marginBottom: 8,
-    elevation: 1,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-  },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: COLORS.primaryLight,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-  },
-  avatarText: {
-    ...FONTS.bold,
-    color: COLORS.primary,
-    fontSize: 18,
-  },
-  info: {
-    flex: 1,
-  },
-  name: {
-    ...FONTS.bold,
-  },
-  phone: {
-    ...FONTS.small,
-    marginTop: 2,
-  },
-  city: {
-    ...FONTS.small,
-    color: COLORS.gray,
-  },
-  model: {
-    ...FONTS.small,
-    color: COLORS.gray,
-  },
-  emptyText: {
-    ...FONTS.regular,
-    color: COLORS.gray,
-    textAlign: "center",
-    marginTop: 40,
-  },
-  fab: {
-    position: "absolute",
-    right: 20,
-    bottom: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: COLORS.primary,
-    justifyContent: "center",
-    alignItems: "center",
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-  },
-  fabText: {
-    color: COLORS.white,
-    fontSize: 28,
-    fontWeight: "300",
-    marginTop: -2,
-  },
-});

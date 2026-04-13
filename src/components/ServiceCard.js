@@ -65,54 +65,60 @@ export default function ServiceCard({ service, onPress }) {
 
   return (
     <TouchableOpacity
-      className="rounded-2xl mb-4"
+      className="rounded-2xl mb-4 overflow-hidden"
       style={{
         backgroundColor: colors.card,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: isDark ? 0.3 : 0.08,
-        shadowRadius: 8,
-        elevation: 3,
+        shadowColor: status.color,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: isDark ? 0.3 : 0.06,
+        shadowRadius: 12,
+        elevation: 4,
+        borderWidth: 1,
+        borderColor: isDark ? "#374151" : "#F3F4F6",
       }}
       onPress={onPress}
       activeOpacity={0.7}
     >
       <View
         style={{
-          height: 3,
+          width: 4,
+          height: "100%",
           backgroundColor: status.color,
+          position: "absolute",
+          left: 0,
+          top: 0,
           borderTopLeftRadius: 16,
-          borderTopRightRadius: 16,
+          borderBottomLeftRadius: 16,
         }}
       />
 
-      <View className="p-4">
+      <View className="pl-5 pr-4 py-4">
         <View className="flex-row items-center">
           <View
-            className="rounded-xl items-center justify-center mr-3"
+            className="rounded-2xl items-center justify-center mr-4"
             style={{
-              width: 44,
-              height: 44,
-              backgroundColor: isDark ? colors.border : "#F1F5F9",
+              width: 48,
+              height: 48,
+              backgroundColor: isDark ? colors.border : `${status.color}15`,
             }}
           >
             <MaterialCommunityIcons
               name={serviceIcon}
-              size={22}
+              size={24}
               color={status.color}
             />
           </View>
 
           <View className="flex-1 mr-3">
             <Text
-              className="text-base font-bold"
-              style={{ color: colors.text, letterSpacing: 0.1 }}
+              className="text-base font-extrabold tracking-tight"
+              style={{ color: colors.text }}
               numberOfLines={1}
             >
-              {service.customers?.name}
+              {service.customers?.name || "Unknown Customer"}
             </Text>
             <Text
-              className="text-sm capitalize mt-0.5"
+              className="text-xs font-semibold capitalize mt-1 tracking-wide"
               style={{ color: colors.textSecondary }}
             >
               {service.service_type.replace(/_/g, " ")}
@@ -120,8 +126,11 @@ export default function ServiceCard({ service, onPress }) {
           </View>
 
           <View
-            className="flex-row items-center px-3 py-1.5 rounded-full"
-            style={{ backgroundColor: badgeBg }}
+            className="flex-row items-center px-3 py-1.5 rounded-xl border"
+            style={{ 
+              backgroundColor: badgeBg,
+              borderColor: `${status.color}30`
+            }}
           >
             <MaterialCommunityIcons
               name={status.icon}
@@ -130,7 +139,7 @@ export default function ServiceCard({ service, onPress }) {
               style={{ marginRight: 4 }}
             />
             <Text
-              className="text-xs font-semibold capitalize"
+              className="text-xs font-bold capitalize tracking-tight"
               style={{ color: status.color }}
             >
               {statusLabel}
@@ -139,46 +148,51 @@ export default function ServiceCard({ service, onPress }) {
         </View>
 
         <View
-          className="flex-row items-center mt-3 pt-3"
+          className="flex-row items-center mt-4 pt-3"
           style={{
             borderTopWidth: 1,
-            borderTopColor: isDark ? colors.border : "#F1F5F9",
+            borderTopColor: isDark ? "#374151" : "#F1F5F9",
           }}
         >
           <MaterialCommunityIcons
             name="calendar-clock"
-            size={14}
-            color={colors.textSecondary}
-            style={{ marginRight: 5 }}
+            size={16}
+            color={status.color}
+            style={{ marginRight: 6 }}
           />
-          <Text className="text-xs" style={{ color: colors.textSecondary }}>
+          <Text className="text-sm font-semibold" style={{ color: colors.textSecondary }}>
             {service.scheduled_date}
           </Text>
 
           {service.customers?.phone && (
             <>
               <View
-                className="w-1 h-1 rounded-full mx-2.5"
-                style={{ backgroundColor: colors.textSecondary, opacity: 0.4 }}
+                className="w-1 h-1 rounded-full mx-3"
+                style={{ backgroundColor: colors.textSecondary, opacity: 0.3 }}
               />
               <MaterialCommunityIcons
                 name="phone-outline"
-                size={13}
+                size={16}
                 color={colors.textSecondary}
-                style={{ marginRight: 4 }}
+                style={{ marginRight: 6 }}
               />
-              <Text className="text-xs" style={{ color: colors.textSecondary }}>
+              <Text className="text-sm font-semibold" style={{ color: colors.textSecondary }}>
                 {service.customers.phone}
               </Text>
             </>
           )}
 
           <View className="flex-1 items-end">
-            <MaterialCommunityIcons
-              name="chevron-right"
-              size={18}
-              color={colors.textSecondary}
-            />
+            <View
+              className="rounded-full p-1"
+              style={{ backgroundColor: isDark ? "#374151" : "#F3F4F6" }}
+            >
+              <MaterialCommunityIcons
+                name="chevron-right"
+                size={16}
+                color={colors.textSecondary}
+              />
+            </View>
           </View>
         </View>
       </View>

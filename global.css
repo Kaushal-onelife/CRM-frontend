@@ -1,3 +1,35 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  :root {
+    --color-primary: 37 99 235;        /* #2563EB */
+    --color-primary-dark: 29 78 216;   /* #1D4ED8 */
+    --color-primary-light: 219 234 254;/* #DBEAFE */
+    --color-secondary: 16 185 129;     /* #10B981 */
+    --color-danger: 239 68 68;         /* #EF4444 */
+    --color-warning: 245 158 11;       /* #F59E0B */
+    --color-background: 249 250 251;   /* #F9FAFB */
+    --color-surface: 255 255 255;      /* #FFFFFF */
+    --color-card: 255 255 255;         /* #FFFFFF */
+    --color-text: 31 41 55;            /* #1F2937 */
+    --color-text-secondary: 107 114 128;/* #6B7280 */
+    --color-border: 229 231 235;       /* #E5E7EB */
+  }
+
+  .dark {
+    --color-primary: 59 130 246;       /* #3B82F6 */
+    --color-primary-dark: 37 99 235;   /* #2563EB */
+    --color-primary-light: 40 50 80;   /* #1E3A5F */
+    --color-secondary: 52 211 153;     /* #34D399 */
+    --color-danger: 248 113 113;       /* #F87171 */
+    --color-warning: 251 191 36;       /* #FBBF24 */
+    --color-background: 18 18 24;      /* #121218 */
+    --color-surface: 30 30 46;         /* #1E1E2E */
+    --color-card: 37 37 54;            /* #252536 */
+    --color-text: 229 231 235;         /* #E5E7EB */
+    --color-text-secondary: 156 163 175;/* #9CA3AF */
+    --color-border: 55 65 81;          /* #374151 */
+  }
+}

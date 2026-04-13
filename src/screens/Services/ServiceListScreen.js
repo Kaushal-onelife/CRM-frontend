@@ -4,17 +4,19 @@ import {
   Text,
   FlatList,
   TouchableOpacity,
-  StyleSheet,
   ActivityIndicator,
+  ScrollView,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { serviceAPI } from "../../services/api";
 import ServiceCard from "../../components/ServiceCard";
-import { COLORS, FONTS, SIZES } from "../../constants/theme";
+import { useTheme } from "../../context/ThemeContext";
 
 const FILTERS = ["all", "upcoming", "pending", "completed", "rejected"];
 
 export default function ServiceListScreen({ navigation }) {
+  const { colors, isDark } = useTheme();
   const [services, setServices] = useState([]);
   const [activeFilter, setActiveFilter] = useState("all");
   const [loading, setLoading] = useState(true);
@@ -37,40 +39,67 @@ export default function ServiceListScreen({ navigation }) {
     }, [activeFilter])
   );
 
+  const ListHeader = () => (
+    <View className="mb-4 mt-2 px-1">
+      <Text
+        className="text-3xl font-black tracking-tight"
+        style={{ color: colors.text }}
+      >
+        Services
+      </Text>
+      <Text
+        className="text-sm font-semibold mt-1"
+        style={{ color: colors.textSecondary }}
+      >
+        Manage maintenance and repair jobs
+      </Text>
+    </View>
+  );
+
   return (
-    <View style={styles.container}>
-      {/* Filter Tabs */}
-      <View style={styles.filters}>
-        {FILTERS.map((filter) => (
-          <TouchableOpacity
-            key={filter}
-            style={[
-              styles.filterTab,
-              activeFilter === filter && styles.filterTabActive,
-            ]}
-            onPress={() => {
-              setActiveFilter(filter);
-              setLoading(true);
-            }}
-          >
-            <Text
-              style={[
-                styles.filterText,
-                activeFilter === filter && styles.filterTextActive,
-              ]}
-            >
-              {filter}
-            </Text>
-          </TouchableOpacity>
-        ))}
+    <View className="flex-1" style={{ backgroundColor: colors.background }}>
+      <View className="pt-2 px-4 pb-2">
+        <ListHeader />
+        <View className="mt-2 mb-2">
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 20 }}>
+            {FILTERS.map((filter) => {
+              const isActive = activeFilter === filter;
+              return (
+                <TouchableOpacity
+                  key={filter}
+                  className="px-4 py-2.5 rounded-full mr-3 border"
+                  style={{
+                    backgroundColor: isActive ? "#2563EB" : colors.card,
+                    borderColor: isActive ? "#2563EB" : isDark ? "#374151" : "#E5E7EB",
+                    shadowColor: isActive ? "#2563EB" : "#000",
+                    shadowOffset: { width: 0, height: isActive ? 2 : 1 },
+                    shadowOpacity: isActive ? 0.3 : 0.05,
+                    shadowRadius: isActive ? 4 : 2,
+                    elevation: isActive ? 3 : 1,
+                  }}
+                  onPress={() => {
+                    setActiveFilter(filter);
+                    setLoading(true);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    className="text-sm font-bold capitalize tracking-wide"
+                    style={{ color: isActive ? "#FFFFFF" : colors.textSecondary }}
+                  >
+                    {filter}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
       </View>
 
       {loading ? (
-        <ActivityIndicator
-          size="large"
-          color={COLORS.primary}
-          style={{ marginTop: 40 }}
-        />
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator size="large" color="#2563EB" />
+        </View>
       ) : (
         <FlatList
           data={services}
@@ -84,75 +113,37 @@ export default function ServiceListScreen({ navigation }) {
             />
           )}
           ListEmptyComponent={
-            <Text style={styles.emptyText}>No services found</Text>
+            <View className="items-center justify-center pt-20">
+              <View 
+                className="w-24 h-24 rounded-full items-center justify-center mb-4"
+                style={{ backgroundColor: `${colors.primary}15` }}
+              >
+                <MaterialCommunityIcons name="clipboard-text-outline" size={40} color="#2563EB" />
+              </View>
+              <Text className="text-lg font-bold" style={{ color: colors.text }}>No services found</Text>
+              <Text className="text-sm mt-1" style={{ color: colors.textSecondary }}>Try clearing filters</Text>
+            </View>
           }
-          contentContainerStyle={{ paddingBottom: 80 }}
+          contentContainerStyle={{ paddingBottom: 100, paddingHorizontal: 16, paddingTop: 8 }}
+          showsVerticalScrollIndicator={false}
         />
       )}
 
       <TouchableOpacity
-        style={styles.fab}
+        className="absolute right-6 bottom-6 w-14 h-14 rounded-full items-center justify-center"
+        style={{
+          backgroundColor: "#2563EB",
+          shadowColor: "#2563EB",
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.4,
+          shadowRadius: 8,
+          elevation: 6,
+        }}
         onPress={() => navigation.navigate("AddService")}
+        activeOpacity={0.8}
       >
-        <Text style={styles.fabText}>+</Text>
+        <MaterialCommunityIcons name="plus" size={32} color="#FFFFFF" />
       </TouchableOpacity>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-    padding: SIZES.padding,
-  },
-  filters: {
-    flexDirection: "row",
-    marginBottom: 12,
-  },
-  filterTab: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    backgroundColor: COLORS.white,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: COLORS.grayBorder,
-  },
-  filterTabActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  filterText: {
-    ...FONTS.small,
-    textTransform: "capitalize",
-  },
-  filterTextActive: {
-    color: COLORS.white,
-    fontWeight: "600",
-  },
-  emptyText: {
-    ...FONTS.regular,
-    color: COLORS.gray,
-    textAlign: "center",
-    marginTop: 40,
-  },
-  fab: {
-    position: "absolute",
-    right: 20,
-    bottom: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: COLORS.primary,
-    justifyContent: "center",
-    alignItems: "center",
-    elevation: 4,
-  },
-  fabText: {
-    color: COLORS.white,
-    fontSize: 28,
-    fontWeight: "300",
-    marginTop: -2,
-  },
-});
