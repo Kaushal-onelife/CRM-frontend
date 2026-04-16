@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Alert,
+  RefreshControl,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { customerAPI } from "../../services/api";
@@ -16,16 +18,27 @@ export default function CustomerListScreen({ navigation }) {
   const [customers, setCustomers] = useState([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  const fetchCustomers = async (searchText = "") => {
+  const fetchCustomers = async (searchText = "", pageNum = 1, append = false) => {
+    if (append) setLoadingMore(true);
     try {
-      const params = searchText ? `search=${searchText}` : "";
-      const result = await customerAPI.getAll(params);
-      setCustomers(result.customers);
+      const params = new URLSearchParams({ page: pageNum, limit: 20 });
+      if (searchText) params.set("search", searchText);
+      const result = await customerAPI.getAll(params.toString());
+      const newData = result.customers;
+      setCustomers(append ? (prev) => [...prev, ...newData] : newData);
+      setPage(pageNum);
+      setHasMore(newData.length >= 20);
     } catch (error) {
-      console.error(error.message);
+      Alert.alert("Error", "Failed to load customers");
     } finally {
       setLoading(false);
+      setRefreshing(false);
+      setLoadingMore(false);
     }
   };
 
@@ -38,7 +51,14 @@ export default function CustomerListScreen({ navigation }) {
   const handleSearch = (text) => {
     setSearch(text);
     if (text.length > 2 || text.length === 0) {
-      fetchCustomers(text);
+      setLoading(true);
+      fetchCustomers(text, 1);
+    }
+  };
+
+  const handleLoadMore = () => {
+    if (!loadingMore && hasMore && !loading) {
+      fetchCustomers(search, page + 1, true);
     }
   };
 
@@ -87,6 +107,26 @@ export default function CustomerListScreen({ navigation }) {
             <Text style={styles.emptyText}>No customers found</Text>
           }
           contentContainerStyle={{ paddingBottom: 80 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => {
+                setRefreshing(true);
+                fetchCustomers(search, 1);
+              }}
+            />
+          }
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={
+            loadingMore ? (
+              <ActivityIndicator
+                size="small"
+                color={COLORS.primary}
+                style={{ paddingVertical: 16 }}
+              />
+            ) : null
+          }
         />
       )}
 

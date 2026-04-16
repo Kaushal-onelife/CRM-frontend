@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { customerAPI, serviceAPI } from "../../services/api";
+import DatePickerField from "../../components/DatePickerField";
 import { COLORS, FONTS, SIZES } from "../../constants/theme";
 
 const SERVICE_TYPES = [
@@ -32,6 +33,7 @@ export default function AddServiceScreen({ navigation, route }) {
   const [amount, setAmount] = useState("");
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
+  const [searching, setSearching] = useState(false);
 
   useEffect(() => {
     if (!preselectedCustomerId) {
@@ -40,24 +42,21 @@ export default function AddServiceScreen({ navigation, route }) {
   }, []);
 
   const fetchCustomers = async (search = "") => {
+    setSearching(true);
     try {
       const params = search ? `search=${search}` : "";
       const result = await customerAPI.getAll(params);
       setCustomers(result.customers);
     } catch (error) {
       console.error(error.message);
+    } finally {
+      setSearching(false);
     }
   };
 
   const handleSubmit = async () => {
     if (!selectedCustomer || !serviceType || !scheduledDate) {
       Alert.alert("Error", "Customer, service type, and date are required");
-      return;
-    }
-
-    // Basic date validation (YYYY-MM-DD)
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(scheduledDate)) {
-      Alert.alert("Error", "Date must be in YYYY-MM-DD format");
       return;
     }
 
@@ -95,23 +94,33 @@ export default function AddServiceScreen({ navigation, route }) {
           />
           {customerSearch.length > 2 && (
             <View style={styles.dropdown}>
-              {customers.map((c) => (
-                <TouchableOpacity
-                  key={c.id}
-                  style={[
-                    styles.dropdownItem,
-                    selectedCustomer === c.id && styles.dropdownItemActive,
-                  ]}
-                  onPress={() => {
-                    setSelectedCustomer(c.id);
-                    setCustomerSearch(c.name);
-                  }}
-                >
-                  <Text style={styles.dropdownText}>
-                    {c.name} - {c.phone}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+              {searching ? (
+                <ActivityIndicator
+                  size="small"
+                  color={COLORS.primary}
+                  style={{ padding: 12 }}
+                />
+              ) : customers.length === 0 ? (
+                <Text style={styles.dropdownEmpty}>No customers found</Text>
+              ) : (
+                customers.map((c) => (
+                  <TouchableOpacity
+                    key={c.id}
+                    style={[
+                      styles.dropdownItem,
+                      selectedCustomer === c.id && styles.dropdownItemActive,
+                    ]}
+                    onPress={() => {
+                      setSelectedCustomer(c.id);
+                      setCustomerSearch(c.name);
+                    }}
+                  >
+                    <Text style={styles.dropdownText}>
+                      {c.name} - {c.phone}
+                    </Text>
+                  </TouchableOpacity>
+                ))
+              )}
             </View>
           )}
         </>
@@ -142,12 +151,12 @@ export default function AddServiceScreen({ navigation, route }) {
       </View>
 
       {/* Date */}
-      <Text style={styles.label}>Scheduled Date * (YYYY-MM-DD)</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="2026-04-15"
+      <DatePickerField
+        label="Scheduled Date *"
         value={scheduledDate}
-        onChangeText={setScheduledDate}
+        onChange={setScheduledDate}
+        placeholder="Select scheduled date"
+        minDate={new Date()}
       />
 
       {/* Amount */}
@@ -225,6 +234,12 @@ const styles = StyleSheet.create({
   },
   dropdownText: {
     ...FONTS.regular,
+  },
+  dropdownEmpty: {
+    ...FONTS.regular,
+    color: COLORS.gray,
+    padding: 12,
+    textAlign: "center",
   },
   typeGrid: {
     flexDirection: "row",

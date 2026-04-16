@@ -6,6 +6,7 @@ import {
   StyleSheet,
   RefreshControl,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { dashboardAPI } from "../../services/api";
@@ -23,7 +24,7 @@ export default function DashboardScreen({ navigation }) {
       const result = await dashboardAPI.get();
       setData(result);
     } catch (error) {
-      console.error("Dashboard error:", error.message);
+      Alert.alert("Error", "Failed to load dashboard. Pull down to retry.");
     } finally {
       setLoading(false);
       setRefreshing(false);

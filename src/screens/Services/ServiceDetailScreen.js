@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { serviceAPI } from "../../services/api";
+import DatePickerField from "../../components/DatePickerField";
 import { COLORS, FONTS, SIZES } from "../../constants/theme";
 
 const STATUS_COLORS = {
@@ -23,7 +24,7 @@ const STATUS_COLORS = {
   cancelled: COLORS.gray,
 };
 
-export default function ServiceDetailScreen({ route }) {
+export default function ServiceDetailScreen({ route, navigation }) {
   const { id } = route.params;
   const [service, setService] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -40,7 +41,7 @@ export default function ServiceDetailScreen({ route }) {
       const data = await serviceAPI.getById(id);
       setService(data);
     } catch (error) {
-      console.error(error.message);
+      Alert.alert("Error", "Failed to load service details");
     } finally {
       setLoading(false);
     }
@@ -53,14 +54,6 @@ export default function ServiceDetailScreen({ route }) {
   );
 
   const handleMarkCompleted = async () => {
-    if (
-      completeForm.next_due_date &&
-      !/^\d{4}-\d{2}-\d{2}$/.test(completeForm.next_due_date)
-    ) {
-      Alert.alert("Error", "Next due date must be YYYY-MM-DD format");
-      return;
-    }
-
     setSubmitting(true);
     try {
       await serviceAPI.markCompleted(id, {
@@ -71,9 +64,22 @@ export default function ServiceDetailScreen({ route }) {
         parts_replaced: service.parts_replaced || [],
         notes: completeForm.notes || service.notes,
       });
-      Alert.alert("Success", "Service marked as completed");
       setShowComplete(false);
       fetchService();
+      Alert.alert("Success", "Service marked as completed", [
+        { text: "OK" },
+        {
+          text: "Generate Bill",
+          onPress: () =>
+            navigation.navigate("Bills", {
+              screen: "CreateBill",
+              params: {
+                customerId: service.customer_id,
+                serviceId: id,
+              },
+            }),
+        },
+      ]);
     } catch (error) {
       Alert.alert("Error", error.message);
     }
@@ -213,18 +219,37 @@ export default function ServiceDetailScreen({ route }) {
         </View>
       )}
 
+      {service.status === "completed" && (
+        <View style={styles.actionSection}>
+          <TouchableOpacity
+            style={[styles.actionBtn, { backgroundColor: COLORS.primary }]}
+            onPress={() =>
+              navigation.navigate("Bills", {
+                screen: "CreateBill",
+                params: {
+                  customerId: service.customer_id,
+                  serviceId: service.id,
+                },
+              })
+            }
+          >
+            <Text style={styles.actionBtnText}>Generate Bill</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {showComplete && (
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Complete Service</Text>
 
-          <Text style={styles.label}>Next Due Date (YYYY-MM-DD)</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g. 2026-07-23 (leave blank if none)"
+          <DatePickerField
+            label="Next Due Date (optional)"
             value={completeForm.next_due_date}
-            onChangeText={(value) =>
+            onChange={(value) =>
               setCompleteForm({ ...completeForm, next_due_date: value })
             }
+            placeholder="Select next due date (leave blank if none)"
+            minDate={new Date()}
           />
 
           <Text style={styles.label}>Amount (Rs)</Text>

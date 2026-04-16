@@ -24,18 +24,22 @@ export default function CreateBillScreen({ route, navigation }) {
   ]);
   const [tax, setTax] = useState("0");
   const [loading, setLoading] = useState(false);
+  const [searching, setSearching] = useState(false);
 
   useEffect(() => {
     if (!preCustomerId) fetchCustomers();
   }, []);
 
   const fetchCustomers = async (search = "") => {
+    setSearching(true);
     try {
       const params = search ? `search=${search}` : "";
       const result = await customerAPI.getAll(params);
       setCustomers(result.customers);
     } catch (error) {
       console.error(error.message);
+    } finally {
+      setSearching(false);
     }
   };
 
@@ -118,21 +122,31 @@ export default function CreateBillScreen({ route, navigation }) {
           />
           {customerSearch.length > 2 && (
             <View style={styles.dropdown}>
-              {customers.map((c) => (
-                <TouchableOpacity
-                  key={c.id}
-                  style={[
-                    styles.dropdownItem,
-                    selectedCustomer === c.id && styles.dropdownItemActive,
-                  ]}
-                  onPress={() => {
-                    setSelectedCustomer(c.id);
-                    setCustomerSearch(c.name);
-                  }}
-                >
-                  <Text>{c.name} - {c.phone}</Text>
-                </TouchableOpacity>
-              ))}
+              {searching ? (
+                <ActivityIndicator
+                  size="small"
+                  color={COLORS.primary}
+                  style={{ padding: 12 }}
+                />
+              ) : customers.length === 0 ? (
+                <Text style={styles.dropdownEmpty}>No customers found</Text>
+              ) : (
+                customers.map((c) => (
+                  <TouchableOpacity
+                    key={c.id}
+                    style={[
+                      styles.dropdownItem,
+                      selectedCustomer === c.id && styles.dropdownItemActive,
+                    ]}
+                    onPress={() => {
+                      setSelectedCustomer(c.id);
+                      setCustomerSearch(c.name);
+                    }}
+                  >
+                    <Text>{c.name} - {c.phone}</Text>
+                  </TouchableOpacity>
+                ))
+              )}
             </View>
           )}
         </>
@@ -255,6 +269,12 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.grayLight,
   },
   dropdownItemActive: { backgroundColor: COLORS.primaryLight },
+  dropdownEmpty: {
+    ...FONTS.regular,
+    color: COLORS.gray,
+    padding: 12,
+    textAlign: "center",
+  },
   itemCard: {
     backgroundColor: COLORS.white,
     borderRadius: 8,

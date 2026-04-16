@@ -18,17 +18,22 @@ export default function SettingsScreen() {
   }, []);
 
   const fetchProfile = async () => {
-    const {
-      data: { user: authUser },
-    } = await supabase.auth.getUser();
+    try {
+      const {
+        data: { user: authUser },
+      } = await supabase.auth.getUser();
 
-    if (authUser) {
-      const { data } = await supabase
-        .from("users")
-        .select("*, tenants(*)")
-        .eq("id", authUser.id)
-        .single();
-      setUser(data);
+      if (authUser) {
+        const { data, error } = await supabase
+          .from("users")
+          .select("*, tenants(*)")
+          .eq("id", authUser.id)
+          .single();
+        if (error) throw error;
+        setUser(data);
+      }
+    } catch (error) {
+      Alert.alert("Error", "Failed to load profile");
     }
   };
 

@@ -23,7 +23,7 @@ export default function BillDetailScreen({ route, navigation }) {
       const data = await billAPI.getById(id);
       setBill(data);
     } catch (error) {
-      console.error(error.message);
+      Alert.alert("Error", "Failed to load bill details");
     } finally {
       setLoading(false);
     }

@@ -22,14 +22,24 @@ export default function CustomerDetailScreen({ route, navigation }) {
 
   const fetchData = async () => {
     try {
-      const [cust, svc] = await Promise.all([
+      const [custResult, svcResult] = await Promise.allSettled([
         customerAPI.getById(id),
         serviceAPI.getAll(`customer_id=${id}`),
       ]);
-      setCustomer(cust);
-      setServices(svc.services);
+
+      if (custResult.status === "fulfilled") {
+        setCustomer(custResult.value);
+      } else {
+        Alert.alert("Error", "Failed to load customer info");
+      }
+
+      if (svcResult.status === "fulfilled") {
+        setServices(svcResult.value.services);
+      } else {
+        setServices([]);
+      }
     } catch (error) {
-      console.error(error.message);
+      Alert.alert("Error", "Failed to load customer details");
     } finally {
       setLoading(false);
     }

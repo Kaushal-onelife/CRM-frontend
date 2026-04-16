@@ -10,6 +10,7 @@ import {
   Platform,
   ActivityIndicator,
 } from "react-native";
+import { authAPI } from "../../services/api";
 import { supabase } from "../../services/supabase";
 import { COLORS, FONTS, SIZES } from "../../constants/theme";
 
@@ -25,15 +26,21 @@ export default function LoginScreen({ navigation }) {
     }
 
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    setLoading(false);
+    try {
+      // Call backend login - returns token + user profile
+      const data = await authAPI.login({ email, password });
 
-    if (error) {
+      // Set the session in Supabase so auth state listener picks it up
+      const { error } = await supabase.auth.setSession({
+        access_token: data.token,
+        refresh_token: data.refresh_token,
+      });
+
+      if (error) throw error;
+    } catch (error) {
       Alert.alert("Login Failed", error.message);
     }
+    setLoading(false);
   };
 
   return (

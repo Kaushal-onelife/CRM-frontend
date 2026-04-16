@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Alert,
+  RefreshControl,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { billAPI } from "../../services/api";
@@ -17,16 +19,33 @@ export default function BillListScreen({ navigation }) {
   const [bills, setBills] = useState([]);
   const [activeFilter, setActiveFilter] = useState("all");
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  const fetchBills = async (filter = "all") => {
+  const fetchBills = async (filter = "all", pageNum = 1, append = false) => {
+    if (append) setLoadingMore(true);
     try {
-      const params = filter !== "all" ? `payment_status=${filter}` : "";
-      const result = await billAPI.getAll(params);
-      setBills(result.bills);
+      const params = new URLSearchParams({ page: pageNum, limit: 20 });
+      if (filter !== "all") params.set("payment_status", filter);
+      const result = await billAPI.getAll(params.toString());
+      const newData = result.bills;
+      setBills(append ? (prev) => [...prev, ...newData] : newData);
+      setPage(pageNum);
+      setHasMore(newData.length >= 20);
     } catch (error) {
-      console.error(error.message);
+      Alert.alert("Error", "Failed to load bills");
     } finally {
       setLoading(false);
+      setRefreshing(false);
+      setLoadingMore(false);
+    }
+  };
+
+  const handleLoadMore = () => {
+    if (!loadingMore && hasMore && !loading) {
+      fetchBills(activeFilter, page + 1, true);
     }
   };
 
@@ -94,6 +113,8 @@ export default function BillListScreen({ navigation }) {
             onPress={() => {
               setActiveFilter(filter);
               setLoading(true);
+              setPage(1);
+              setHasMore(true);
             }}
           >
             <Text
@@ -123,8 +144,35 @@ export default function BillListScreen({ navigation }) {
             <Text style={styles.emptyText}>No bills found</Text>
           }
           contentContainerStyle={{ paddingBottom: 80 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => {
+                setRefreshing(true);
+                fetchBills(activeFilter, 1);
+              }}
+            />
+          }
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={
+            loadingMore ? (
+              <ActivityIndicator
+                size="small"
+                color={COLORS.primary}
+                style={{ paddingVertical: 16 }}
+              />
+            ) : null
+          }
         />
       )}
+
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => navigation.navigate("CreateBill")}
+      >
+        <Text style={styles.fabText}>+</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -206,5 +254,27 @@ const styles = StyleSheet.create({
     color: COLORS.gray,
     textAlign: "center",
     marginTop: 40,
+  },
+  fab: {
+    position: "absolute",
+    right: 20,
+    bottom: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: COLORS.primary,
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+  fabText: {
+    color: COLORS.white,
+    fontSize: 28,
+    fontWeight: "300",
+    marginTop: -2,
   },
 });
