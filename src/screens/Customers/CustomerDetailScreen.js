@@ -132,6 +132,18 @@ export default function CustomerDetailScreen({ route, navigation }) {
             <Text style={styles.actionIcon}>🔧</Text>
             <Text style={styles.actionLabel}>New Service</Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={() =>
+              navigation.navigate("AMC", {
+                screen: "CreateAMC",
+                params: { customerId: id },
+              })
+            }
+          >
+            <Text style={styles.actionIcon}>📋</Text>
+            <Text style={styles.actionLabel}>New AMC</Text>
+          </TouchableOpacity>
         </View>
       </View>
 

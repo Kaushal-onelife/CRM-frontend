@@ -92,3 +92,28 @@ export const billAPI = {
       body: JSON.stringify(body),
     }),
 };
+
+// AMC Contracts
+export const amcAPI = {
+  getAll: (params = "") => apiCall(`/amc?${params}`),
+  getById: (id) => apiCall(`/amc/${id}`),
+  create: (body) =>
+    apiCall("/amc", { method: "POST", body: JSON.stringify(body) }),
+  update: (id, body) =>
+    apiCall(`/amc/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+  checkExpired: () => apiCall("/amc/check-expired", { method: "POST" }),
+};
+
+// Parts Inventory
+export const inventoryAPI = {
+  getAll: (params = "") => apiCall(`/inventory?${params}`),
+  getById: (id) => apiCall(`/inventory/${id}`),
+  create: (body) =>
+    apiCall("/inventory", { method: "POST", body: JSON.stringify(body) }),
+  update: (id, body) =>
+    apiCall(`/inventory/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  delete: (id) => apiCall(`/inventory/${id}`, { method: "DELETE" }),
+};

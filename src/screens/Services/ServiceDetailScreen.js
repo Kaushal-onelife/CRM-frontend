@@ -9,10 +9,12 @@ import {
   Alert,
   ActivityIndicator,
   Linking,
+  Image,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { serviceAPI } from "../../services/api";
 import DatePickerField from "../../components/DatePickerField";
+import PhotoPicker from "../../components/PhotoPicker";
 import { COLORS, FONTS, SIZES } from "../../constants/theme";
 
 const STATUS_COLORS = {
@@ -34,6 +36,7 @@ export default function ServiceDetailScreen({ route, navigation }) {
     amount: "",
     notes: "",
   });
+  const [photos, setPhotos] = useState([]);
   const [submitting, setSubmitting] = useState(false);
 
   const fetchService = async () => {
@@ -141,6 +144,28 @@ export default function ServiceDetailScreen({ route, navigation }) {
               <Text style={styles.detailValue}>{item.value}</Text>
             </View>
           ))}
+
+        {/* Show photos if any */}
+        {service.photos && service.photos.length > 0 && (
+          <View style={{ marginTop: 12 }}>
+            <Text style={styles.detailLabel}>Service Photos</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
+              {service.photos.map((photo, idx) => (
+                <View key={idx} style={{ marginRight: 8 }}>
+                  <Image
+                    source={{ uri: photo.uri }}
+                    style={{ width: 100, height: 100, borderRadius: 8 }}
+                  />
+                  {photo.label && (
+                    <Text style={{ ...FONTS.small, textAlign: "center", marginTop: 4 }}>
+                      {photo.label}
+                    </Text>
+                  )}
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        )}
       </View>
 
       {service.customers && (
@@ -169,6 +194,23 @@ export default function ServiceDetailScreen({ route, navigation }) {
               }}
             >
               <Text style={styles.contactBtnText}>WhatsApp</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.contactBtn, { backgroundColor: COLORS.secondary + "20" }]}
+              onPress={() => {
+                const phone = service.customers.phone.replace(/\D/g, "");
+                const number = phone.startsWith("91") ? phone : `91${phone}`;
+                const type = service.service_type.replace(/_/g, " ");
+                const date = service.scheduled_date;
+                const msg = encodeURIComponent(
+                  `Hi ${service.customers.name}, this is a reminder for your upcoming *${type}* service scheduled on *${date}*.\n\nPlease confirm if the timing works for you. Thank you!`
+                );
+                Linking.openURL(`whatsapp://send?phone=${number}&text=${msg}`);
+              }}
+            >
+              <Text style={[styles.contactBtnText, { color: COLORS.secondary }]}>
+                Send Reminder
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -273,6 +315,9 @@ export default function ServiceDetailScreen({ route, navigation }) {
             }
             multiline
           />
+
+          <Text style={styles.label}>Service Photos (Before/After)</Text>
+          <PhotoPicker photos={photos} onChange={setPhotos} maxPhotos={4} />
 
           <TouchableOpacity
             style={[

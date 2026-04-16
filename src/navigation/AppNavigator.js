@@ -18,11 +18,17 @@ import ServiceDetailScreen from "../screens/Services/ServiceDetailScreen";
 import BillListScreen from "../screens/Bills/BillListScreen";
 import BillDetailScreen from "../screens/Bills/BillDetailScreen";
 import CreateBillScreen from "../screens/Bills/CreateBillScreen";
+import AMCListScreen from "../screens/AMC/AMCListScreen";
+import AMCDetailScreen from "../screens/AMC/AMCDetailScreen";
+import CreateAMCScreen from "../screens/AMC/CreateAMCScreen";
+import InventoryScreen from "../screens/Inventory/InventoryScreen";
 import SettingsScreen from "../screens/Settings/SettingsScreen";
 
 const Tab = createBottomTabNavigator();
 const CustomerStack = createNativeStackNavigator();
+const SettingsStack = createNativeStackNavigator();
 const ServiceStack = createNativeStackNavigator();
+const AMCStack = createNativeStackNavigator();
 const BillStack = createNativeStackNavigator();
 
 function CustomerNavigator() {
@@ -79,6 +85,28 @@ function ServiceNavigator() {
   );
 }
 
+function AMCNavigator() {
+  return (
+    <AMCStack.Navigator>
+      <AMCStack.Screen
+        name="AMCList"
+        component={AMCListScreen}
+        options={{ title: "AMC Contracts" }}
+      />
+      <AMCStack.Screen
+        name="AMCDetail"
+        component={AMCDetailScreen}
+        options={{ title: "AMC Details" }}
+      />
+      <AMCStack.Screen
+        name="CreateAMC"
+        component={CreateAMCScreen}
+        options={{ title: "New AMC Contract" }}
+      />
+    </AMCStack.Navigator>
+  );
+}
+
 function BillNavigator() {
   return (
     <BillStack.Navigator>
@@ -101,10 +129,28 @@ function BillNavigator() {
   );
 }
 
+function SettingsNavigator() {
+  return (
+    <SettingsStack.Navigator>
+      <SettingsStack.Screen
+        name="SettingsMain"
+        component={SettingsScreen}
+        options={{ title: "Settings" }}
+      />
+      <SettingsStack.Screen
+        name="Inventory"
+        component={InventoryScreen}
+        options={{ title: "Parts Inventory" }}
+      />
+    </SettingsStack.Navigator>
+  );
+}
+
 const TAB_ICONS = {
   Dashboard: { active: "view-dashboard", inactive: "view-dashboard-outline" },
   Customers: { active: "account-group", inactive: "account-group-outline" },
   Services: { active: "wrench", inactive: "wrench-outline" },
+  AMC: { active: "file-document-check", inactive: "file-document-check-outline" },
   Bills: { active: "receipt", inactive: "text-box-outline" },
   Settings: { active: "cog", inactive: "cog-outline" },
 };
@@ -181,16 +227,19 @@ export default function AppNavigator() {
         options={{ tabBarLabel: "Services" }}
       />
       <Tab.Screen
+        name="AMC"
+        component={AMCNavigator}
+        options={{ tabBarLabel: "AMC" }}
+      />
+      <Tab.Screen
         name="Bills"
         component={BillNavigator}
         options={{ tabBarLabel: "Bills" }}
       />
       <Tab.Screen
         name="Settings"
-        component={SettingsScreen}
+        component={SettingsNavigator}
         options={{
-          headerShown: true,
-          headerTitle: "Settings",
           tabBarLabel: "Settings",
         }}
       />

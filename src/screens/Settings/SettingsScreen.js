@@ -10,7 +10,7 @@ import {
 import { supabase } from "../../services/supabase";
 import { COLORS, FONTS, SIZES } from "../../constants/theme";
 
-export default function SettingsScreen() {
+export default function SettingsScreen({ navigation }) {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
@@ -87,6 +87,16 @@ export default function SettingsScreen() {
       )}
 
       <View style={styles.card}>
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => navigation.navigate("Inventory")}
+        >
+          <View>
+            <Text style={styles.menuLabel}>Parts Inventory</Text>
+            <Text style={styles.menuSubtitle}>Manage stock of filters and parts</Text>
+          </View>
+          <Text style={styles.arrow}>{">"}</Text>
+        </TouchableOpacity>
         {[
           { label: "About", subtitle: "Water Purifier CRM v1.0.0" },
           { label: "Help & Support", subtitle: "Get help with the app" },

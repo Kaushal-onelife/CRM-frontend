@@ -3,6 +3,7 @@ import {
   View,
   Text,
   ScrollView,
+  TouchableOpacity,
   StyleSheet,
   RefreshControl,
   ActivityIndicator,
@@ -93,6 +94,16 @@ export default function DashboardScreen({ navigation }) {
           value={`Rs ${stats.total_unpaid || 0}`}
           color={COLORS.danger}
         />
+        <StatCard
+          title="Active AMCs"
+          value={stats.active_amc || 0}
+          color={COLORS.primary}
+        />
+        <StatCard
+          title="AMC Expiring Soon"
+          value={stats.expiring_amc || 0}
+          color={COLORS.warning}
+        />
       </View>
 
       <Text style={styles.sectionTitle}>Today's Services</Text>
@@ -151,6 +162,34 @@ export default function DashboardScreen({ navigation }) {
         </>
       )}
 
+      {(data?.expiring_amc_contracts || []).length > 0 && (
+        <>
+          <Text style={[styles.sectionTitle, { color: COLORS.warning }]}>
+            AMC Expiring Soon
+          </Text>
+          {data.expiring_amc_contracts.map((contract) => (
+            <TouchableOpacity
+              key={contract.id}
+              style={styles.amcCard}
+              onPress={() =>
+                navigation.navigate("AMC", {
+                  screen: "AMCDetail",
+                  params: { id: contract.id },
+                })
+              }
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={styles.amcCustomer}>{contract.customers?.name}</Text>
+                <Text style={styles.amcPlan}>{contract.plan_name}</Text>
+              </View>
+              <Text style={styles.amcExpiry}>
+                Expires {contract.end_date}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </>
+      )}
+
       <View style={{ height: 30 }} />
     </ScrollView>
   );
@@ -189,4 +228,18 @@ const styles = StyleSheet.create({
     textAlign: "center",
     paddingVertical: 20,
   },
+  amcCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.white,
+    borderRadius: SIZES.radius,
+    padding: SIZES.padding,
+    marginBottom: 8,
+    elevation: 1,
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.warning,
+  },
+  amcCustomer: { ...FONTS.bold, fontSize: 14 },
+  amcPlan: { ...FONTS.small, color: COLORS.gray, marginTop: 2 },
+  amcExpiry: { ...FONTS.small, color: COLORS.warning, fontWeight: "600" },
 });
