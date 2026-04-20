@@ -14,6 +14,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { serviceAPI } from "../../services/api";
 import { COLORS, FONTS, SIZES } from "../../constants/theme";
 import ServiceHistoryModal from "../../components/ServiceHistoryModal";
+import DatePickerField from "../../components/DatePickerField";
 
 const NEXT_DUE_OPTIONS = [
   { label: "1 Month", months: 1 },
@@ -103,11 +104,9 @@ export default function CompleteServiceScreen({ route, navigation }) {
   };
 
   const handleComplete = async () => {
-    if (selectedDueOption?.months === null && customDueDate) {
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(customDueDate)) {
-        Alert.alert("Invalid Date", "Please use YYYY-MM-DD format.");
-        return;
-      }
+    if (selectedDueOption?.months === null && !customDueDate) {
+      Alert.alert("Missing Date", "Please pick a custom due date.");
+      return;
     }
     setSubmitting(true);
     try {
@@ -294,12 +293,12 @@ export default function CompleteServiceScreen({ route, navigation }) {
 
         {selectedDueOption?.months === null && (
           <>
-            <Text style={styles.label}>Custom Date (YYYY-MM-DD)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="2026-09-27"
+            <Text style={styles.label}>Custom Date</Text>
+            <DatePickerField
               value={customDueDate}
-              onChangeText={setCustomDueDate}
+              onChange={setCustomDueDate}
+              placeholder="Pick a custom date"
+              minimumDate={new Date()}
             />
           </>
         )}

@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { customerAPI, serviceAPI } from "../../services/api";
 import { COLORS, FONTS, SIZES } from "../../constants/theme";
+import DatePickerField from "../../components/DatePickerField";
 
 const SERVICE_TYPES = [
   "installation",
@@ -52,12 +53,6 @@ export default function AddServiceScreen({ navigation, route }) {
   const handleSubmit = async () => {
     if (!selectedCustomer || !serviceType || !scheduledDate) {
       Alert.alert("Error", "Customer, service type, and date are required");
-      return;
-    }
-
-    // Basic date validation (YYYY-MM-DD)
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(scheduledDate)) {
-      Alert.alert("Error", "Date must be in YYYY-MM-DD format");
       return;
     }
 
@@ -142,12 +137,11 @@ export default function AddServiceScreen({ navigation, route }) {
       </View>
 
       {/* Date */}
-      <Text style={styles.label}>Scheduled Date * (YYYY-MM-DD)</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="2026-04-15"
+      <Text style={styles.label}>Scheduled Date *</Text>
+      <DatePickerField
         value={scheduledDate}
-        onChangeText={setScheduledDate}
+        onChange={setScheduledDate}
+        placeholder="Pick a date"
       />
 
       {/* Amount */}
