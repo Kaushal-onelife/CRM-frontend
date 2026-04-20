@@ -27,9 +27,9 @@ export default function CustomerDetailScreen({ route, navigation }) {
         serviceAPI.getAll(`customer_id=${id}`),
       ]);
       setCustomer(cust);
-      setServices(svc.services);
+      setServices(svc.services || []);
     } catch (error) {
-      console.error(error.message);
+      Alert.alert("Error", error.message || "Failed to load customer");
     } finally {
       setLoading(false);
     }

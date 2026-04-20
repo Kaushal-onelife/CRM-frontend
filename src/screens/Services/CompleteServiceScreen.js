@@ -34,7 +34,7 @@ function addMonths(dateStr, months) {
 }
 
 export default function CompleteServiceScreen({ route, navigation }) {
-  const { id: serviceId } = route.params;
+  const serviceId = route.params?.id;
   const [service, setService] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -63,6 +63,11 @@ export default function CompleteServiceScreen({ route, navigation }) {
 
   useFocusEffect(
     useCallback(() => {
+      if (!serviceId) {
+        Alert.alert("Error", "Missing service ID");
+        navigation.goBack();
+        return;
+      }
       fetchService();
     }, [serviceId])
   );
@@ -98,6 +103,12 @@ export default function CompleteServiceScreen({ route, navigation }) {
   };
 
   const handleComplete = async () => {
+    if (selectedDueOption?.months === null && customDueDate) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(customDueDate)) {
+        Alert.alert("Invalid Date", "Please use YYYY-MM-DD format.");
+        return;
+      }
+    }
     setSubmitting(true);
     try {
       const nextDueDate = getNextDueDate();

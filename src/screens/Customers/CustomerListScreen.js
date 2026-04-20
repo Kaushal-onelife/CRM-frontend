@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { customerAPI } from "../../services/api";
@@ -16,16 +18,19 @@ export default function CustomerListScreen({ navigation }) {
   const [customers, setCustomers] = useState([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [searching, setSearching] = useState(false);
 
   const fetchCustomers = async (searchText = "") => {
+    if (searchText) setSearching(true);
     try {
       const params = searchText ? `search=${searchText}` : "";
       const result = await customerAPI.getAll(params);
-      setCustomers(result.customers);
+      setCustomers(result.customers || []);
     } catch (error) {
       console.error(error.message);
     } finally {
       setLoading(false);
+      setSearching(false);
     }
   };
 
@@ -64,13 +69,25 @@ export default function CustomerListScreen({ navigation }) {
   );
 
   return (
-    <View style={styles.container}>
-      <TextInput
-        style={styles.searchInput}
-        placeholder="Search by name or phone..."
-        value={search}
-        onChangeText={handleSearch}
-      />
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <View style={styles.searchWrap}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search by name or phone..."
+          value={search}
+          onChangeText={handleSearch}
+        />
+        {searching && (
+          <ActivityIndicator
+            size="small"
+            color={COLORS.primary}
+            style={styles.searchSpinner}
+          />
+        )}
+      </View>
 
       {loading ? (
         <ActivityIndicator
@@ -87,16 +104,18 @@ export default function CustomerListScreen({ navigation }) {
             <Text style={styles.emptyText}>No customers found</Text>
           }
           contentContainerStyle={{ paddingBottom: 80 }}
+          keyboardShouldPersistTaps="handled"
         />
       )}
 
       <TouchableOpacity
         style={styles.fab}
         onPress={() => navigation.navigate("AddCustomer")}
+        accessibilityLabel="Add customer"
       >
         <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -106,14 +125,22 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
     padding: SIZES.padding,
   },
+  searchWrap: {
+    justifyContent: "center",
+    marginBottom: 12,
+  },
   searchInput: {
     backgroundColor: COLORS.white,
     borderRadius: 8,
     padding: 12,
+    paddingRight: 40,
     fontSize: 14,
     borderWidth: 1,
     borderColor: COLORS.grayBorder,
-    marginBottom: 12,
+  },
+  searchSpinner: {
+    position: "absolute",
+    right: 12,
   },
   card: {
     flexDirection: "row",

@@ -116,24 +116,32 @@ export default function CreateBillScreen({ route, navigation }) {
               if (text.length > 2) fetchCustomers(text);
             }}
           />
-          {customerSearch.length > 2 && (
+          {customerSearch.length > 2 ? (
             <View style={styles.dropdown}>
-              {customers.map((c) => (
-                <TouchableOpacity
-                  key={c.id}
-                  style={[
-                    styles.dropdownItem,
-                    selectedCustomer === c.id && styles.dropdownItemActive,
-                  ]}
-                  onPress={() => {
-                    setSelectedCustomer(c.id);
-                    setCustomerSearch(c.name);
-                  }}
-                >
-                  <Text>{c.name} - {c.phone}</Text>
-                </TouchableOpacity>
-              ))}
+              {customers.length === 0 ? (
+                <Text style={styles.dropdownEmpty}>No customers found</Text>
+              ) : (
+                customers.map((c) => (
+                  <TouchableOpacity
+                    key={c.id}
+                    style={[
+                      styles.dropdownItem,
+                      selectedCustomer === c.id && styles.dropdownItemActive,
+                    ]}
+                    onPress={() => {
+                      setSelectedCustomer(c.id);
+                      setCustomerSearch(c.name);
+                    }}
+                  >
+                    <Text>{c.name} - {c.phone}</Text>
+                  </TouchableOpacity>
+                ))
+              )}
             </View>
+          ) : (
+            <Text style={styles.dropdownHint}>
+              Type at least 3 characters to search
+            </Text>
           )}
         </>
       )}
@@ -255,6 +263,18 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.grayLight,
   },
   dropdownItemActive: { backgroundColor: COLORS.primaryLight },
+  dropdownEmpty: {
+    padding: 12,
+    color: COLORS.gray,
+    fontSize: 13,
+    textAlign: "center",
+  },
+  dropdownHint: {
+    ...FONTS.small,
+    color: COLORS.gray,
+    marginTop: 6,
+    fontStyle: "italic",
+  },
   itemCard: {
     backgroundColor: COLORS.white,
     borderRadius: 8,

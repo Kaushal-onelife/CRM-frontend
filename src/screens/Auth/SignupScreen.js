@@ -37,8 +37,11 @@ export default function SignupScreen({ navigation }) {
     try {
       await authAPI.signup(form);
 
-      // Auto login after signup
-      await supabase.auth.signInWithPassword({ email, password });
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) throw error;
     } catch (error) {
       Alert.alert("Signup Failed", error.message);
     }
