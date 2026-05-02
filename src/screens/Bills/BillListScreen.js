@@ -30,7 +30,7 @@ export default function BillListScreen({ navigation }) {
       const params = new URLSearchParams({ page: pageNum, limit: 20 });
       if (filter !== "all") params.set("payment_status", filter);
       const result = await billAPI.getAll(params.toString());
-      const newData = result.bills;
+      const newData = result.bills || [];
       setBills(append ? (prev) => [...prev, ...newData] : newData);
       setPage(pageNum);
       setHasMore(newData.length >= 20);
@@ -170,6 +170,7 @@ export default function BillListScreen({ navigation }) {
       <TouchableOpacity
         style={styles.fab}
         onPress={() => navigation.navigate("CreateBill")}
+        activeOpacity={0.85}
       >
         <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>

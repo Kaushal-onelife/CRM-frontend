@@ -35,9 +35,10 @@ export default function CreateBillScreen({ route, navigation }) {
     try {
       const params = search ? `search=${search}` : "";
       const result = await customerAPI.getAll(params);
-      setCustomers(result.customers);
+      setCustomers(result.customers || []);
     } catch (error) {
       console.error(error.message);
+      setCustomers([]);
     } finally {
       setSearching(false);
     }

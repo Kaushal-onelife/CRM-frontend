@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -18,12 +18,16 @@ export default function BillDetailScreen({ route, navigation }) {
   const [bill, setBill] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const [error, setError] = useState(null);
+
   const fetchBill = async () => {
     try {
       const data = await billAPI.getById(id);
       setBill(data);
-    } catch (error) {
-      Alert.alert("Error", "Failed to load bill details");
+      setError(null);
+    } catch (err) {
+      console.error(err.message);
+      setError(err.message || "Failed to load bill");
     } finally {
       setLoading(false);
     }
@@ -85,8 +89,9 @@ ${bill.payment_method ? `Method: ${bill.payment_method}` : ""}
 
     try {
       await Share.share({ message });
-    } catch (error) {
-      console.error(error);
+    } catch (err) {
+      console.error(err);
+      Alert.alert("Couldn't share bill", err?.message || "Please try again.");
     }
   };
 
@@ -101,7 +106,19 @@ ${bill.payment_method ? `Method: ${bill.payment_method}` : ""}
   if (!bill) {
     return (
       <View style={styles.centered}>
-        <Text>Bill not found</Text>
+        <Text style={styles.errorTitle}>
+          {error ? "Couldn't load bill" : "Bill not found"}
+        </Text>
+        {error ? <Text style={styles.errorMsg}>{error}</Text> : null}
+        <TouchableOpacity
+          style={styles.retryBtn}
+          onPress={() => {
+            setLoading(true);
+            fetchBill();
+          }}
+        >
+          <Text style={styles.retryText}>Retry</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -302,4 +319,19 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   payMethodText: { color: COLORS.white, ...FONTS.bold, fontSize: 13 },
+  errorTitle: { ...FONTS.h3, color: COLORS.danger, marginBottom: 6 },
+  errorMsg: {
+    ...FONTS.regular,
+    color: COLORS.gray,
+    textAlign: "center",
+    paddingHorizontal: 24,
+  },
+  retryBtn: {
+    marginTop: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    backgroundColor: COLORS.primary,
+    borderRadius: 8,
+  },
+  retryText: { color: COLORS.white, ...FONTS.bold },
 });

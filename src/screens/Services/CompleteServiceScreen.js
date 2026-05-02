@@ -95,13 +95,18 @@ export default function CompleteServiceScreen({ route, navigation }) {
   const charge = parseFloat(serviceCharge) || 0;
   const totalAmount = charge + partsTotal;
 
-  // Compute next due date
+  // Compute next due date.
+  //   months === 0    -> "No Next Due"  -> null
+  //   months === null -> "Custom"       -> use customDueDate (or null until picked)
+  //   months > 0      -> N months from today
   const getNextDueDate = () => {
     if (!selectedDueOption) return null;
-    if (selectedDueOption.months === 0) return null;
-    if (selectedDueOption.months === null) return customDueDate || null;
-    return addMonths(new Date().toISOString().split("T")[0], selectedDueOption.months);
+    const { months } = selectedDueOption;
+    if (months === 0) return null;
+    if (months === null) return customDueDate || null;
+    return addMonths(new Date().toISOString().split("T")[0], months);
   };
+  const nextDuePreview = getNextDueDate();
 
   const handleComplete = async () => {
     if (selectedDueOption?.months === null && !customDueDate) {
@@ -110,7 +115,7 @@ export default function CompleteServiceScreen({ route, navigation }) {
     }
     setSubmitting(true);
     try {
-      const nextDueDate = getNextDueDate();
+      const nextDueDate = nextDuePreview;
 
       const result = await serviceAPI.markCompleted(serviceId, {
         notes,
@@ -303,10 +308,8 @@ export default function CompleteServiceScreen({ route, navigation }) {
           </>
         )}
 
-        {selectedDueOption && selectedDueOption.months !== 0 && selectedDueOption.months !== null && (
-          <Text style={styles.dueDatePreview}>
-            Next service: {addMonths(new Date().toISOString().split("T")[0], selectedDueOption.months)}
-          </Text>
+        {nextDuePreview && (
+          <Text style={styles.dueDatePreview}>Next service: {nextDuePreview}</Text>
         )}
       </View>
 

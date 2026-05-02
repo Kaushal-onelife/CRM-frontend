@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -18,42 +18,76 @@ export default function CustomerListScreen({ navigation }) {
   const [customers, setCustomers] = useState([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [searching, setSearching] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState(null);
+  const debounceRef = useRef(null);
+  const lastQueryRef = useRef("");
 
-  const fetchCustomers = async (searchText = "", pageNum = 1, append = false) => {
+  const fetchCustomers = async (
+    searchText = "",
+    pageNum = 1,
+    append = false
+  ) => {
+    lastQueryRef.current = searchText;
     if (append) setLoadingMore(true);
+    if (searchText && !append) setSearching(true);
     try {
       const params = new URLSearchParams({ page: pageNum, limit: 20 });
       if (searchText) params.set("search", searchText);
       const result = await customerAPI.getAll(params.toString());
-      const newData = result.customers;
+      // Drop stale search responses if the query changed mid-flight.
+      if (!append && lastQueryRef.current !== searchText) return;
+      const newData = result.customers || [];
       setCustomers(append ? (prev) => [...prev, ...newData] : newData);
       setPage(pageNum);
       setHasMore(newData.length >= 20);
-    } catch (error) {
-      Alert.alert("Error", "Failed to load customers");
+      setError(null);
+    } catch (err) {
+      if (!append && lastQueryRef.current !== searchText) return;
+      console.error(err.message);
+      setError(err.message || "Failed to load customers");
+      if (!append) setCustomers([]);
     } finally {
-      setLoading(false);
-      setRefreshing(false);
-      setLoadingMore(false);
+      if (append || lastQueryRef.current === searchText) {
+        setLoading(false);
+        setRefreshing(false);
+        setLoadingMore(false);
+        setSearching(false);
+      }
     }
   };
 
   useFocusEffect(
     useCallback(() => {
-      fetchCustomers();
+      fetchCustomers("", 1);
     }, [])
   );
 
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
+
   const handleSearch = (text) => {
     setSearch(text);
-    if (text.length > 2 || text.length === 0) {
-      setLoading(true);
-      fetchCustomers(text, 1);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    if (text.length === 0) {
+      // Reset immediately when cleared.
+      fetchCustomers("", 1);
+      return;
     }
+    if (text.length <= 2) return;
+
+    setSearching(true);
+    debounceRef.current = setTimeout(() => {
+      fetchCustomers(text, 1);
+    }, 300);
   };
 
   const handleLoadMore = () => {
@@ -104,7 +138,9 @@ export default function CustomerListScreen({ navigation }) {
           keyExtractor={(item) => item.id}
           renderItem={renderCustomer}
           ListEmptyComponent={
-            <Text style={styles.emptyText}>No customers found</Text>
+            <Text style={styles.emptyText}>
+              {error ? `Error: ${error}` : "No customers found"}
+            </Text>
           }
           contentContainerStyle={{ paddingBottom: 80 }}
           refreshControl={

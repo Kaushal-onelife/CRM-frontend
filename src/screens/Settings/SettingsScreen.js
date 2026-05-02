@@ -98,10 +98,30 @@ export default function SettingsScreen({ navigation }) {
           <Text style={styles.arrow}>{">"}</Text>
         </TouchableOpacity>
         {[
-          { label: "About", subtitle: "Water Purifier CRM v1.0.0" },
-          { label: "Help & Support", subtitle: "Get help with the app" },
+          {
+            label: "About",
+            subtitle: "Water Purifier CRM v1.0.0",
+            onPress: () =>
+              Alert.alert(
+                "About",
+                "Water Purifier CRM\nVersion 1.0.0\n\nA simple CRM to manage customers, services and bills."
+              ),
+          },
+          {
+            label: "Help & Support",
+            subtitle: "Get help with the app",
+            onPress: () =>
+              Alert.alert(
+                "Help & Support",
+                "For assistance, please contact:\n\nEmail: support@onelifecapital.in"
+              ),
+          },
         ].map((item) => (
-          <TouchableOpacity key={item.label} style={styles.menuItem}>
+          <TouchableOpacity
+            key={item.label}
+            style={styles.menuItem}
+            onPress={item.onPress}
+          >
             <View>
               <Text style={styles.menuLabel}>{item.label}</Text>
               <Text style={styles.menuSubtitle}>{item.subtitle}</Text>

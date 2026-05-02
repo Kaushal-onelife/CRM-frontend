@@ -12,19 +12,24 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { serviceAPI } from "../../services/api";
 import { COLORS, FONTS, SIZES } from "../../constants/theme";
 
+const safeNum = (n) => {
+  const v = Number(n);
+  return Number.isFinite(v) ? v : 0;
+};
+
 export default function ServiceSuccessScreen({ route, navigation }) {
+  const params = route.params || {};
   const {
     serviceId,
-    customerId,
     customerName,
     customerPhone,
-    totalAmount,
-    serviceCharge,
-    partsTotal,
     paymentStatus,
     paymentMethod,
     nextDueDate,
-  } = route.params;
+  } = params;
+  const serviceCharge = safeNum(params.serviceCharge);
+  const partsTotal = safeNum(params.partsTotal);
+  const totalAmount = safeNum(params.totalAmount);
 
   const [generatingBill, setGeneratingBill] = useState(false);
   const [billGenerated, setBillGenerated] = useState(false);
@@ -74,8 +79,11 @@ export default function ServiceSuccessScreen({ route, navigation }) {
     const number = phone?.startsWith("91") ? phone : `91${phone}`;
 
     const partsText = bill.items
-      ?.filter((item) => !item.description.startsWith("Service Charge"))
-      .map((item) => `  ${item.description} x${item.quantity} = ${item.total.toFixed(2)}`)
+      ?.filter((item) => !item.description?.startsWith("Service Charge"))
+      .map(
+        (item) =>
+          `  ${item.description} x${item.quantity} = ${safeNum(item.total).toFixed(2)}`
+      )
       .join("\n") || "";
 
     const message = [

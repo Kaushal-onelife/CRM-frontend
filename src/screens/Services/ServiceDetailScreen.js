@@ -4,7 +4,6 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  TextInput,
   StyleSheet,
   Alert,
   ActivityIndicator,
@@ -13,6 +12,7 @@ import {
 import { useFocusEffect } from "@react-navigation/native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { serviceAPI } from "../../services/api";
+import DatePickerField from "../../components/DatePickerField";
 import { COLORS, FONTS, SIZES } from "../../constants/theme";
 
 // Helper to determine display status for 'scheduled' services
@@ -38,12 +38,16 @@ export default function ServiceDetailScreen({ route, navigation }) {
   const [nextContactDate, setNextContactDate] = useState("");
   const [showFollowupForm, setShowFollowupForm] = useState(false);
 
+  const [error, setError] = useState(null);
+
   const fetchService = async () => {
     try {
       const data = await serviceAPI.getById(id);
       setService(data);
-    } catch (error) {
-      console.error(error.message);
+      setError(null);
+    } catch (err) {
+      console.error(err.message);
+      setError(err.message || "Failed to load service");
     } finally {
       setLoading(false);
     }
@@ -66,9 +70,7 @@ export default function ServiceDetailScreen({ route, navigation }) {
 
   const handleFollowup = async () => {
     const extra = {};
-    if (nextContactDate && /^\d{4}-\d{2}-\d{2}$/.test(nextContactDate)) {
-      extra.next_contact_date = nextContactDate;
-    }
+    if (nextContactDate) extra.next_contact_date = nextContactDate;
     await handleStatusChange("followup", extra);
     setShowFollowupForm(false);
     setNextContactDate("");
@@ -85,7 +87,19 @@ export default function ServiceDetailScreen({ route, navigation }) {
   if (!service) {
     return (
       <View style={styles.centered}>
-        <Text>Service not found</Text>
+        <Text style={styles.errorTitle}>
+          {error ? "Couldn't load service" : "Service not found"}
+        </Text>
+        {error ? <Text style={styles.errorMsg}>{error}</Text> : null}
+        <TouchableOpacity
+          style={styles.retryBtn}
+          onPress={() => {
+            setLoading(true);
+            fetchService();
+          }}
+        >
+          <Text style={styles.retryText}>Retry</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -211,12 +225,12 @@ export default function ServiceDetailScreen({ route, navigation }) {
 
               {showFollowupForm && (
                 <View style={styles.followupForm}>
-                  <Text style={styles.label}>Next Contact Date (optional, YYYY-MM-DD)</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="e.g. 2026-04-05"
+                  <Text style={styles.label}>Next Contact Date (optional)</Text>
+                  <DatePickerField
                     value={nextContactDate}
-                    onChangeText={setNextContactDate}
+                    onChange={setNextContactDate}
+                    placeholder="Pick a date"
+                    minimumDate={new Date()}
                   />
                   <TouchableOpacity
                     style={[styles.actionBtn, { backgroundColor: "#8B5CF6", marginTop: 10 }]}
@@ -319,12 +333,19 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   label: { ...FONTS.medium, marginBottom: 6 },
-  input: {
-    borderWidth: 1,
-    borderColor: COLORS.grayBorder,
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 14,
-    backgroundColor: COLORS.grayLight,
+  errorTitle: { ...FONTS.h3, color: COLORS.danger, marginBottom: 6 },
+  errorMsg: {
+    ...FONTS.regular,
+    color: COLORS.gray,
+    textAlign: "center",
+    paddingHorizontal: 24,
   },
+  retryBtn: {
+    marginTop: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    backgroundColor: COLORS.primary,
+    borderRadius: 8,
+  },
+  retryText: { color: COLORS.white, ...FONTS.bold },
 });

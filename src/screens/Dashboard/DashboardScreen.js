@@ -6,6 +6,7 @@ import {
   StyleSheet,
   RefreshControl,
   ActivityIndicator,
+  TouchableOpacity,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { dashboardAPI } from "../../services/api";
@@ -13,17 +14,30 @@ import StatCard from "../../components/StatCard";
 import ServiceCard from "../../components/ServiceCard";
 import { COLORS, FONTS, SIZES } from "../../constants/theme";
 
+const formatMoney = (n) => {
+  const num = Number(n);
+  return Number.isFinite(num) ? `₹${num.toLocaleString("en-IN")}` : "₹0";
+};
+
+const formatCount = (n) => {
+  const num = Number(n);
+  return Number.isFinite(num) ? String(num) : "0";
+};
+
 export default function DashboardScreen({ navigation }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
 
   const fetchDashboard = async () => {
     try {
       const result = await dashboardAPI.get();
       setData(result);
-    } catch (error) {
-      console.error("Dashboard error:", error.message);
+      setError(null);
+    } catch (err) {
+      console.error("Dashboard error:", err.message);
+      setError(err.message || "Failed to load dashboard");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -40,6 +54,24 @@ export default function DashboardScreen({ navigation }) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
+    );
+  }
+
+  if (error && !data) {
+    return (
+      <View style={styles.centered}>
+        <Text style={styles.errorTitle}>Couldn't load dashboard</Text>
+        <Text style={styles.errorMsg}>{error}</Text>
+        <TouchableOpacity
+          style={styles.retryBtn}
+          onPress={() => {
+            setLoading(true);
+            fetchDashboard();
+          }}
+        >
+          <Text style={styles.retryText}>Retry</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -65,37 +97,37 @@ export default function DashboardScreen({ navigation }) {
       <View style={styles.statsGrid}>
         <StatCard
           title="Total Customers"
-          value={stats.total_customers}
+          value={formatCount(stats.total_customers)}
           color={COLORS.primary}
         />
         <StatCard
           title="Pending Services"
-          value={stats.pending_services}
+          value={formatCount(stats.pending_services)}
           color={COLORS.warning}
         />
         <StatCard
           title="Completed (Month)"
-          value={stats.completed_this_month}
+          value={formatCount(stats.completed_this_month)}
           color={COLORS.secondary}
         />
         <StatCard
           title="Due"
-          value={stats.due_count}
+          value={formatCount(stats.due_count)}
           color="#F97316"
         />
         <StatCard
           title="Follow Up"
-          value={stats.followup_services}
+          value={formatCount(stats.followup_services)}
           color="#8B5CF6"
         />
         <StatCard
           title="Revenue (Month)"
-          value={`₹${stats.monthly_revenue}`}
+          value={formatMoney(stats.monthly_revenue)}
           color={COLORS.secondary}
         />
         <StatCard
           title="Unpaid Bills"
-          value={`₹${stats.total_unpaid}`}
+          value={formatMoney(stats.total_unpaid)}
           color={COLORS.danger}
         />
       </View>
@@ -197,4 +229,23 @@ const styles = StyleSheet.create({
     textAlign: "center",
     paddingVertical: 20,
   },
+  errorTitle: {
+    ...FONTS.h3,
+    color: COLORS.danger,
+    marginBottom: 8,
+  },
+  errorMsg: {
+    ...FONTS.regular,
+    color: COLORS.gray,
+    textAlign: "center",
+    paddingHorizontal: 24,
+  },
+  retryBtn: {
+    marginTop: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    backgroundColor: COLORS.primary,
+    borderRadius: 8,
+  },
+  retryText: { color: COLORS.white, ...FONTS.bold },
 });

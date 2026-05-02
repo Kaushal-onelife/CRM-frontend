@@ -26,9 +26,10 @@ export default function ServiceHistoryModal({ visible, onClose, customerId }) {
     setLoading(true);
     try {
       const result = await serviceAPI.getCustomerHistory(customerId);
-      setHistory(result.services);
+      setHistory(result.services || []);
     } catch (error) {
       console.error(error.message);
+      setHistory([]);
     } finally {
       setLoading(false);
     }
