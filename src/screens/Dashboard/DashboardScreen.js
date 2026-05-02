@@ -3,11 +3,9 @@ import {
   View,
   Text,
   ScrollView,
-  TouchableOpacity,
   StyleSheet,
   RefreshControl,
   ActivityIndicator,
-  Alert,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { dashboardAPI } from "../../services/api";
@@ -25,7 +23,7 @@ export default function DashboardScreen({ navigation }) {
       const result = await dashboardAPI.get();
       setData(result);
     } catch (error) {
-      Alert.alert("Error", "Failed to load dashboard. Pull down to retry.");
+      console.error("Dashboard error:", error.message);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -63,49 +61,46 @@ export default function DashboardScreen({ navigation }) {
     >
       <Text style={styles.greeting}>Dashboard</Text>
 
+      {/* Stats Grid */}
       <View style={styles.statsGrid}>
         <StatCard
           title="Total Customers"
-          value={stats.total_customers || 0}
+          value={stats.total_customers}
           color={COLORS.primary}
         />
         <StatCard
           title="Pending Services"
-          value={stats.pending_services || 0}
+          value={stats.pending_services}
           color={COLORS.warning}
         />
         <StatCard
           title="Completed (Month)"
-          value={stats.completed_this_month || 0}
+          value={stats.completed_this_month}
           color={COLORS.secondary}
         />
         <StatCard
-          title="Overdue"
-          value={stats.overdue_count || 0}
-          color={COLORS.danger}
+          title="Due"
+          value={stats.due_count}
+          color="#F97316"
+        />
+        <StatCard
+          title="Follow Up"
+          value={stats.followup_services}
+          color="#8B5CF6"
         />
         <StatCard
           title="Revenue (Month)"
-          value={`Rs ${stats.monthly_revenue || 0}`}
+          value={`₹${stats.monthly_revenue}`}
           color={COLORS.secondary}
         />
         <StatCard
           title="Unpaid Bills"
-          value={`Rs ${stats.total_unpaid || 0}`}
+          value={`₹${stats.total_unpaid}`}
           color={COLORS.danger}
-        />
-        <StatCard
-          title="Active AMCs"
-          value={stats.active_amc || 0}
-          color={COLORS.primary}
-        />
-        <StatCard
-          title="AMC Expiring Soon"
-          value={stats.expiring_amc || 0}
-          color={COLORS.warning}
         />
       </View>
 
+      {/* Today's Services */}
       <Text style={styles.sectionTitle}>Today's Services</Text>
       {(data?.today_services || []).length === 0 ? (
         <Text style={styles.emptyText}>No services scheduled for today</Text>
@@ -124,6 +119,7 @@ export default function DashboardScreen({ navigation }) {
         ))
       )}
 
+      {/* Upcoming Services */}
       <Text style={styles.sectionTitle}>Upcoming (7 days)</Text>
       {(data?.upcoming_services || []).length === 0 ? (
         <Text style={styles.emptyText}>No upcoming services</Text>
@@ -142,12 +138,13 @@ export default function DashboardScreen({ navigation }) {
         ))
       )}
 
-      {(data?.overdue_services || []).length > 0 && (
+      {/* Due Services */}
+      {(data?.due_services || []).length > 0 && (
         <>
-          <Text style={[styles.sectionTitle, { color: COLORS.danger }]}>
-            Overdue Services
+          <Text style={[styles.sectionTitle, { color: "#F97316" }]}>
+            Due Services
           </Text>
-          {data.overdue_services.map((service) => (
+          {data.due_services.map((service) => (
             <ServiceCard
               key={service.id}
               service={service}
@@ -158,34 +155,6 @@ export default function DashboardScreen({ navigation }) {
                 })
               }
             />
-          ))}
-        </>
-      )}
-
-      {(data?.expiring_amc_contracts || []).length > 0 && (
-        <>
-          <Text style={[styles.sectionTitle, { color: COLORS.warning }]}>
-            AMC Expiring Soon
-          </Text>
-          {data.expiring_amc_contracts.map((contract) => (
-            <TouchableOpacity
-              key={contract.id}
-              style={styles.amcCard}
-              onPress={() =>
-                navigation.navigate("AMC", {
-                  screen: "AMCDetail",
-                  params: { id: contract.id },
-                })
-              }
-            >
-              <View style={{ flex: 1 }}>
-                <Text style={styles.amcCustomer}>{contract.customers?.name}</Text>
-                <Text style={styles.amcPlan}>{contract.plan_name}</Text>
-              </View>
-              <Text style={styles.amcExpiry}>
-                Expires {contract.end_date}
-              </Text>
-            </TouchableOpacity>
           ))}
         </>
       )}
@@ -228,18 +197,4 @@ const styles = StyleSheet.create({
     textAlign: "center",
     paddingVertical: 20,
   },
-  amcCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: COLORS.white,
-    borderRadius: SIZES.radius,
-    padding: SIZES.padding,
-    marginBottom: 8,
-    elevation: 1,
-    borderLeftWidth: 3,
-    borderLeftColor: COLORS.warning,
-  },
-  amcCustomer: { ...FONTS.bold, fontSize: 14 },
-  amcPlan: { ...FONTS.small, color: COLORS.gray, marginTop: 2 },
-  amcExpiry: { ...FONTS.small, color: COLORS.warning, fontWeight: "600" },
 });

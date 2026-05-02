@@ -120,7 +120,7 @@ export default function CreateBillScreen({ route, navigation }) {
               if (text.length > 2) fetchCustomers(text);
             }}
           />
-          {customerSearch.length > 2 && (
+          {customerSearch.length > 2 ? (
             <View style={styles.dropdown}>
               {searching ? (
                 <ActivityIndicator
@@ -148,6 +148,10 @@ export default function CreateBillScreen({ route, navigation }) {
                 ))
               )}
             </View>
+          ) : (
+            <Text style={styles.dropdownHint}>
+              Type at least 3 characters to search
+            </Text>
           )}
         </>
       )}
@@ -274,6 +278,12 @@ const styles = StyleSheet.create({
     color: COLORS.gray,
     padding: 12,
     textAlign: "center",
+  },
+  dropdownHint: {
+    ...FONTS.small,
+    color: COLORS.gray,
+    marginTop: 6,
+    fontStyle: "italic",
   },
   itemCard: {
     backgroundColor: COLORS.white,

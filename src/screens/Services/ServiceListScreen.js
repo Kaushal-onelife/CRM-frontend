@@ -8,13 +8,42 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
+  ScrollView,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { serviceAPI } from "../../services/api";
 import ServiceCard from "../../components/ServiceCard";
 import { COLORS, FONTS, SIZES } from "../../constants/theme";
 
-const FILTERS = ["all", "upcoming", "pending", "completed", "rejected"];
+const FILTERS = [
+  "all",
+  "upcoming",
+  "due",
+  "pending",
+  "followup",
+  "completed",
+  "rejected",
+];
+
+const FILTER_COLORS = {
+  all: COLORS.primary,
+  upcoming: "#2563EB",
+  due: "#F97316",
+  pending: "#F59E0B",
+  followup: "#8B5CF6",
+  completed: "#10B981",
+  rejected: "#EF4444",
+};
+
+const FILTER_LABELS = {
+  all: "All",
+  upcoming: "Upcoming",
+  due: "Due",
+  pending: "Pending",
+  followup: "Follow Up",
+  completed: "Completed",
+  rejected: "Rejected",
+};
 
 export default function ServiceListScreen({ navigation }) {
   const [services, setServices] = useState([]);
@@ -31,7 +60,7 @@ export default function ServiceListScreen({ navigation }) {
       const params = new URLSearchParams({ page: pageNum, limit: 20 });
       if (filter !== "all") params.set("status", filter);
       const result = await serviceAPI.getAll(params.toString());
-      const newData = result.services;
+      const newData = result.services || [];
       setServices(append ? (prev) => [...prev, ...newData] : newData);
       setPage(pageNum);
       setHasMore(newData.length >= 20);
@@ -44,47 +73,56 @@ export default function ServiceListScreen({ navigation }) {
     }
   };
 
+  useFocusEffect(
+    useCallback(() => {
+      fetchServices(activeFilter, 1);
+    }, [activeFilter])
+  );
+
   const handleLoadMore = () => {
     if (!loadingMore && hasMore && !loading) {
       fetchServices(activeFilter, page + 1, true);
     }
   };
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchServices(activeFilter);
-    }, [activeFilter])
-  );
-
   return (
     <View style={styles.container}>
-      {/* Filter Tabs */}
-      <View style={styles.filters}>
-        {FILTERS.map((filter) => (
-          <TouchableOpacity
-            key={filter}
-            style={[
-              styles.filterTab,
-              activeFilter === filter && styles.filterTabActive,
-            ]}
-            onPress={() => {
-              setActiveFilter(filter);
-              setLoading(true);
-              setPage(1);
-              setHasMore(true);
-            }}
-          >
-            <Text
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.filtersScroll}
+        contentContainerStyle={styles.filters}
+      >
+        {FILTERS.map((filter) => {
+          const isActive = activeFilter === filter;
+          const filterColor = FILTER_COLORS[filter] || COLORS.primary;
+          return (
+            <TouchableOpacity
+              key={filter}
               style={[
-                styles.filterText,
-                activeFilter === filter && styles.filterTextActive,
+                styles.filterTab,
+                isActive && {
+                  backgroundColor: filterColor,
+                  borderColor: filterColor,
+                },
               ]}
+              onPress={() => {
+                setActiveFilter(filter);
+                setLoading(true);
+              }}
             >
-              {filter}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+              <Text
+                style={[
+                  styles.filterText,
+                  isActive && styles.filterTextActive,
+                ]}
+              >
+                {FILTER_LABELS[filter] || filter}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
 
       {loading ? (
         <ActivityIndicator
@@ -147,12 +185,16 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
     padding: SIZES.padding,
   },
-  filters: {
-    flexDirection: "row",
+  filtersScroll: {
+    maxHeight: 44,
     marginBottom: 12,
   },
+  filters: {
+    flexDirection: "row",
+    paddingRight: 16,
+  },
   filterTab: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 20,
     backgroundColor: COLORS.white,
@@ -160,13 +202,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.grayBorder,
   },
-  filterTabActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
   filterText: {
     ...FONTS.small,
-    textTransform: "capitalize",
+    fontSize: 13,
+    fontWeight: "500",
   },
   filterTextActive: {
     color: COLORS.white,

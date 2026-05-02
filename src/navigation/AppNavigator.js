@@ -15,6 +15,8 @@ import EditCustomerScreen from "../screens/Customers/EditCustomerScreen";
 import ServiceListScreen from "../screens/Services/ServiceListScreen";
 import AddServiceScreen from "../screens/Services/AddServiceScreen";
 import ServiceDetailScreen from "../screens/Services/ServiceDetailScreen";
+import CompleteServiceScreen from "../screens/Services/CompleteServiceScreen";
+import ServiceSuccessScreen from "../screens/Services/ServiceSuccessScreen";
 import BillListScreen from "../screens/Bills/BillListScreen";
 import BillDetailScreen from "../screens/Bills/BillDetailScreen";
 import CreateBillScreen from "../screens/Bills/CreateBillScreen";
@@ -80,6 +82,16 @@ function ServiceNavigator() {
         name="ServiceDetail"
         component={ServiceDetailScreen}
         options={{ title: "Service Details" }}
+      />
+      <ServiceStack.Screen
+        name="CompleteService"
+        component={CompleteServiceScreen}
+        options={{ title: "Complete Service" }}
+      />
+      <ServiceStack.Screen
+        name="ServiceSuccess"
+        component={ServiceSuccessScreen}
+        options={{ title: "Service Completed", headerBackVisible: false }}
       />
     </ServiceStack.Navigator>
   );

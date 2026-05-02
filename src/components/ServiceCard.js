@@ -3,42 +3,55 @@ import { View, Text, TouchableOpacity } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
 
+// Helper to determine display status for 'scheduled' services
+function getDisplayStatus(service) {
+  if (service.status !== "scheduled") return service.status;
+  const today = new Date().toISOString().split("T")[0];
+  return service.scheduled_date >= today ? "upcoming" : "due";
+}
+
 const STATUS_CONFIG = {
-  scheduled: {
+  upcoming: {
     color: "#2563EB",
     bg: "#EFF6FF",
     darkBg: "#1E3A5F",
     icon: "clock-outline",
+    label: "Upcoming",
+  },
+  due: {
+    color: "#F97316",
+    bg: "#FFF7ED",
+    darkBg: "#431407",
+    icon: "alert-clock",
+    label: "Due",
   },
   pending: {
     color: "#F59E0B",
     bg: "#FFFBEB",
     darkBg: "#422006",
     icon: "timer-sand",
-  },
-  in_progress: {
-    color: "#8B5CF6",
-    bg: "#F5F3FF",
-    darkBg: "#2E1065",
-    icon: "progress-wrench",
+    label: "Pending",
   },
   completed: {
     color: "#10B981",
     bg: "#ECFDF5",
     darkBg: "#064E3B",
     icon: "check-circle-outline",
+    label: "Completed",
   },
   rejected: {
     color: "#EF4444",
     bg: "#FEF2F2",
     darkBg: "#450A0A",
     icon: "close-circle-outline",
+    label: "Rejected",
   },
-  cancelled: {
-    color: "#6B7280",
-    bg: "#F9FAFB",
-    darkBg: "#374151",
-    icon: "cancel",
+  followup: {
+    color: "#8B5CF6",
+    bg: "#F5F3FF",
+    darkBg: "#2E1065",
+    icon: "phone-return-outline",
+    label: "Follow Up",
   },
 };
 
@@ -47,6 +60,9 @@ const SERVICE_TYPE_ICONS = {
   repair: "hammer-wrench",
   maintenance: "cog-refresh",
   filter_replacement: "filter",
+  filter_change: "filter",
+  amc: "shield-check-outline",
+  general_service: "water-pump",
   inspection: "clipboard-check-outline",
   complaint: "alert-circle-outline",
   default: "water-pump",
@@ -54,14 +70,11 @@ const SERVICE_TYPE_ICONS = {
 
 export default function ServiceCard({ service, onPress }) {
   const { isDark, colors } = useTheme();
-  const status = STATUS_CONFIG[service.status] || STATUS_CONFIG.cancelled;
+  const displayStatus = getDisplayStatus(service);
+  const status = STATUS_CONFIG[displayStatus] || STATUS_CONFIG.upcoming;
   const badgeBg = isDark ? status.darkBg : status.bg;
   const serviceIcon =
     SERVICE_TYPE_ICONS[service.service_type] || SERVICE_TYPE_ICONS.default;
-  const statusLabel =
-    service.status === "scheduled"
-      ? "scheduled"
-      : service.status.replace(/_/g, " ");
 
   return (
     <TouchableOpacity
@@ -77,6 +90,7 @@ export default function ServiceCard({ service, onPress }) {
       onPress={onPress}
       activeOpacity={0.7}
     >
+      {/* Accent top bar */}
       <View
         style={{
           height: 3,
@@ -87,7 +101,9 @@ export default function ServiceCard({ service, onPress }) {
       />
 
       <View className="p-4">
+        {/* Header row */}
         <View className="flex-row items-center">
+          {/* Service type icon */}
           <View
             className="rounded-xl items-center justify-center mr-3"
             style={{
@@ -103,6 +119,7 @@ export default function ServiceCard({ service, onPress }) {
             />
           </View>
 
+          {/* Name & type */}
           <View className="flex-1 mr-3">
             <Text
               className="text-base font-bold"
@@ -119,6 +136,7 @@ export default function ServiceCard({ service, onPress }) {
             </Text>
           </View>
 
+          {/* Status badge */}
           <View
             className="flex-row items-center px-3 py-1.5 rounded-full"
             style={{ backgroundColor: badgeBg }}
@@ -130,20 +148,18 @@ export default function ServiceCard({ service, onPress }) {
               style={{ marginRight: 4 }}
             />
             <Text
-              className="text-xs font-semibold capitalize"
+              className="text-xs font-semibold"
               style={{ color: status.color }}
             >
-              {statusLabel}
+              {status.label}
             </Text>
           </View>
         </View>
 
+        {/* Footer row */}
         <View
           className="flex-row items-center mt-3 pt-3"
-          style={{
-            borderTopWidth: 1,
-            borderTopColor: isDark ? colors.border : "#F1F5F9",
-          }}
+          style={{ borderTopWidth: 1, borderTopColor: isDark ? colors.border : "#F1F5F9" }}
         >
           <MaterialCommunityIcons
             name="calendar-clock"
@@ -173,6 +189,7 @@ export default function ServiceCard({ service, onPress }) {
             </>
           )}
 
+          {/* Arrow indicator */}
           <View className="flex-1 items-end">
             <MaterialCommunityIcons
               name="chevron-right"

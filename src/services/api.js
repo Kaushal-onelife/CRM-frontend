@@ -11,15 +11,10 @@ async function getAuthHeaders() {
   const {
     data: { session },
   } = await supabase.auth.getSession();
-
-  const headers = {
-    "Content-Type": "application/json",
-  };
-
+  const headers = { "Content-Type": "application/json" };
   if (session?.access_token) {
     headers.Authorization = `Bearer ${session.access_token}`;
   }
-
   return headers;
 }
 
@@ -69,6 +64,8 @@ export const customerAPI = {
 export const serviceAPI = {
   getAll: (params = "") => apiCall(`/services?${params}`),
   getById: (id) => apiCall(`/services/${id}`),
+  getCustomerHistory: (customerId) =>
+    apiCall(`/services/customer/${customerId}/history`),
   create: (body) =>
     apiCall("/services", { method: "POST", body: JSON.stringify(body) }),
   update: (id, body) =>
@@ -76,6 +73,11 @@ export const serviceAPI = {
   markCompleted: (id, body) =>
     apiCall(`/services/${id}/complete`, {
       method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+  generateBill: (body) =>
+    apiCall("/services/generate-bill", {
+      method: "POST",
       body: JSON.stringify(body),
     }),
 };
