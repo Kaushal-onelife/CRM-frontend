@@ -28,9 +28,20 @@ async function apiCall(endpoint, options = {}) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(
+    // Session expired or invalid token — force sign-out so the auth navigator takes over.
+    // Skip for /auth/* so a wrong password just shows an error, not a hard logout.
+    if (response.status === 401 && !endpoint.startsWith("/auth/")) {
+      try {
+        await supabase.auth.signOut();
+      } catch (e) {
+        // ignore — listener will still fire on next session check
+      }
+    }
+    const err = new Error(
       data.error || data.message || `Request failed (${response.status})`
     );
+    err.status = response.status;
+    throw err;
   }
 
   return data;

@@ -19,6 +19,7 @@ export default function BillDetailScreen({ route, navigation }) {
   const [loading, setLoading] = useState(true);
 
   const [error, setError] = useState(null);
+  const [payingMethod, setPayingMethod] = useState(null);
 
   const fetchBill = async () => {
     try {
@@ -40,16 +41,20 @@ export default function BillDetailScreen({ route, navigation }) {
   );
 
   const handleMarkPaid = (method) => {
+    if (payingMethod) return;
     Alert.alert("Mark as Paid", `Payment method: ${method}?`, [
       { text: "Cancel", style: "cancel" },
       {
         text: "Confirm",
         onPress: async () => {
+          setPayingMethod(method);
           try {
             await billAPI.markPaid(id, { payment_method: method });
-            fetchBill();
+            await fetchBill();
           } catch (error) {
             Alert.alert("Error", error.message);
+          } finally {
+            setPayingMethod(null);
           }
         },
       },
@@ -220,15 +225,27 @@ ${bill.payment_method ? `Method: ${bill.payment_method}` : ""}
           <View style={styles.payActions}>
             <Text style={styles.payTitle}>Mark as Paid:</Text>
             <View style={styles.payMethods}>
-              {["cash", "upi", "card", "online"].map((method) => (
-                <TouchableOpacity
-                  key={method}
-                  style={styles.payMethodBtn}
-                  onPress={() => handleMarkPaid(method)}
-                >
-                  <Text style={styles.payMethodText}>{method.toUpperCase()}</Text>
-                </TouchableOpacity>
-              ))}
+              {["cash", "upi", "card", "online"].map((method) => {
+                const isThisLoading = payingMethod === method;
+                const isAnyLoading = !!payingMethod;
+                return (
+                  <TouchableOpacity
+                    key={method}
+                    style={[
+                      styles.payMethodBtn,
+                      isAnyLoading && { opacity: isThisLoading ? 1 : 0.5 },
+                    ]}
+                    disabled={isAnyLoading}
+                    onPress={() => handleMarkPaid(method)}
+                  >
+                    {isThisLoading ? (
+                      <ActivityIndicator color={COLORS.white} />
+                    ) : (
+                      <Text style={styles.payMethodText}>{method.toUpperCase()}</Text>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
         )}

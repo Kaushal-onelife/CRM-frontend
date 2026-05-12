@@ -31,6 +31,7 @@ export default function InventoryScreen() {
     cost_price: "",
   });
   const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
 
   const fetchParts = async () => {
     try {
@@ -102,17 +103,21 @@ export default function InventoryScreen() {
   };
 
   const handleDelete = (part) => {
+    if (deletingId) return;
     Alert.alert("Delete Part", `Delete "${part.name}" from inventory?`, [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
         style: "destructive",
         onPress: async () => {
+          setDeletingId(part.id);
           try {
             await inventoryAPI.delete(part.id);
-            fetchParts();
+            await fetchParts();
           } catch (error) {
             Alert.alert("Error", error.message);
+          } finally {
+            setDeletingId(null);
           }
         },
       },
@@ -121,6 +126,7 @@ export default function InventoryScreen() {
 
   const renderPart = ({ item }) => {
     const isLow = item.quantity <= item.min_stock;
+    const isDeleting = deletingId === item.id;
     return (
       <TouchableOpacity style={styles.card} onPress={() => openEditModal(item)}>
         <View style={styles.cardHeader}>
@@ -128,8 +134,17 @@ export default function InventoryScreen() {
             <Text style={styles.partName}>{item.name}</Text>
             {item.sku ? <Text style={styles.sku}>SKU: {item.sku}</Text> : null}
           </View>
-          <TouchableOpacity onPress={() => handleDelete(item)}>
-            <Text style={styles.deleteText}>Delete</Text>
+          <TouchableOpacity
+            onPress={() => handleDelete(item)}
+            disabled={isDeleting || !!deletingId}
+          >
+            {isDeleting ? (
+              <ActivityIndicator color={COLORS.danger} size="small" />
+            ) : (
+              <Text style={[styles.deleteText, deletingId && { opacity: 0.4 }]}>
+                Delete
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
         <View style={styles.cardBody}>

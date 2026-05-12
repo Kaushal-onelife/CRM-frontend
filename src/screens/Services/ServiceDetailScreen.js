@@ -39,6 +39,7 @@ export default function ServiceDetailScreen({ route, navigation }) {
   const [showFollowupForm, setShowFollowupForm] = useState(false);
 
   const [error, setError] = useState(null);
+  const [actionInFlight, setActionInFlight] = useState(null);
 
   const fetchService = async () => {
     try {
@@ -59,19 +60,23 @@ export default function ServiceDetailScreen({ route, navigation }) {
     }, [id])
   );
 
-  const handleStatusChange = async (newStatus, extraData = {}) => {
+  const handleStatusChange = async (newStatus, extraData = {}, actionKey = newStatus) => {
+    if (actionInFlight) return;
+    setActionInFlight(actionKey);
     try {
       await serviceAPI.update(id, { status: newStatus, ...extraData });
-      fetchService();
+      await fetchService();
     } catch (error) {
       Alert.alert("Error", error.message);
+    } finally {
+      setActionInFlight(null);
     }
   };
 
   const handleFollowup = async () => {
     const extra = {};
     if (nextContactDate) extra.next_contact_date = nextContactDate;
-    await handleStatusChange("followup", extra);
+    await handleStatusChange("followup", extra, "followup-confirm");
     setShowFollowupForm(false);
     setNextContactDate("");
   };
@@ -195,17 +200,31 @@ export default function ServiceDetailScreen({ route, navigation }) {
           {/* Pending - customer accepted */}
           {(service.status === "scheduled" || service.status === "followup") && (
             <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: COLORS.warning }]}
+              style={[
+                styles.actionBtn,
+                { backgroundColor: COLORS.warning, opacity: actionInFlight ? 0.7 : 1 },
+              ]}
+              disabled={!!actionInFlight}
               onPress={() => handleStatusChange("pending")}
             >
-              <MaterialCommunityIcons name="check" size={18} color={COLORS.white} />
-              <Text style={styles.actionBtnText}>Customer Accepted (Pending)</Text>
+              {actionInFlight === "pending" ? (
+                <ActivityIndicator color={COLORS.white} />
+              ) : (
+                <>
+                  <MaterialCommunityIcons name="check" size={18} color={COLORS.white} />
+                  <Text style={styles.actionBtnText}>Customer Accepted (Pending)</Text>
+                </>
+              )}
             </TouchableOpacity>
           )}
 
           {/* Complete - navigate to completion form */}
           <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: COLORS.secondary }]}
+            style={[
+              styles.actionBtn,
+              { backgroundColor: COLORS.secondary, opacity: actionInFlight ? 0.7 : 1 },
+            ]}
+            disabled={!!actionInFlight}
             onPress={() => navigation.navigate("CompleteService", { id: service.id })}
           >
             <MaterialCommunityIcons name="check-circle" size={18} color={COLORS.white} />
@@ -216,7 +235,11 @@ export default function ServiceDetailScreen({ route, navigation }) {
           {(service.status === "scheduled" || service.status === "followup") && (
             <>
               <TouchableOpacity
-                style={[styles.actionBtn, { backgroundColor: "#8B5CF6" }]}
+                style={[
+                  styles.actionBtn,
+                  { backgroundColor: "#8B5CF6", opacity: actionInFlight ? 0.7 : 1 },
+                ]}
+                disabled={!!actionInFlight}
                 onPress={() => setShowFollowupForm(!showFollowupForm)}
               >
                 <MaterialCommunityIcons name="phone-return-outline" size={18} color={COLORS.white} />
@@ -233,10 +256,22 @@ export default function ServiceDetailScreen({ route, navigation }) {
                     minimumDate={new Date()}
                   />
                   <TouchableOpacity
-                    style={[styles.actionBtn, { backgroundColor: "#8B5CF6", marginTop: 10 }]}
+                    style={[
+                      styles.actionBtn,
+                      {
+                        backgroundColor: "#8B5CF6",
+                        marginTop: 10,
+                        opacity: actionInFlight ? 0.7 : 1,
+                      },
+                    ]}
+                    disabled={!!actionInFlight}
                     onPress={handleFollowup}
                   >
-                    <Text style={styles.actionBtnText}>Confirm Follow Up</Text>
+                    {actionInFlight === "followup-confirm" ? (
+                      <ActivityIndicator color={COLORS.white} />
+                    ) : (
+                      <Text style={styles.actionBtnText}>Confirm Follow Up</Text>
+                    )}
                   </TouchableOpacity>
                 </View>
               )}
@@ -245,7 +280,11 @@ export default function ServiceDetailScreen({ route, navigation }) {
 
           {/* Reject */}
           <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: COLORS.danger }]}
+            style={[
+              styles.actionBtn,
+              { backgroundColor: COLORS.danger, opacity: actionInFlight ? 0.7 : 1 },
+            ]}
+            disabled={!!actionInFlight}
             onPress={() =>
               Alert.alert("Reject Service", "Are you sure?", [
                 { text: "Cancel", style: "cancel" },
@@ -257,8 +296,14 @@ export default function ServiceDetailScreen({ route, navigation }) {
               ])
             }
           >
-            <MaterialCommunityIcons name="close-circle" size={18} color={COLORS.white} />
-            <Text style={styles.actionBtnText}>Reject</Text>
+            {actionInFlight === "rejected" ? (
+              <ActivityIndicator color={COLORS.white} />
+            ) : (
+              <>
+                <MaterialCommunityIcons name="close-circle" size={18} color={COLORS.white} />
+                <Text style={styles.actionBtnText}>Reject</Text>
+              </>
+            )}
           </TouchableOpacity>
         </View>
       )}

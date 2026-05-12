@@ -1,8 +1,16 @@
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || "";
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || "";
 
-// Mock mode kicks in when env credentials are not provided
-const isMockMode = !SUPABASE_URL || !SUPABASE_ANON_KEY;
+// Mock mode is only allowed in development. In production builds, missing env
+// vars must fail loudly instead of silently logging the user in as fake data.
+const hasCredentials = !!SUPABASE_URL && !!SUPABASE_ANON_KEY;
+const isMockMode = !hasCredentials && __DEV__;
+
+if (!hasCredentials && !__DEV__) {
+  throw new Error(
+    "EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY must be set in production builds."
+  );
+}
 
 let supabase;
 

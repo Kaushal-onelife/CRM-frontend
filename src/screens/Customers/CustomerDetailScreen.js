@@ -19,6 +19,7 @@ export default function CustomerDetailScreen({ route, navigation }) {
   const [customer, setCustomer] = useState(null);
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -66,6 +67,7 @@ export default function CustomerDetailScreen({ route, navigation }) {
   };
 
   const handleDelete = () => {
+    if (deleting) return;
     Alert.alert(
       "Delete Customer",
       `Are you sure you want to delete ${customer.name}? This cannot be undone.`,
@@ -75,11 +77,13 @@ export default function CustomerDetailScreen({ route, navigation }) {
           text: "Delete",
           style: "destructive",
           onPress: async () => {
+            setDeleting(true);
             try {
               await customerAPI.delete(id);
               navigation.goBack();
             } catch (error) {
               Alert.alert("Error", error.message);
+              setDeleting(false);
             }
           },
         },
@@ -194,15 +198,24 @@ export default function CustomerDetailScreen({ route, navigation }) {
       {/* Edit / Delete */}
       <View style={styles.bottomActions}>
         <TouchableOpacity
-          style={styles.editBtn}
+          style={[styles.editBtn, deleting && { opacity: 0.5 }]}
+          disabled={deleting}
           onPress={() =>
             navigation.navigate("EditCustomer", { id, customer })
           }
         >
           <Text style={styles.editBtnText}>Edit Customer</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
-          <Text style={styles.deleteBtnText}>Delete</Text>
+        <TouchableOpacity
+          style={[styles.deleteBtn, deleting && { opacity: 0.7 }]}
+          disabled={deleting}
+          onPress={handleDelete}
+        >
+          {deleting ? (
+            <ActivityIndicator color={COLORS.danger} />
+          ) : (
+            <Text style={styles.deleteBtnText}>Delete</Text>
+          )}
         </TouchableOpacity>
       </View>
 
