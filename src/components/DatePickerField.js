@@ -7,6 +7,7 @@ import {
   Platform,
   Modal,
 } from "react-native";
+import { unstable_createElement } from "react-native-web";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { COLORS, FONTS } from "../constants/theme";
@@ -83,33 +84,68 @@ export default function DatePickerField({
   return (
     <View>
       {label ? <Text style={styles.label}>{label}</Text> : null}
-      <TouchableOpacity
-        style={[styles.field, disabled && styles.fieldDisabled]}
-        onPress={open}
-        activeOpacity={0.7}
-      >
-        <MaterialCommunityIcons
-          name="calendar"
-          size={18}
-          color={COLORS.gray}
-          style={styles.icon}
-        />
-        <Text style={[styles.text, !value && styles.placeholder]}>
-          {value ? formatDisplay(value) : placeholder}
-        </Text>
-        {value ? (
-          <TouchableOpacity
-            onPress={() => onChange("")}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <MaterialCommunityIcons
-              name="close-circle"
-              size={18}
-              color={COLORS.gray}
-            />
-          </TouchableOpacity>
-        ) : null}
-      </TouchableOpacity>
+      {Platform.OS === "web" ? (
+        <View style={[styles.field, disabled && styles.fieldDisabled]}>
+          <MaterialCommunityIcons
+            name="calendar"
+            size={18}
+            color={COLORS.gray}
+            style={styles.icon}
+          />
+          <View style={styles.webInputWrap}>
+            {unstable_createElement("input", {
+              type: "date",
+              value: value || "",
+              min: effectiveMin ? toISODate(effectiveMin) : undefined,
+              max: maximumDate ? toISODate(maximumDate) : undefined,
+              disabled,
+              "aria-label": label || placeholder,
+              onChange: (event) => onChange(event.target.value || ""),
+              style: styles.webInput,
+            })}
+          </View>
+          {value ? (
+            <TouchableOpacity
+              onPress={() => onChange("")}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <MaterialCommunityIcons
+                name="close-circle"
+                size={18}
+                color={COLORS.gray}
+              />
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      ) : (
+        <TouchableOpacity
+          style={[styles.field, disabled && styles.fieldDisabled]}
+          onPress={open}
+          activeOpacity={0.7}
+        >
+          <MaterialCommunityIcons
+            name="calendar"
+            size={18}
+            color={COLORS.gray}
+            style={styles.icon}
+          />
+          <Text style={[styles.text, !value && styles.placeholder]}>
+            {value ? formatDisplay(value) : placeholder}
+          </Text>
+          {value ? (
+            <TouchableOpacity
+              onPress={() => onChange("")}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <MaterialCommunityIcons
+                name="close-circle"
+                size={18}
+                color={COLORS.gray}
+              />
+            </TouchableOpacity>
+          ) : null}
+        </TouchableOpacity>
+      )}
 
       {show && Platform.OS === "android" && (
         <DateTimePicker
@@ -180,6 +216,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     flex: 1,
     color: "#111",
+  },
+  webInputWrap: {
+    flex: 1,
+    justifyContent: "center",
+  },
+  webInput: {
+    borderWidth: 0,
+    backgroundColor: "transparent",
+    color: "#111",
+    fontSize: 14,
+    fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    outlineStyle: "none",
+    width: "100%",
+    minWidth: 0,
   },
   placeholder: {
     color: COLORS.gray,
