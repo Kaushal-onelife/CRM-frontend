@@ -11,6 +11,14 @@ import {
 } from "react-native";
 import { customerAPI } from "../../services/api";
 import { COLORS, FONTS, SIZES } from "../../constants/theme";
+import {
+  isRequired,
+  isEmail,
+  isPhone,
+  maxLength,
+  firstError,
+  trimAll,
+} from "../../utils/validators";
 
 const FIELDS = [
   { key: "name", label: "Customer Name *", placeholder: "Full name" },
@@ -31,23 +39,37 @@ export default function EditCustomerScreen({ route, navigation }) {
   const updateForm = (key, value) => setForm({ ...form, [key]: value });
 
   const handleSubmit = async () => {
-    if (!form.name || !form.phone) {
-      Alert.alert("Error", "Name and Phone are required");
+    const cleaned = trimAll({
+      name: form.name || "",
+      phone: form.phone || "",
+      email: form.email || "",
+      address: form.address || "",
+      city: form.city || "",
+      purifier_brand: form.purifier_brand || "",
+      purifier_model: form.purifier_model || "",
+      notes: form.notes || "",
+    });
+
+    const error = firstError([
+      isRequired(cleaned.name, "Name"),
+      maxLength(cleaned.name, 100, "Name"),
+      isRequired(cleaned.phone, "Phone"),
+      isPhone(cleaned.phone, "Phone"),
+      isEmail(cleaned.email, "Email"),
+      maxLength(cleaned.address, 300, "Address"),
+      maxLength(cleaned.city, 80, "City"),
+      maxLength(cleaned.purifier_brand, 80, "Brand"),
+      maxLength(cleaned.purifier_model, 80, "Model"),
+      maxLength(cleaned.notes, 500, "Notes"),
+    ]);
+    if (error) {
+      Alert.alert("Invalid input", error);
       return;
     }
 
     setLoading(true);
     try {
-      await customerAPI.update(id, {
-        name: form.name,
-        phone: form.phone,
-        email: form.email,
-        address: form.address,
-        city: form.city,
-        purifier_brand: form.purifier_brand,
-        purifier_model: form.purifier_model,
-        notes: form.notes,
-      });
+      await customerAPI.update(id, cleaned);
       Alert.alert("Success", "Customer updated successfully");
       navigation.goBack();
     } catch (error) {

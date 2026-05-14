@@ -12,6 +12,12 @@ import {
 import { customerAPI, serviceAPI } from "../../services/api";
 import DatePickerField from "../../components/DatePickerField";
 import { COLORS, FONTS, SIZES } from "../../constants/theme";
+import {
+  isRequired,
+  isNonNegativeNumber,
+  maxLength,
+  firstError,
+} from "../../utils/validators";
 
 const SERVICE_TYPES = [
   "installation",
@@ -28,6 +34,7 @@ export default function AddServiceScreen({ navigation, route }) {
     preselectedCustomerId || null
   );
   const [customerSearch, setCustomerSearch] = useState("");
+  const [showDropdown, setShowDropdown] = useState(false);
   const [serviceType, setServiceType] = useState("");
   const [scheduledDate, setScheduledDate] = useState("");
   const [amount, setAmount] = useState("");
@@ -56,8 +63,20 @@ export default function AddServiceScreen({ navigation, route }) {
   };
 
   const handleSubmit = async () => {
-    if (!selectedCustomer || !serviceType || !scheduledDate) {
-      Alert.alert("Error", "Customer, service type, and date are required");
+    if (!selectedCustomer) {
+      Alert.alert("Missing customer", "Please select a customer from the search results.");
+      return;
+    }
+
+    const trimmedNotes = notes.trim();
+    const error = firstError([
+      isRequired(serviceType, "Service type"),
+      isRequired(scheduledDate, "Scheduled date"),
+      isNonNegativeNumber(amount || "0", "Amount"),
+      maxLength(trimmedNotes, 500, "Notes"),
+    ]);
+    if (error) {
+      Alert.alert("Invalid input", error);
       return;
     }
 
@@ -68,7 +87,7 @@ export default function AddServiceScreen({ navigation, route }) {
         service_type: serviceType,
         scheduled_date: scheduledDate,
         amount: amount ? parseFloat(amount) : 0,
-        notes,
+        notes: trimmedNotes,
       });
       Alert.alert("Success", "Service scheduled successfully");
       navigation.goBack();
@@ -85,15 +104,40 @@ export default function AddServiceScreen({ navigation, route }) {
         <>
           <Text style={styles.label}>Select Customer *</Text>
           <TextInput
-            style={styles.input}
+            style={[
+              styles.input,
+              selectedCustomer && styles.inputSelected,
+            ]}
             placeholder="Search customer by name or phone..."
             value={customerSearch}
             onChangeText={(text) => {
               setCustomerSearch(text);
-              if (text.length > 2) fetchCustomers(text);
+              // Editing search clears selection so user can't submit a stale customer
+              if (selectedCustomer) setSelectedCustomer(null);
+              if (text.length > 2) {
+                setShowDropdown(true);
+                fetchCustomers(text);
+              } else {
+                setShowDropdown(false);
+              }
             }}
           />
-          {customerSearch.length > 2 && (
+
+          {selectedCustomer && !showDropdown && (
+            <View style={styles.selectedBadge}>
+              <Text style={styles.selectedBadgeText}>✓ Customer selected</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setSelectedCustomer(null);
+                  setCustomerSearch("");
+                }}
+              >
+                <Text style={styles.changeText}>Change</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {showDropdown && customerSearch.length > 2 && (
             <View style={styles.dropdown}>
               {searching ? (
                 <ActivityIndicator
@@ -113,7 +157,8 @@ export default function AddServiceScreen({ navigation, route }) {
                     ]}
                     onPress={() => {
                       setSelectedCustomer(c.id);
-                      setCustomerSearch(c.name);
+                      setCustomerSearch(`${c.name} - ${c.phone}`);
+                      setShowDropdown(false);
                     }}
                   >
                     <Text style={styles.dropdownText}>
@@ -241,6 +286,30 @@ const styles = StyleSheet.create({
     color: COLORS.gray,
     padding: 12,
     textAlign: "center",
+  },
+  inputSelected: {
+    borderColor: COLORS.secondary,
+    borderWidth: 1.5,
+  },
+  selectedBadge: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: COLORS.primaryLight,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    marginTop: 6,
+  },
+  selectedBadgeText: {
+    ...FONTS.medium,
+    fontSize: 13,
+    color: COLORS.secondary,
+  },
+  changeText: {
+    ...FONTS.medium,
+    fontSize: 13,
+    color: COLORS.primary,
   },
   typeGrid: {
     flexDirection: "row",

@@ -8,6 +8,8 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -161,7 +163,16 @@ export default function CompleteServiceScreen({ route, navigation }) {
   if (!service) return null;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
+    >
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
+    >
       {/* Customer Info */}
       <View style={styles.card}>
         <Text style={styles.customerName}>{service.customers?.name}</Text>
@@ -200,33 +211,39 @@ export default function CompleteServiceScreen({ route, navigation }) {
         <Text style={styles.cardTitle}>Parts Replaced</Text>
 
         {parts.map((part, index) => (
-          <View key={index} style={styles.partRow}>
-            <View style={styles.partFields}>
-              <TextInput
-                style={[styles.input, { flex: 2 }]}
-                placeholder="Part name"
-                value={part.name}
-                onChangeText={(v) => updatePart(index, "name", v)}
-              />
-              <TextInput
-                style={[styles.input, { flex: 0.5, marginHorizontal: 6 }]}
-                placeholder="Qty"
-                value={part.quantity}
-                onChangeText={(v) => updatePart(index, "quantity", v)}
-                keyboardType="numeric"
-              />
-              <TextInput
-                style={[styles.input, { flex: 1 }]}
-                placeholder="Cost"
-                value={part.cost}
-                onChangeText={(v) => updatePart(index, "cost", v)}
-                keyboardType="numeric"
-              />
+          <View key={index} style={styles.partItem}>
+            <TextInput
+              style={styles.input}
+              placeholder="Part name"
+              value={part.name}
+              onChangeText={(v) => updatePart(index, "name", v)}
+            />
+            <View style={styles.partSubRow}>
+              <View style={styles.partSubField}>
+                <Text style={styles.partSubLabel}>Qty</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="1"
+                  value={part.quantity}
+                  onChangeText={(v) => updatePart(index, "quantity", v)}
+                  keyboardType="numeric"
+                />
+              </View>
+              <View style={[styles.partSubField, { flex: 2 }]}>
+                <Text style={styles.partSubLabel}>Cost</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="0"
+                  value={part.cost}
+                  onChangeText={(v) => updatePart(index, "cost", v)}
+                  keyboardType="numeric"
+                />
+              </View>
               <TouchableOpacity
                 style={styles.removePartBtn}
                 onPress={() => removePart(index)}
               >
-                <MaterialCommunityIcons name="close-circle" size={22} color={COLORS.danger} />
+                <MaterialCommunityIcons name="close-circle" size={24} color={COLORS.danger} />
               </TouchableOpacity>
             </View>
           </View>
@@ -397,6 +414,7 @@ export default function CompleteServiceScreen({ route, navigation }) {
         />
       )}
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -439,12 +457,28 @@ const styles = StyleSheet.create({
     fontSize: 14,
     backgroundColor: COLORS.grayLight,
   },
-  partRow: { marginBottom: 8 },
-  partFields: {
-    flexDirection: "row",
-    alignItems: "center",
+  partItem: {
+    marginBottom: 12,
+    padding: 10,
+    backgroundColor: COLORS.grayLight,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.grayBorder,
   },
-  removePartBtn: { marginLeft: 6, padding: 4 },
+  partSubRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    marginTop: 8,
+    gap: 8,
+  },
+  partSubField: { flex: 1 },
+  partSubLabel: {
+    ...FONTS.small,
+    fontSize: 12,
+    color: COLORS.gray,
+    marginBottom: 4,
+  },
+  removePartBtn: { padding: 6, marginBottom: 4 },
   addPartBtn: {
     flexDirection: "row",
     alignItems: "center",

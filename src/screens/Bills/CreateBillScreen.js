@@ -19,6 +19,7 @@ export default function CreateBillScreen({ route, navigation }) {
   const [customers, setCustomers] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState(preCustomerId || null);
   const [customerSearch, setCustomerSearch] = useState("");
+  const [showDropdown, setShowDropdown] = useState(false);
   const [items, setItems] = useState([
     { description: "", quantity: "1", unit_price: "" },
   ]);
@@ -68,30 +69,49 @@ export default function CreateBillScreen({ route, navigation }) {
 
   const handleSubmit = async () => {
     if (!selectedCustomer) {
-      Alert.alert("Error", "Please select a customer");
+      Alert.alert("Missing customer", "Please select a customer from the search results.");
       return;
     }
 
-    const validItems = items.filter(
-      (item) => item.description && item.unit_price
-    );
-    if (validItems.length === 0) {
-      Alert.alert("Error", "Add at least one item");
+    // Per-item validation with specific feedback
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const desc = item.description.trim();
+      const qty = parseInt(item.quantity);
+      const price = parseFloat(item.unit_price);
+
+      if (!desc) {
+        Alert.alert("Missing description", `Item ${i + 1} needs a description.`);
+        return;
+      }
+      if (!qty || qty < 1) {
+        Alert.alert("Invalid quantity", `Item ${i + 1} quantity must be at least 1.`);
+        return;
+      }
+      if (isNaN(price) || price <= 0) {
+        Alert.alert("Invalid price", `Item ${i + 1} unit price must be greater than 0.`);
+        return;
+      }
+    }
+
+    const taxValue = parseFloat(tax) || 0;
+    if (taxValue < 0) {
+      Alert.alert("Invalid tax", "Tax cannot be negative.");
       return;
     }
 
     setLoading(true);
     try {
-      const billItems = validItems.map((item) => ({
-        description: item.description,
-        quantity: parseInt(item.quantity) || 1,
-        unit_price: parseFloat(item.unit_price) || 0,
+      const billItems = items.map((item) => ({
+        description: item.description.trim(),
+        quantity: parseInt(item.quantity),
+        unit_price: parseFloat(item.unit_price),
       }));
 
       const result = await billAPI.create({
         customer_id: selectedCustomer,
         service_id: preServiceId || null,
-        tax: parseFloat(tax) || 0,
+        tax: taxValue,
         items: billItems,
       });
 
@@ -113,15 +133,41 @@ export default function CreateBillScreen({ route, navigation }) {
         <>
           <Text style={styles.label}>Select Customer *</Text>
           <TextInput
-            style={styles.input}
+            style={[
+              styles.input,
+              selectedCustomer && styles.inputSelected,
+            ]}
             placeholder="Search customer..."
             value={customerSearch}
             onChangeText={(text) => {
               setCustomerSearch(text);
-              if (text.length > 2) fetchCustomers(text);
+              // Editing the search clears any previous selection so the user
+              // can't submit a stale customer_id that doesn't match what they see.
+              if (selectedCustomer) setSelectedCustomer(null);
+              if (text.length > 2) {
+                setShowDropdown(true);
+                fetchCustomers(text);
+              } else {
+                setShowDropdown(false);
+              }
             }}
           />
-          {customerSearch.length > 2 ? (
+
+          {selectedCustomer && !showDropdown && (
+            <View style={styles.selectedBadge}>
+              <Text style={styles.selectedBadgeText}>✓ Customer selected</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setSelectedCustomer(null);
+                  setCustomerSearch("");
+                }}
+              >
+                <Text style={styles.changeText}>Change</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {showDropdown && customerSearch.length > 2 && (
             <View style={styles.dropdown}>
               {searching ? (
                 <ActivityIndicator
@@ -141,7 +187,8 @@ export default function CreateBillScreen({ route, navigation }) {
                     ]}
                     onPress={() => {
                       setSelectedCustomer(c.id);
-                      setCustomerSearch(c.name);
+                      setCustomerSearch(`${c.name} - ${c.phone}`);
+                      setShowDropdown(false);
                     }}
                   >
                     <Text>{c.name} - {c.phone}</Text>
@@ -149,7 +196,9 @@ export default function CreateBillScreen({ route, navigation }) {
                 ))
               )}
             </View>
-          ) : (
+          )}
+
+          {!showDropdown && !selectedCustomer && customerSearch.length <= 2 && (
             <Text style={styles.dropdownHint}>
               Type at least 3 characters to search
             </Text>
@@ -285,6 +334,30 @@ const styles = StyleSheet.create({
     color: COLORS.gray,
     marginTop: 6,
     fontStyle: "italic",
+  },
+  inputSelected: {
+    borderColor: COLORS.secondary,
+    borderWidth: 1.5,
+  },
+  selectedBadge: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: COLORS.primaryLight,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    marginTop: 6,
+  },
+  selectedBadgeText: {
+    ...FONTS.medium,
+    fontSize: 13,
+    color: COLORS.secondary,
+  },
+  changeText: {
+    ...FONTS.medium,
+    fontSize: 13,
+    color: COLORS.primary,
   },
   itemCard: {
     backgroundColor: COLORS.white,

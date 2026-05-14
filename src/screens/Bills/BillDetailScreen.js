@@ -20,6 +20,7 @@ export default function BillDetailScreen({ route, navigation }) {
 
   const [error, setError] = useState(null);
   const [payingMethod, setPayingMethod] = useState(null);
+  const [confirmingMethod, setConfirmingMethod] = useState(null);
 
   const fetchBill = async () => {
     try {
@@ -40,25 +41,30 @@ export default function BillDetailScreen({ route, navigation }) {
     }, [id])
   );
 
-  const handleMarkPaid = (method) => {
+  // Two-tap confirm avoids Alert.alert, which silently drops button callbacks
+  // on react-native-web. First tap arms the method; second tap commits.
+  const handleMarkPaid = async (method) => {
     if (payingMethod) return;
-    Alert.alert("Mark as Paid", `Payment method: ${method}?`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Confirm",
-        onPress: async () => {
-          setPayingMethod(method);
-          try {
-            await billAPI.markPaid(id, { payment_method: method });
-            await fetchBill();
-          } catch (error) {
-            Alert.alert("Error", error.message);
-          } finally {
-            setPayingMethod(null);
-          }
-        },
-      },
-    ]);
+
+    if (confirmingMethod !== method) {
+      setConfirmingMethod(method);
+      // Auto-cancel arming after 4s so a stray tap doesn't stay armed forever
+      setTimeout(() => {
+        setConfirmingMethod((current) => (current === method ? null : current));
+      }, 4000);
+      return;
+    }
+
+    setPayingMethod(method);
+    setConfirmingMethod(null);
+    try {
+      await billAPI.markPaid(id, { payment_method: method });
+      await fetchBill();
+    } catch (err) {
+      Alert.alert("Error", err.message);
+    } finally {
+      setPayingMethod(null);
+    }
   };
 
   const handleShareBill = async () => {
@@ -224,24 +230,34 @@ ${bill.payment_method ? `Method: ${bill.payment_method}` : ""}
         {!isPaid && (
           <View style={styles.payActions}>
             <Text style={styles.payTitle}>Mark as Paid:</Text>
+            <Text style={styles.payHint}>
+              {confirmingMethod
+                ? `Tap ${confirmingMethod.toUpperCase()} again to confirm`
+                : "Tap a method, then tap again to confirm"}
+            </Text>
             <View style={styles.payMethods}>
               {["cash", "upi", "card", "online"].map((method) => {
                 const isThisLoading = payingMethod === method;
                 const isAnyLoading = !!payingMethod;
+                const isConfirming = confirmingMethod === method;
                 return (
                   <TouchableOpacity
                     key={method}
                     style={[
                       styles.payMethodBtn,
+                      isConfirming && styles.payMethodBtnConfirming,
                       isAnyLoading && { opacity: isThisLoading ? 1 : 0.5 },
                     ]}
                     disabled={isAnyLoading}
                     onPress={() => handleMarkPaid(method)}
+                    activeOpacity={0.7}
                   >
                     {isThisLoading ? (
                       <ActivityIndicator color={COLORS.white} />
                     ) : (
-                      <Text style={styles.payMethodText}>{method.toUpperCase()}</Text>
+                      <Text style={styles.payMethodText}>
+                        {isConfirming ? `CONFIRM ${method.toUpperCase()}` : method.toUpperCase()}
+                      </Text>
                     )}
                   </TouchableOpacity>
                 );
@@ -327,13 +343,17 @@ const styles = StyleSheet.create({
   },
   shareBtnText: { ...FONTS.bold },
   payActions: { marginTop: 16 },
-  payTitle: { ...FONTS.medium, marginBottom: 10 },
+  payTitle: { ...FONTS.medium, marginBottom: 4 },
+  payHint: { ...FONTS.small, color: COLORS.gray, marginBottom: 10 },
   payMethods: { flexDirection: "row", gap: 10, flexWrap: "wrap" },
   payMethodBtn: {
     backgroundColor: COLORS.secondary,
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8,
+  },
+  payMethodBtnConfirming: {
+    backgroundColor: COLORS.warning,
   },
   payMethodText: { color: COLORS.white, ...FONTS.bold, fontSize: 13 },
   errorTitle: { ...FONTS.h3, color: COLORS.danger, marginBottom: 6 },

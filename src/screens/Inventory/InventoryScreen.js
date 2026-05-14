@@ -14,6 +14,12 @@ import {
 import { useFocusEffect } from "@react-navigation/native";
 import { inventoryAPI } from "../../services/api";
 import { COLORS, FONTS, SIZES } from "../../constants/theme";
+import {
+  isRequired,
+  isNonNegativeNumber,
+  isIntegerInRange,
+  firstError,
+} from "../../utils/validators";
 
 export default function InventoryScreen() {
   const [parts, setParts] = useState([]);
@@ -72,20 +78,47 @@ export default function InventoryScreen() {
   };
 
   const handleSave = async () => {
-    if (!form.name) {
-      Alert.alert("Error", "Part name is required");
+    const name = form.name.trim();
+    const sku = form.sku.trim();
+
+    const error = firstError([
+      isRequired(name, "Part name"),
+      isIntegerInRange(form.quantity || "0", 0, 999999, "Quantity"),
+      isIntegerInRange(form.min_stock || "0", 0, 999999, "Min stock"),
+      isNonNegativeNumber(form.unit_price || "0", "Unit price"),
+      isNonNegativeNumber(form.cost_price || "0", "Cost price"),
+    ]);
+    if (error) {
+      Alert.alert("Invalid input", error);
       return;
+    }
+
+    const unitPrice = parseFloat(form.unit_price) || 0;
+    const costPrice = parseFloat(form.cost_price) || 0;
+    if (unitPrice > 0 && costPrice > unitPrice) {
+      // Warn but don't block — sometimes a part is sold at a loss intentionally
+      const proceed = await new Promise((resolve) => {
+        Alert.alert(
+          "Cost exceeds price",
+          `Cost (₹${costPrice}) is higher than selling price (₹${unitPrice}). Save anyway?`,
+          [
+            { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
+            { text: "Save", onPress: () => resolve(true) },
+          ]
+        );
+      });
+      if (!proceed) return;
     }
 
     setSaving(true);
     try {
       const body = {
-        name: form.name,
-        sku: form.sku,
-        quantity: parseInt(form.quantity) || 0,
-        min_stock: parseInt(form.min_stock) || 5,
-        unit_price: parseFloat(form.unit_price) || 0,
-        cost_price: parseFloat(form.cost_price) || 0,
+        name,
+        sku,
+        quantity: parseInt(form.quantity, 10) || 0,
+        min_stock: parseInt(form.min_stock, 10) || 5,
+        unit_price: unitPrice,
+        cost_price: costPrice,
       };
 
       if (editingPart) {

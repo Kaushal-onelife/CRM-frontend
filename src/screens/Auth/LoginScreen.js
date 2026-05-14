@@ -13,6 +13,7 @@ import {
 import { authAPI } from "../../services/api";
 import { supabase } from "../../services/supabase";
 import { COLORS, FONTS, SIZES } from "../../constants/theme";
+import { isRequired, isEmail, firstError } from "../../utils/validators";
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState("");
@@ -20,15 +21,22 @@ export default function LoginScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert("Error", "Please fill in all fields");
+    const trimmedEmail = email.trim().toLowerCase();
+
+    const error = firstError([
+      isRequired(trimmedEmail, "Email"),
+      isEmail(trimmedEmail, "Email"),
+      isRequired(password, "Password"),
+    ]);
+    if (error) {
+      Alert.alert("Invalid input", error);
       return;
     }
 
     setLoading(true);
     try {
       // Call backend login - returns token + user profile
-      const data = await authAPI.login({ email, password });
+      const data = await authAPI.login({ email: trimmedEmail, password });
 
       // Set the session in Supabase so auth state listener picks it up
       const { error } = await supabase.auth.setSession({

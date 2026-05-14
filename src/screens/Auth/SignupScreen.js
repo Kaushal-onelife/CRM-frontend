@@ -12,6 +12,14 @@ import {
 import { authAPI } from "../../services/api";
 import { supabase } from "../../services/supabase";
 import { COLORS, FONTS, SIZES } from "../../constants/theme";
+import {
+  isRequired,
+  isEmail,
+  isPhone,
+  minLength,
+  maxLength,
+  firstError,
+} from "../../utils/validators";
 
 export default function SignupScreen({ navigation }) {
   const [form, setForm] = useState({
@@ -26,16 +34,33 @@ export default function SignupScreen({ navigation }) {
   const updateForm = (key, value) => setForm({ ...form, [key]: value });
 
   const handleSignup = async () => {
-    const { name, businessName, phone, email, password } = form;
+    const name = form.name.trim();
+    const businessName = form.businessName.trim();
+    const phone = form.phone.trim();
+    const email = form.email.trim().toLowerCase();
+    const password = form.password;
 
-    if (!name || !businessName || !phone || !email || !password) {
-      Alert.alert("Error", "Please fill in all fields");
+    const error = firstError([
+      isRequired(name, "Owner name"),
+      maxLength(name, 100, "Owner name"),
+      isRequired(businessName, "Business name"),
+      maxLength(businessName, 100, "Business name"),
+      isRequired(phone, "Phone"),
+      isPhone(phone, "Phone"),
+      isRequired(email, "Email"),
+      isEmail(email, "Email"),
+      isRequired(password, "Password"),
+      minLength(password, 6, "Password"),
+      maxLength(password, 72, "Password"), // Supabase/bcrypt cap
+    ]);
+    if (error) {
+      Alert.alert("Invalid input", error);
       return;
     }
 
     setLoading(true);
     try {
-      await authAPI.signup(form);
+      await authAPI.signup({ name, businessName, phone, email, password });
 
       // Auto login after signup via backend
       const loginData = await authAPI.login({ email, password });

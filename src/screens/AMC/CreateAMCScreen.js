@@ -13,6 +13,14 @@ import {
 import { customerAPI, amcAPI } from "../../services/api";
 import DatePickerField from "../../components/DatePickerField";
 import { COLORS, FONTS, SIZES } from "../../constants/theme";
+import {
+  isRequired,
+  isIntegerInRange,
+  isNonNegativeNumber,
+  isDateAfter,
+  maxLength,
+  firstError,
+} from "../../utils/validators";
 
 const PLAN_PRESETS = [
   { name: "Annual Basic (4 services)", services: 4, months: 12 },
@@ -47,9 +55,10 @@ export default function CreateAMCScreen({ route, navigation }) {
     try {
       const params = search ? `search=${search}` : "";
       const result = await customerAPI.getAll(params);
-      setCustomers(result.customers);
+      setCustomers(result.customers || []);
     } catch (error) {
       console.error(error.message);
+      setCustomers([]);
     } finally {
       setSearching(false);
     }
@@ -88,11 +97,27 @@ export default function CreateAMCScreen({ route, navigation }) {
 
   const handleSubmit = async () => {
     if (!selectedCustomer) {
-      Alert.alert("Error", "Please select a customer");
+      Alert.alert("Missing customer", "Please select a customer.");
       return;
     }
-    if (!planName || !startDate || !endDate) {
-      Alert.alert("Error", "Plan name, start date, and end date are required");
+
+    const trimmedPlan = planName.trim();
+    const trimmedNotes = notes.trim();
+
+    const error = firstError([
+      isRequired(trimmedPlan, "Plan name"),
+      maxLength(trimmedPlan, 100, "Plan name"),
+      isRequired(startDate, "Start date"),
+      isRequired(endDate, "End date"),
+      isDateAfter(endDate, startDate, "End date"),
+      // total_services must be 1-52: catches "0", negatives, NaN, and absurd values
+      // that would create thousands of phantom services if auto_schedule is on.
+      isIntegerInRange(totalServices, 1, 52, "Total services"),
+      isNonNegativeNumber(amount || "0", "Amount"),
+      maxLength(trimmedNotes, 500, "Notes"),
+    ]);
+    if (error) {
+      Alert.alert("Invalid input", error);
       return;
     }
 
@@ -100,13 +125,13 @@ export default function CreateAMCScreen({ route, navigation }) {
     try {
       await amcAPI.create({
         customer_id: selectedCustomer,
-        plan_name: planName,
+        plan_name: trimmedPlan,
         start_date: startDate,
         end_date: endDate,
-        total_services: parseInt(totalServices) || 4,
+        total_services: parseInt(totalServices, 10),
         amount: parseFloat(amount) || 0,
         auto_schedule: autoSchedule,
-        notes,
+        notes: trimmedNotes,
       });
       Alert.alert("Success", "AMC contract created" + (autoSchedule ? " with scheduled services" : ""));
       navigation.goBack();
