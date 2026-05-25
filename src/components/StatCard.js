@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text } from "react-native";
 import { useTheme } from "../context/ThemeContext";
 
-export default function StatCard({ title, value, color = "#2563EB" }) {
+function StatCard({ title, value, color = "#2563EB" }) {
   const { colors } = useTheme();
 
   return (
@@ -30,3 +30,5 @@ export default function StatCard({ title, value, color = "#2563EB" }) {
     </View>
   );
 }
+
+export default React.memo(StatCard);

@@ -68,13 +68,19 @@ const SERVICE_TYPE_ICONS = {
   default: "water-pump",
 };
 
-export default function ServiceCard({ service, onPress }) {
+function ServiceCard({ service, onPress }) {
   const { isDark, colors } = useTheme();
   const displayStatus = getDisplayStatus(service);
   const status = STATUS_CONFIG[displayStatus] || STATUS_CONFIG.upcoming;
   const badgeBg = isDark ? status.darkBg : status.bg;
   const serviceIcon =
     SERVICE_TYPE_ICONS[service.service_type] || SERVICE_TYPE_ICONS.default;
+
+  // Pass the service to the parent so list parents can use a single stable
+  // `onPress` callback (better React.memo behavior).
+  const handlePress = React.useCallback(() => {
+    onPress?.(service);
+  }, [onPress, service]);
 
   return (
     <TouchableOpacity
@@ -87,7 +93,7 @@ export default function ServiceCard({ service, onPress }) {
         shadowRadius: 8,
         elevation: 3,
       }}
-      onPress={onPress}
+      onPress={handlePress}
       activeOpacity={0.7}
     >
       {/* Accent top bar */}
@@ -202,3 +208,5 @@ export default function ServiceCard({ service, onPress }) {
     </TouchableOpacity>
   );
 }
+
+export default React.memo(ServiceCard);

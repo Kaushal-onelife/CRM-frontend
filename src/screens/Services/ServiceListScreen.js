@@ -85,6 +85,18 @@ export default function ServiceListScreen({ navigation }) {
     }
   };
 
+  const handleServicePress = useCallback(
+    (service) => navigation.navigate("ServiceDetail", { id: service.id }),
+    [navigation]
+  );
+
+  const renderServiceItem = useCallback(
+    ({ item }) => <ServiceCard service={item} onPress={handleServicePress} />,
+    [handleServicePress]
+  );
+
+  const keyExtractor = useCallback((item) => item.id, []);
+
   return (
     <View style={styles.container}>
       <ScrollView
@@ -133,15 +145,8 @@ export default function ServiceListScreen({ navigation }) {
       ) : (
         <FlatList
           data={services}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <ServiceCard
-              service={item}
-              onPress={() =>
-                navigation.navigate("ServiceDetail", { id: item.id })
-              }
-            />
-          )}
+          keyExtractor={keyExtractor}
+          renderItem={renderServiceItem}
           ListEmptyComponent={
             <Text style={styles.emptyText}>No services found</Text>
           }
@@ -157,6 +162,10 @@ export default function ServiceListScreen({ navigation }) {
           }
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.3}
+          removeClippedSubviews
+          maxToRenderPerBatch={10}
+          updateCellsBatchingPeriod={50}
+          windowSize={10}
           ListFooterComponent={
             loadingMore ? (
               <ActivityIndicator
