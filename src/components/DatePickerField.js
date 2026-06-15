@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
 import { unstable_createElement } from "react-native-web";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { COLORS, FONTS } from "../constants/theme";
+import { useTheme } from "../context/ThemeContext";
 
 function toISODate(date) {
   const y = date.getFullYear();
@@ -45,6 +45,9 @@ export default function DatePickerField({
   maximumDate,
   disabled = false,
 }) {
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
   const [show, setShow] = useState(false);
   const [tempDate, setTempDate] = useState(parseISODate(value));
 
@@ -89,7 +92,7 @@ export default function DatePickerField({
           <MaterialCommunityIcons
             name="calendar"
             size={18}
-            color={COLORS.gray}
+            color={colors.textSecondary}
             style={styles.icon}
           />
           <View style={styles.webInputWrap}>
@@ -101,7 +104,18 @@ export default function DatePickerField({
               disabled,
               "aria-label": label || placeholder,
               onChange: (event) => onChange(event.target.value || ""),
-              style: styles.webInput,
+              style: {
+                borderWidth: 0,
+                backgroundColor: "transparent",
+                color: colors.text,
+                fontSize: 14,
+                fontFamily:
+                  "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                outlineStyle: "none",
+                colorScheme: "light dark",
+                width: "100%",
+                minWidth: 0,
+              },
             })}
           </View>
           {value ? (
@@ -112,7 +126,7 @@ export default function DatePickerField({
               <MaterialCommunityIcons
                 name="close-circle"
                 size={18}
-                color={COLORS.gray}
+                color={colors.textSecondary}
               />
             </TouchableOpacity>
           ) : null}
@@ -126,7 +140,7 @@ export default function DatePickerField({
           <MaterialCommunityIcons
             name="calendar"
             size={18}
-            color={COLORS.gray}
+            color={colors.textSecondary}
             style={styles.icon}
           />
           <Text style={[styles.text, !value && styles.placeholder]}>
@@ -140,7 +154,7 @@ export default function DatePickerField({
               <MaterialCommunityIcons
                 name="close-circle"
                 size={18}
-                color={COLORS.gray}
+                color={colors.textSecondary}
               />
             </TouchableOpacity>
           ) : null}
@@ -182,6 +196,7 @@ export default function DatePickerField({
                 onChange={handleIOSChange}
                 minimumDate={effectiveMin}
                 maximumDate={maximumDate}
+                themeVariant={isDark ? "dark" : "light"}
               />
             </View>
           </View>
@@ -191,74 +206,66 @@ export default function DatePickerField({
   );
 }
 
-const styles = StyleSheet.create({
-  label: {
-    ...FONTS.medium,
-    marginBottom: 6,
-  },
-  field: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: COLORS.grayBorder,
-    borderRadius: 8,
-    padding: 12,
-    backgroundColor: COLORS.white,
-  },
-  fieldDisabled: {
-    opacity: 0.5,
-  },
-  icon: {
-    marginRight: 8,
-  },
-  text: {
-    ...FONTS.regular,
-    fontSize: 14,
-    flex: 1,
-    color: "#111",
-  },
-  webInputWrap: {
-    flex: 1,
-    justifyContent: "center",
-  },
-  webInput: {
-    borderWidth: 0,
-    backgroundColor: "transparent",
-    color: "#111",
-    fontSize: 14,
-    fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-    outlineStyle: "none",
-    width: "100%",
-    minWidth: 0,
-  },
-  placeholder: {
-    color: COLORS.gray,
-  },
-  modalBackdrop: {
-    flex: 1,
-    justifyContent: "flex-end",
-    backgroundColor: "rgba(0,0,0,0.35)",
-  },
-  modalSheet: {
-    backgroundColor: COLORS.white,
-    paddingBottom: 24,
-  },
-  modalActions: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.grayBorder,
-  },
-  cancelText: {
-    ...FONTS.medium,
-    color: COLORS.gray,
-    fontSize: 15,
-  },
-  confirmText: {
-    ...FONTS.bold,
-    color: COLORS.primary,
-    fontSize: 15,
-  },
-});
+const makeStyles = (colors) =>
+  StyleSheet.create({
+    label: {
+      fontSize: 15,
+      fontWeight: "600",
+      color: colors.text,
+      marginBottom: 6,
+    },
+    field: {
+      flexDirection: "row",
+      alignItems: "center",
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 8,
+      padding: 12,
+      backgroundColor: colors.card,
+    },
+    fieldDisabled: {
+      opacity: 0.5,
+    },
+    icon: {
+      marginRight: 8,
+    },
+    text: {
+      fontSize: 14,
+      flex: 1,
+      color: colors.text,
+    },
+    webInputWrap: {
+      flex: 1,
+      justifyContent: "center",
+    },
+    placeholder: {
+      color: colors.textSecondary,
+    },
+    modalBackdrop: {
+      flex: 1,
+      justifyContent: "flex-end",
+      backgroundColor: "rgba(0,0,0,0.35)",
+    },
+    modalSheet: {
+      backgroundColor: colors.card,
+      paddingBottom: 24,
+    },
+    modalActions: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    cancelText: {
+      fontWeight: "600",
+      color: colors.textSecondary,
+      fontSize: 15,
+    },
+    confirmText: {
+      fontWeight: "700",
+      color: colors.primary,
+      fontSize: 15,
+    },
+  });

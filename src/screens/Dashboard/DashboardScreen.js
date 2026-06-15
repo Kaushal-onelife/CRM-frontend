@@ -1,30 +1,75 @@
 import React, { useState, useCallback } from "react";
-import {
-  View,
-  Text,
-  ScrollView,
-  StyleSheet,
-  RefreshControl,
-  ActivityIndicator,
-  TouchableOpacity,
-} from "react-native";
+import { View, Text, ScrollView, StyleSheet, RefreshControl } from "react-native";
+import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { dashboardAPI } from "../../services/api";
-import StatCard from "../../components/StatCard";
 import ServiceCard from "../../components/ServiceCard";
-import { COLORS, FONTS, SIZES } from "../../constants/theme";
+import { Card, Badge, EmptyState, SkeletonList, Skeleton } from "../../components/ui";
+import { useTheme } from "../../context/ThemeContext";
 
 const formatMoney = (n) => {
   const num = Number(n);
   return Number.isFinite(num) ? `₹${num.toLocaleString("en-IN")}` : "₹0";
 };
-
 const formatCount = (n) => {
   const num = Number(n);
   return Number.isFinite(num) ? String(num) : "0";
 };
 
+// Small stat tile — colored icon chip + value + label. Replaces the old StatCard.
+function Stat({ icon, label, value, color, index }) {
+  const { colors, radius, elevation } = useTheme();
+  return (
+    <Animated.View
+      entering={FadeInDown.delay(100 + index * 60).duration(350)}
+      style={{ width: "47%" }}
+    >
+      <View
+        style={[
+          {
+            backgroundColor: colors.card,
+            borderRadius: radius.lg,
+            padding: 14,
+            marginBottom: 12,
+          },
+          elevation("sm"),
+        ]}
+      >
+        <View
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 10,
+            backgroundColor: `${color}1A`,
+            alignItems: "center",
+            justifyContent: "center",
+            marginBottom: 10,
+          }}
+        >
+          <MaterialCommunityIcons name={icon} size={20} color={color} />
+        </View>
+        <Text style={{ color: colors.text, fontSize: 20, fontWeight: "800" }}>{value}</Text>
+        <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>{label}</Text>
+      </View>
+    </Animated.View>
+  );
+}
+
+function Section({ title, color, children }) {
+  const { colors } = useTheme();
+  return (
+    <View style={{ marginTop: 20 }}>
+      <Text style={{ color: color || colors.text, fontSize: 17, fontWeight: "700", marginBottom: 10 }}>
+        {title}
+      </Text>
+      {children}
+    </View>
+  );
+}
+
 export default function DashboardScreen({ navigation }) {
+  const { colors, isDark, elevation } = useTheme();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -50,40 +95,51 @@ export default function DashboardScreen({ navigation }) {
     }, [])
   );
 
-  if (loading) {
+  const goToService = (service) =>
+    navigation.navigate("Services", { screen: "ServiceDetail", params: { id: service.id } });
+
+  // ── Loading: skeletons instead of a blank spinner (feels fast, not stuck) ──
+  if (loading && !data) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <Skeleton width="55%" height={26} style={{ marginTop: 8, marginBottom: 20 }} />
+        <Skeleton width="100%" height={110} radius={16} style={{ marginBottom: 20 }} />
+        <SkeletonList count={4} />
       </View>
     );
   }
 
   if (error && !data) {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.errorTitle}>Couldn't load dashboard</Text>
-        <Text style={styles.errorMsg}>{error}</Text>
-        <TouchableOpacity
-          style={styles.retryBtn}
-          onPress={() => {
+      <View style={[styles.container, { backgroundColor: colors.background, flex: 1 }]}>
+        <EmptyState
+          tone="error"
+          icon="cloud-off-outline"
+          title="Couldn't load dashboard"
+          message={error}
+          actionLabel="Try again"
+          onAction={() => {
             setLoading(true);
             fetchDashboard();
           }}
-        >
-          <Text style={styles.retryText}>Retry</Text>
-        </TouchableOpacity>
+        />
       </View>
     );
   }
 
   const stats = data?.stats || {};
+  const today = data?.today_services || [];
+  const upcoming = data?.upcoming_services || [];
+  const due = data?.due_services || [];
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
+      showsVerticalScrollIndicator={false}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
+          tintColor={colors.primary}
           onRefresh={() => {
             setRefreshing(true);
             fetchDashboard();
@@ -91,161 +147,101 @@ export default function DashboardScreen({ navigation }) {
         />
       }
     >
-      <Text style={styles.greeting}>Dashboard</Text>
+      {/* Friendly greeting */}
+      <Animated.View entering={FadeIn.duration(300)}>
+        <Text style={{ color: colors.textSecondary, fontSize: 14, marginTop: 8 }}>
+          Welcome back 👋
+        </Text>
+        <Text style={{ color: colors.text, fontSize: 26, fontWeight: "800", letterSpacing: -0.5 }}>
+          Dashboard
+        </Text>
+      </Animated.View>
 
-      {/* Stats Grid */}
-      <View style={styles.statsGrid}>
-        <StatCard
-          title="Total Customers"
-          value={formatCount(stats.total_customers)}
-          color={COLORS.primary}
-        />
-        <StatCard
-          title="Pending Services"
-          value={formatCount(stats.pending_services)}
-          color={COLORS.warning}
-        />
-        <StatCard
-          title="Completed (Month)"
-          value={formatCount(stats.completed_this_month)}
-          color={COLORS.secondary}
-        />
-        <StatCard
-          title="Due"
-          value={formatCount(stats.due_count)}
-          color="#F97316"
-        />
-        <StatCard
-          title="Follow Up"
-          value={formatCount(stats.followup_services)}
-          color="#8B5CF6"
-        />
-        <StatCard
-          title="Revenue (Month)"
-          value={formatMoney(stats.monthly_revenue)}
-          color={COLORS.secondary}
-        />
-        <StatCard
-          title="Unpaid Bills"
-          value={formatMoney(stats.total_unpaid)}
-          color={COLORS.danger}
-        />
+      {/* Hero: revenue this month */}
+      <Animated.View entering={FadeInDown.delay(60).duration(400)} style={{ marginTop: 16 }}>
+        <View
+          style={[
+            {
+              borderRadius: 18,
+              padding: 18,
+              backgroundColor: colors.primary,
+              overflow: "hidden",
+            },
+            elevation("lg"),
+          ]}
+        >
+          <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 13, fontWeight: "500" }}>
+            Revenue this month
+          </Text>
+          <Text style={{ color: "#fff", fontSize: 32, fontWeight: "800", marginTop: 4 }}>
+            {formatMoney(stats.monthly_revenue)}
+          </Text>
+          <View style={{ flexDirection: "row", marginTop: 12, alignItems: "center" }}>
+            <Badge
+              label={`${formatCount(stats.completed_this_month)} completed`}
+              color="#fff"
+              icon="check-circle-outline"
+              size="sm"
+            />
+            <View style={{ width: 8 }} />
+            <Badge
+              label={`${formatMoney(stats.total_unpaid)} unpaid`}
+              color="#fff"
+              icon="alert-circle-outline"
+              size="sm"
+            />
+          </View>
+        </View>
+      </Animated.View>
+
+      {/* Stat grid */}
+      <View style={styles.grid}>
+        <Stat index={0} icon="account-group" label="Customers" value={formatCount(stats.total_customers)} color={colors.primary} />
+        <Stat index={1} icon="timer-sand" label="Pending" value={formatCount(stats.pending_services)} color={colors.warning} />
+        <Stat index={2} icon="alert-clock" label="Due" value={formatCount(stats.due_count)} color="#F97316" />
+        <Stat index={3} icon="phone-return-outline" label="Follow Up" value={formatCount(stats.followup_services)} color={colors.accent} />
       </View>
 
-      {/* Today's Services */}
-      <Text style={styles.sectionTitle}>Today's Services</Text>
-      {(data?.today_services || []).length === 0 ? (
-        <Text style={styles.emptyText}>No services scheduled for today</Text>
-      ) : (
-        data.today_services.map((service) => (
-          <ServiceCard
-            key={service.id}
-            service={service}
-            onPress={() =>
-              navigation.navigate("Services", {
-                screen: "ServiceDetail",
-                params: { id: service.id },
-              })
-            }
-          />
-        ))
+      {/* Today */}
+      <Section title="Today's Services">
+        {today.length === 0 ? (
+          <Card><Text style={{ color: colors.textSecondary, textAlign: "center", paddingVertical: 12 }}>Nothing scheduled today 🎉</Text></Card>
+        ) : (
+          today.map((s, i) => (
+            <Animated.View key={s.id} entering={FadeInDown.delay(i * 50).duration(300)}>
+              <ServiceCard service={s} onPress={goToService} />
+            </Animated.View>
+          ))
+        )}
+      </Section>
+
+      {/* Upcoming */}
+      <Section title="Upcoming (7 days)">
+        {upcoming.length === 0 ? (
+          <Card><Text style={{ color: colors.textSecondary, textAlign: "center", paddingVertical: 12 }}>No upcoming services</Text></Card>
+        ) : (
+          upcoming.map((s) => <ServiceCard key={s.id} service={s} onPress={goToService} />)
+        )}
+      </Section>
+
+      {/* Due */}
+      {due.length > 0 && (
+        <Section title="Due Services" color="#F97316">
+          {due.map((s) => <ServiceCard key={s.id} service={s} onPress={goToService} />)}
+        </Section>
       )}
 
-      {/* Upcoming Services */}
-      <Text style={styles.sectionTitle}>Upcoming (7 days)</Text>
-      {(data?.upcoming_services || []).length === 0 ? (
-        <Text style={styles.emptyText}>No upcoming services</Text>
-      ) : (
-        data.upcoming_services.map((service) => (
-          <ServiceCard
-            key={service.id}
-            service={service}
-            onPress={() =>
-              navigation.navigate("Services", {
-                screen: "ServiceDetail",
-                params: { id: service.id },
-              })
-            }
-          />
-        ))
-      )}
-
-      {/* Due Services */}
-      {(data?.due_services || []).length > 0 && (
-        <>
-          <Text style={[styles.sectionTitle, { color: "#F97316" }]}>
-            Due Services
-          </Text>
-          {data.due_services.map((service) => (
-            <ServiceCard
-              key={service.id}
-              service={service}
-              onPress={() =>
-                navigation.navigate("Services", {
-                  screen: "ServiceDetail",
-                  params: { id: service.id },
-                })
-              }
-            />
-          ))}
-        </>
-      )}
-
-      <View style={{ height: 30 }} />
+      <View style={{ height: 32 }} />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-    padding: SIZES.padding,
-  },
-  centered: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  greeting: {
-    ...FONTS.h1,
-    marginBottom: 16,
-    marginTop: 8,
-  },
-  statsGrid: {
+  container: { flex: 1, paddingHorizontal: 16 },
+  grid: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
-    marginBottom: 8,
-  },
-  sectionTitle: {
-    ...FONTS.h3,
     marginTop: 16,
-    marginBottom: 10,
   },
-  emptyText: {
-    ...FONTS.regular,
-    color: COLORS.gray,
-    textAlign: "center",
-    paddingVertical: 20,
-  },
-  errorTitle: {
-    ...FONTS.h3,
-    color: COLORS.danger,
-    marginBottom: 8,
-  },
-  errorMsg: {
-    ...FONTS.regular,
-    color: COLORS.gray,
-    textAlign: "center",
-    paddingHorizontal: 24,
-  },
-  retryBtn: {
-    marginTop: 16,
-    paddingVertical: 10,
-    paddingHorizontal: 24,
-    backgroundColor: COLORS.primary,
-    borderRadius: 8,
-  },
-  retryText: { color: COLORS.white, ...FONTS.bold },
 });

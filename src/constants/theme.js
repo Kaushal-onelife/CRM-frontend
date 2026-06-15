@@ -1,33 +1,39 @@
-// Legacy theme constants — kept for backward compatibility.
-// For dynamic light/dark theming, use `useTheme()` from ../context/ThemeContext.
+// Legacy theme constants — kept for backward compatibility with screens that
+// import COLORS/FONTS/SIZES directly. These now derive from the single token
+// source (src/theme/tokens.js) so they can never drift from the live theme.
+// For dynamic light/dark theming, prefer `useTheme()` from ../context/ThemeContext.
+
+import { palette, spacing, radius, typography } from "../theme/tokens";
+
+const l = palette.light;
 
 export const COLORS = {
-  primary: "#2563EB",
-  primaryDark: "#1D4ED8",
-  primaryLight: "#DBEAFE",
-  secondary: "#10B981",
-  danger: "#EF4444",
-  warning: "#F59E0B",
+  primary: l.primary,
+  primaryDark: l.primaryDark,
+  primaryLight: l.primaryLight,
+  secondary: l.secondary,
+  danger: l.danger,
+  warning: l.warning,
   white: "#FFFFFF",
-  black: "#1F2937",
-  gray: "#6B7280",
-  grayLight: "#F3F4F6",
-  grayBorder: "#E5E7EB",
-  background: "#F9FAFB",
+  black: l.text,
+  gray: l.textSecondary,
+  grayLight: l.grayLight,
+  grayBorder: l.border,
+  background: l.background,
 };
 
 export const FONTS = {
-  regular: { fontSize: 14, color: COLORS.black },
-  medium: { fontSize: 16, fontWeight: "500", color: COLORS.black },
+  regular: { fontSize: typography.body.fontSize, color: COLORS.black },
+  medium: { ...typography.bodyStrong, color: COLORS.black },
   bold: { fontSize: 16, fontWeight: "700", color: COLORS.black },
-  h1: { fontSize: 24, fontWeight: "700", color: COLORS.black },
-  h2: { fontSize: 20, fontWeight: "600", color: COLORS.black },
-  h3: { fontSize: 18, fontWeight: "600", color: COLORS.black },
-  small: { fontSize: 12, color: COLORS.gray },
+  h1: { ...typography.h1, color: COLORS.black },
+  h2: { ...typography.h2, color: COLORS.black },
+  h3: { ...typography.h3, color: COLORS.black },
+  small: { ...typography.caption, color: COLORS.gray },
 };
 
 export const SIZES = {
-  padding: 16,
-  radius: 12,
+  padding: spacing.lg,
+  radius: radius.md,
   inputHeight: 48,
 };

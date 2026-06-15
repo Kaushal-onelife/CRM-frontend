@@ -6,11 +6,15 @@ import {
   StyleSheet,
   Alert,
   ScrollView,
+  Switch,
 } from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { supabase } from "../../services/supabase";
-import { COLORS, FONTS, SIZES } from "../../constants/theme";
+import { useTheme } from "../../context/ThemeContext";
+import { Button, Card } from "../../components/ui";
 
 export default function SettingsScreen({ navigation }) {
+  const { colors, theme, isDark, toggleTheme, elevation } = useTheme();
   const [user, setUser] = useState(null);
 
   useEffect(() => {
@@ -50,90 +54,168 @@ export default function SettingsScreen({ navigation }) {
     ]);
   };
 
+  const menuItems = [
+    {
+      label: "Parts Inventory",
+      subtitle: "Manage stock of filters and parts",
+      icon: "package-variant-closed",
+      onPress: () => navigation.navigate("Inventory"),
+    },
+    {
+      label: "About",
+      subtitle: "Water Purifier CRM v1.0.0",
+      icon: "information-outline",
+      onPress: () =>
+        Alert.alert(
+          "About",
+          "Water Purifier CRM\nVersion 1.0.0\n\nA simple CRM to manage customers, services and bills."
+        ),
+    },
+    {
+      label: "Help & Support",
+      subtitle: "Get help with the app",
+      icon: "lifebuoy",
+      onPress: () =>
+        Alert.alert(
+          "Help & Support",
+          "For assistance, please contact:\n\nEmail: support@onelifecapital.in"
+        ),
+    },
+  ];
+
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.profileCard}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
+    <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Profile */}
+      <View style={styles.profileWrap}>
+        <View
+          style={[
+            styles.avatar,
+            { backgroundColor: colors.primaryLight },
+          ]}
+        >
+          <Text style={[styles.avatarText, { color: colors.primary }]}>
             {user?.name?.charAt(0)?.toUpperCase() || "?"}
           </Text>
         </View>
-        <Text style={styles.name}>{user?.name || "Loading..."}</Text>
-        <Text style={styles.role}>{user?.role || ""}</Text>
+        <Text style={[styles.name, { color: colors.text }]}>
+          {user?.name || "Loading..."}
+        </Text>
+        <Text style={[styles.role, { color: colors.textSecondary }]}>
+          {user?.role || ""}
+        </Text>
       </View>
 
+      {/* Business Info */}
       {user?.tenants && (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Business Info</Text>
+        <Card style={styles.card}>
+          <Text style={[styles.cardTitle, { color: colors.text }]}>Business Info</Text>
           {[
             { label: "Business Name", value: user.tenants.business_name },
             { label: "Owner", value: user.tenants.owner_name },
             { label: "Phone", value: user.tenants.phone },
             { label: "Email", value: user.tenants.email },
             { label: "Address", value: user.tenants.address },
-            {
-              label: "Subscription",
-              value: user.tenants.subscription_status,
-            },
+            { label: "Subscription", value: user.tenants.subscription_status },
           ]
             .filter((item) => item.value)
             .map((item) => (
-              <View key={item.label} style={styles.detailRow}>
-                <Text style={styles.detailLabel}>{item.label}</Text>
-                <Text style={styles.detailValue}>{item.value}</Text>
+              <View
+                key={item.label}
+                style={[styles.detailRow, { borderBottomColor: colors.divider }]}
+              >
+                <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>
+                  {item.label}
+                </Text>
+                <Text style={[styles.detailValue, { color: colors.text }]}>
+                  {item.value}
+                </Text>
               </View>
             ))}
-        </View>
+        </Card>
       )}
 
-      <View style={styles.card}>
-        <TouchableOpacity
-          style={styles.menuItem}
-          onPress={() => navigation.navigate("Inventory")}
-        >
-          <View>
-            <Text style={styles.menuLabel}>Parts Inventory</Text>
-            <Text style={styles.menuSubtitle}>Manage stock of filters and parts</Text>
+      {/* Preferences */}
+      <Card style={styles.card}>
+        <Text style={[styles.cardTitle, { color: colors.text }]}>Preferences</Text>
+        <View style={styles.toggleRow}>
+          <View style={styles.menuLeft}>
+            <View
+              style={[styles.menuIcon, { backgroundColor: colors.primarySoft }]}
+            >
+              <MaterialCommunityIcons
+                name={isDark ? "weather-night" : "white-balance-sunny"}
+                size={20}
+                color={colors.primary}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.menuLabel, { color: colors.text }]}>Dark Mode</Text>
+              <Text style={[styles.menuSubtitle, { color: colors.textSecondary }]}>
+                {isDark ? "On" : "Off"}
+              </Text>
+            </View>
           </View>
-          <Text style={styles.arrow}>{">"}</Text>
-        </TouchableOpacity>
-        {[
-          {
-            label: "About",
-            subtitle: "Water Purifier CRM v1.0.0",
-            onPress: () =>
-              Alert.alert(
-                "About",
-                "Water Purifier CRM\nVersion 1.0.0\n\nA simple CRM to manage customers, services and bills."
-              ),
-          },
-          {
-            label: "Help & Support",
-            subtitle: "Get help with the app",
-            onPress: () =>
-              Alert.alert(
-                "Help & Support",
-                "For assistance, please contact:\n\nEmail: support@onelifecapital.in"
-              ),
-          },
-        ].map((item) => (
+          <Switch
+            value={isDark}
+            onValueChange={toggleTheme}
+            trackColor={{ false: colors.border, true: colors.primary }}
+            thumbColor={colors.surface}
+            ios_backgroundColor={colors.border}
+          />
+        </View>
+      </Card>
+
+      {/* Menu */}
+      <Card style={styles.card}>
+        {menuItems.map((item, idx) => (
           <TouchableOpacity
             key={item.label}
-            style={styles.menuItem}
+            style={[
+              styles.menuItem,
+              idx < menuItems.length - 1 && {
+                borderBottomWidth: 1,
+                borderBottomColor: colors.divider,
+              },
+            ]}
             onPress={item.onPress}
           >
-            <View>
-              <Text style={styles.menuLabel}>{item.label}</Text>
-              <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
+            <View style={styles.menuLeft}>
+              <View
+                style={[styles.menuIcon, { backgroundColor: colors.primarySoft }]}
+              >
+                <MaterialCommunityIcons
+                  name={item.icon}
+                  size={20}
+                  color={colors.primary}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.menuLabel, { color: colors.text }]}>
+                  {item.label}
+                </Text>
+                <Text style={[styles.menuSubtitle, { color: colors.textSecondary }]}>
+                  {item.subtitle}
+                </Text>
+              </View>
             </View>
-            <Text style={styles.arrow}>{">"}</Text>
+            <MaterialCommunityIcons
+              name="chevron-right"
+              size={22}
+              color={colors.textMuted}
+            />
           </TouchableOpacity>
         ))}
-      </View>
+      </Card>
 
-      <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-        <Text style={styles.logoutText}>Logout</Text>
-      </TouchableOpacity>
+      {/* Logout */}
+      <View style={styles.logoutWrap}>
+        <Button
+          title="Logout"
+          variant="danger"
+          icon="logout"
+          onPress={handleLogout}
+        />
+      </View>
 
       <View style={{ height: 40 }} />
     </ScrollView>
@@ -141,65 +223,67 @@ export default function SettingsScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  profileCard: {
-    backgroundColor: COLORS.white,
+  container: { flex: 1 },
+  profileWrap: {
     alignItems: "center",
     paddingVertical: 30,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.grayBorder,
   },
   avatar: {
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: COLORS.primaryLight,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 12,
   },
-  avatarText: { fontSize: 28, fontWeight: "700", color: COLORS.primary },
-  name: { ...FONTS.h2 },
+  avatarText: { fontSize: 28, fontWeight: "700" },
+  name: { fontSize: 20, fontWeight: "700", letterSpacing: -0.2 },
   role: {
-    ...FONTS.regular,
-    color: COLORS.gray,
+    fontSize: 15,
     marginTop: 4,
     textTransform: "capitalize",
   },
   card: {
-    backgroundColor: COLORS.white,
-    margin: SIZES.padding,
-    marginBottom: 0,
-    borderRadius: SIZES.radius,
-    padding: SIZES.padding,
-    elevation: 1,
+    marginHorizontal: 16,
+    marginBottom: 16,
   },
-  cardTitle: { ...FONTS.h3, marginBottom: 12 },
+  cardTitle: { fontSize: 17, fontWeight: "600", marginBottom: 8 },
   detailRow: {
     flexDirection: "row",
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.grayLight,
   },
-  detailLabel: { ...FONTS.regular, color: COLORS.gray, width: 120 },
-  detailValue: { ...FONTS.regular, flex: 1, textTransform: "capitalize" },
+  detailLabel: { fontSize: 14, width: 120 },
+  detailValue: { fontSize: 14, flex: 1, textTransform: "capitalize" },
   menuItem: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.grayLight,
   },
-  menuLabel: { ...FONTS.medium },
-  menuSubtitle: { ...FONTS.small, marginTop: 2 },
-  arrow: { fontSize: 22, color: COLORS.gray },
-  logoutBtn: {
-    margin: SIZES.padding,
-    backgroundColor: COLORS.danger + "10",
-    borderRadius: 8,
-    padding: 14,
+  toggleRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
+    paddingVertical: 6,
   },
-  logoutText: { color: COLORS.danger, ...FONTS.bold },
+  menuLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  menuIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  menuLabel: { fontSize: 15, fontWeight: "600" },
+  menuSubtitle: { fontSize: 12, marginTop: 2 },
+  logoutWrap: {
+    marginHorizontal: 16,
+    marginTop: 4,
+  },
 });

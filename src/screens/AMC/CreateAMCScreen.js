@@ -12,14 +12,14 @@ import {
 } from "react-native";
 import { customerAPI, amcAPI } from "../../services/api";
 import DatePickerField from "../../components/DatePickerField";
-import { COLORS, FONTS, SIZES } from "../../constants/theme";
+import { Input, Button, Card } from "../../components/ui";
+import { useTheme } from "../../context/ThemeContext";
 import {
   isRequired,
   isIntegerInRange,
   isNonNegativeNumber,
   isDateAfter,
   maxLength,
-  firstError,
 } from "../../utils/validators";
 
 const PLAN_PRESETS = [
@@ -30,6 +30,7 @@ const PLAN_PRESETS = [
 ];
 
 export default function CreateAMCScreen({ route, navigation }) {
+  const { colors, radius } = useTheme();
   const preCustomerId = route.params?.customerId;
   const [customers, setCustomers] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState(preCustomerId || null);
@@ -45,6 +46,38 @@ export default function CreateAMCScreen({ route, navigation }) {
   const [autoSchedule, setAutoSchedule] = useState(true);
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
+
+  // Per-field validation — returns an error string or null. Used on blur + submit.
+  const validateField = (key, value) => {
+    const v = (value || "").trim();
+    switch (key) {
+      case "planName":
+        return isRequired(v, "Plan name") || maxLength(v, 100, "Plan name");
+      case "startDate":
+        return isRequired(v, "Start date");
+      case "endDate":
+        return isRequired(v, "End date") || isDateAfter(v, startDate, "End date");
+      // total_services must be 1-52: catches "0", negatives, NaN, and absurd values
+      // that would create thousands of phantom services if auto_schedule is on.
+      case "totalServices":
+        return isIntegerInRange(v, 1, 52, "Total services");
+      case "amount":
+        return isNonNegativeNumber(v || "0", "Amount");
+      case "notes":
+        return maxLength(v, 500, "Notes");
+      default:
+        return null;
+    }
+  };
+
+  const clearError = (key) => {
+    if (errors[key]) setErrors((prev) => ({ ...prev, [key]: null }));
+  };
+
+  const handleBlur = (key, value) => {
+    setErrors((prev) => ({ ...prev, [key]: validateField(key, value) }));
+  };
 
   useEffect(() => {
     if (!preCustomerId) fetchCustomers();
@@ -69,10 +102,12 @@ export default function CreateAMCScreen({ route, navigation }) {
     if (preset.name !== "Custom") {
       setPlanName(preset.name);
       setTotalServices(String(preset.services));
+      setErrors((prev) => ({ ...prev, planName: null, totalServices: null }));
       if (startDate) {
         const start = new Date(startDate);
         start.setMonth(start.getMonth() + preset.months);
         setEndDate(formatDate(start));
+        setErrors((prev) => ({ ...prev, endDate: null }));
       }
     }
   };
@@ -86,12 +121,14 @@ export default function CreateAMCScreen({ route, navigation }) {
 
   const handleStartDateChange = (date) => {
     setStartDate(date);
+    setErrors((prev) => ({ ...prev, startDate: null }));
     // Auto-calculate end date based on selected plan
     const preset = PLAN_PRESETS.find((p) => p.name === selectedPlan);
     if (preset && preset.months > 0) {
       const start = new Date(date);
       start.setMonth(start.getMonth() + preset.months);
       setEndDate(formatDate(start));
+      setErrors((prev) => ({ ...prev, endDate: null }));
     }
   };
 
@@ -104,22 +141,22 @@ export default function CreateAMCScreen({ route, navigation }) {
     const trimmedPlan = planName.trim();
     const trimmedNotes = notes.trim();
 
-    const error = firstError([
-      isRequired(trimmedPlan, "Plan name"),
-      maxLength(trimmedPlan, 100, "Plan name"),
-      isRequired(startDate, "Start date"),
-      isRequired(endDate, "End date"),
-      isDateAfter(endDate, startDate, "End date"),
-      // total_services must be 1-52: catches "0", negatives, NaN, and absurd values
-      // that would create thousands of phantom services if auto_schedule is on.
-      isIntegerInRange(totalServices, 1, 52, "Total services"),
-      isNonNegativeNumber(amount || "0", "Amount"),
-      maxLength(trimmedNotes, 500, "Notes"),
-    ]);
-    if (error) {
-      Alert.alert("Invalid input", error);
-      return;
+    // Validate every field; collect all errors so they all light up at once.
+    const fieldValues = {
+      planName,
+      startDate,
+      endDate,
+      totalServices,
+      amount,
+      notes,
+    };
+    const nextErrors = {};
+    for (const [key, value] of Object.entries(fieldValues)) {
+      const err = validateField(key, value);
+      if (err) nextErrors[key] = err;
     }
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
 
     setLoading(true);
     try {
@@ -142,82 +179,107 @@ export default function CreateAMCScreen({ route, navigation }) {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+    >
       {/* Customer Selection */}
       {!preCustomerId && (
-        <>
-          <Text style={styles.label}>Select Customer *</Text>
-          <TextInput
-            style={styles.input}
+        <Card style={{ marginBottom: 16 }}>
+          <Input
+            label="Select Customer *"
+            icon="account-search-outline"
             placeholder="Search customer by name or phone..."
             value={customerSearch}
+            style={{ marginBottom: 0 }}
             onChangeText={(text) => {
               setCustomerSearch(text);
               if (text.length > 2) fetchCustomers(text);
             }}
           />
           {customerSearch.length > 2 && (
-            <View style={styles.dropdown}>
+            <View
+              style={[
+                styles.dropdown,
+                { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md },
+              ]}
+            >
               {searching ? (
-                <ActivityIndicator size="small" color={COLORS.primary} style={{ padding: 12 }} />
+                <ActivityIndicator size="small" color={colors.primary} style={{ padding: 12 }} />
               ) : customers.length === 0 ? (
-                <Text style={styles.dropdownEmpty}>No customers found</Text>
+                <Text style={[styles.dropdownEmpty, { color: colors.textSecondary }]}>
+                  No customers found
+                </Text>
               ) : (
                 customers.map((c) => (
                   <TouchableOpacity
                     key={c.id}
                     style={[
                       styles.dropdownItem,
-                      selectedCustomer === c.id && styles.dropdownItemActive,
+                      { borderBottomColor: colors.divider },
+                      selectedCustomer === c.id && { backgroundColor: colors.primarySoft },
                     ]}
                     onPress={() => {
                       setSelectedCustomer(c.id);
                       setCustomerSearch(c.name);
                     }}
                   >
-                    <Text style={styles.dropdownText}>{c.name} - {c.phone}</Text>
+                    <Text style={[styles.dropdownText, { color: colors.text }]}>
+                      {c.name} - {c.phone}
+                    </Text>
                   </TouchableOpacity>
                 ))
               )}
             </View>
           )}
-        </>
+        </Card>
       )}
 
       {/* Plan Selection */}
-      <Text style={styles.label}>Select Plan *</Text>
+      <Text style={[styles.label, { color: colors.text }]}>Select Plan *</Text>
       <View style={styles.planGrid}>
-        {PLAN_PRESETS.map((preset) => (
-          <TouchableOpacity
-            key={preset.name}
-            style={[
-              styles.planChip,
-              selectedPlan === preset.name && styles.planChipActive,
-            ]}
-            onPress={() => selectPlan(preset)}
-          >
-            <Text
+        {PLAN_PRESETS.map((preset) => {
+          const active = selectedPlan === preset.name;
+          return (
+            <TouchableOpacity
+              key={preset.name}
               style={[
-                styles.planText,
-                selectedPlan === preset.name && styles.planTextActive,
+                styles.planChip,
+                {
+                  backgroundColor: active ? colors.primary : colors.surface,
+                  borderColor: active ? colors.primary : colors.border,
+                },
               ]}
+              onPress={() => selectPlan(preset)}
             >
-              {preset.name}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <Text
+                style={[
+                  styles.planText,
+                  { color: active ? colors.onPrimary : colors.textSecondary },
+                  active && { fontWeight: "600" },
+                ]}
+              >
+                {preset.name}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       {selectedPlan === "Custom" && (
-        <>
-          <Text style={styles.label}>Plan Name *</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g. Special 2-Year Plan"
-            value={planName}
-            onChangeText={setPlanName}
-          />
-        </>
+        <Input
+          label="Plan Name *"
+          placeholder="e.g. Special 2-Year Plan"
+          value={planName}
+          error={errors.planName}
+          onChangeText={(v) => {
+            setPlanName(v.slice(0, 100));
+            clearError("planName");
+          }}
+          onBlur={() => handleBlur("planName", planName)}
+        />
       )}
 
       {/* Dates */}
@@ -231,125 +293,146 @@ export default function CreateAMCScreen({ route, navigation }) {
       <DatePickerField
         label="End Date *"
         value={endDate}
-        onChange={setEndDate}
+        onChange={(v) => {
+          setEndDate(v);
+          clearError("endDate");
+        }}
         placeholder="Select end date"
         minDate={startDate ? new Date(startDate) : undefined}
       />
+      {errors.endDate ? (
+        <Text style={{ color: colors.danger, fontSize: 12, marginTop: -8, marginBottom: 8 }}>
+          {errors.endDate}
+        </Text>
+      ) : null}
 
       {/* Services count */}
-      <Text style={styles.label}>Total Services Included</Text>
-      <TextInput
-        style={styles.input}
+      <Input
+        label="Total Services Included"
         value={totalServices}
-        onChangeText={setTotalServices}
+        error={errors.totalServices}
+        onChangeText={(v) => {
+          setTotalServices(v.replace(/[^0-9]/g, ""));
+          clearError("totalServices");
+        }}
+        onBlur={() => handleBlur("totalServices", totalServices)}
         keyboardType="numeric"
         placeholder="4"
       />
 
       {/* Amount */}
-      <Text style={styles.label}>Contract Amount (Rs)</Text>
-      <TextInput
-        style={styles.input}
+      <Input
+        label="Contract Amount (₹)"
+        icon="currency-inr"
         placeholder="0"
         value={amount}
-        onChangeText={setAmount}
+        error={errors.amount}
+        onChangeText={(v) => {
+          setAmount(v.replace(/[^0-9.]/g, ""));
+          clearError("amount");
+        }}
+        onBlur={() => handleBlur("amount", amount)}
         keyboardType="numeric"
       />
 
       {/* Auto-schedule toggle */}
-      <View style={styles.switchRow}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.switchLabel}>Auto-schedule services</Text>
-          <Text style={styles.switchHint}>
+      <View
+        style={[
+          styles.switchRow,
+          { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md },
+        ]}
+      >
+        <View style={{ flex: 1, paddingRight: 12 }}>
+          <Text style={[styles.switchLabel, { color: colors.text }]}>Auto-schedule services</Text>
+          <Text style={[styles.switchHint, { color: colors.textSecondary }]}>
             Evenly distributes {totalServices || 0} services across the contract period
           </Text>
         </View>
         <Switch
           value={autoSchedule}
           onValueChange={setAutoSchedule}
-          trackColor={{ true: COLORS.primary }}
+          trackColor={{ true: colors.primary, false: colors.border }}
+          thumbColor={colors.surface}
         />
       </View>
 
       {/* Notes */}
-      <Text style={styles.label}>Notes</Text>
+      <Text style={[styles.label, { color: colors.text }]}>Notes</Text>
       <TextInput
-        style={[styles.input, { height: 70, textAlignVertical: "top" }]}
+        style={[
+          styles.notesInput,
+          {
+            borderColor: errors.notes ? colors.danger : colors.border,
+            borderRadius: radius.md,
+            backgroundColor: colors.surface,
+            color: colors.text,
+            // Strip the web browser's default black input outline.
+            outlineStyle: "none",
+            outlineWidth: 0,
+          },
+        ]}
         placeholder="Any additional notes..."
+        placeholderTextColor={colors.textMuted}
         value={notes}
-        onChangeText={setNotes}
+        onChangeText={(v) => {
+          setNotes(v.slice(0, 500));
+          clearError("notes");
+        }}
+        onBlur={() => handleBlur("notes", notes)}
+        underlineColorAndroid="transparent"
         multiline
       />
+      {errors.notes ? (
+        <Text style={{ color: colors.danger, fontSize: 12, marginTop: 4 }}>{errors.notes}</Text>
+      ) : null}
 
-      <TouchableOpacity
-        style={styles.button}
-        onPress={handleSubmit}
+      <Button
+        title="Create AMC Contract"
+        icon="file-document-plus-outline"
+        loading={loading}
         disabled={loading}
-      >
-        {loading ? (
-          <ActivityIndicator color={COLORS.white} />
-        ) : (
-          <Text style={styles.buttonText}>Create AMC Contract</Text>
-        )}
-      </TouchableOpacity>
+        onPress={handleSubmit}
+        style={{ marginTop: 24 }}
+      />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  content: { padding: SIZES.padding, paddingBottom: 40 },
-  label: { ...FONTS.medium, marginBottom: 6, marginTop: 14 },
-  input: {
-    borderWidth: 1,
-    borderColor: COLORS.grayBorder,
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 14,
-    backgroundColor: COLORS.white,
-  },
+  container: { flex: 1 },
+  content: { padding: 16, paddingBottom: 40 },
+  label: { fontSize: 13, fontWeight: "500", marginBottom: 6, marginTop: 14 },
   dropdown: {
-    backgroundColor: COLORS.white,
-    borderRadius: 8,
     borderWidth: 1,
-    borderColor: COLORS.grayBorder,
-    marginTop: 4,
-    maxHeight: 150,
+    marginTop: 8,
+    maxHeight: 180,
+    overflow: "hidden",
   },
-  dropdownItem: { padding: 12, borderBottomWidth: 1, borderBottomColor: COLORS.grayLight },
-  dropdownItemActive: { backgroundColor: COLORS.primaryLight },
-  dropdownText: { ...FONTS.regular },
-  dropdownEmpty: { ...FONTS.regular, color: COLORS.gray, padding: 12, textAlign: "center" },
+  dropdownItem: { padding: 14, borderBottomWidth: 1 },
+  dropdownText: { fontSize: 14 },
+  dropdownEmpty: { fontSize: 14, padding: 14, textAlign: "center" },
   planGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   planChip: {
     paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: COLORS.white,
+    paddingVertical: 10,
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: COLORS.grayBorder,
   },
-  planChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-  planText: { ...FONTS.small },
-  planTextActive: { color: COLORS.white, fontWeight: "600" },
+  planText: { fontSize: 13 },
   switchRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: COLORS.white,
-    borderRadius: 8,
-    padding: 14,
+    padding: 16,
     marginTop: 14,
     borderWidth: 1,
-    borderColor: COLORS.grayBorder,
   },
-  switchLabel: { ...FONTS.medium },
-  switchHint: { ...FONTS.small, color: COLORS.gray, marginTop: 2 },
-  button: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 8,
+  switchLabel: { fontSize: 14, fontWeight: "500" },
+  switchHint: { fontSize: 12, marginTop: 2, lineHeight: 16 },
+  notesInput: {
+    borderWidth: 1.5,
     padding: 14,
-    alignItems: "center",
-    marginTop: 28,
+    fontSize: 15,
+    minHeight: 90,
+    textAlignVertical: "top",
   },
-  buttonText: { color: COLORS.white, ...FONTS.bold },
 });

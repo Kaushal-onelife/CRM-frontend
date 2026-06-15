@@ -4,7 +4,6 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
-import { COLORS } from "../constants/theme";
 
 // Screens
 import DashboardScreen from "../screens/Dashboard/DashboardScreen";
@@ -25,17 +24,30 @@ import AMCDetailScreen from "../screens/AMC/AMCDetailScreen";
 import CreateAMCScreen from "../screens/AMC/CreateAMCScreen";
 import InventoryScreen from "../screens/Inventory/InventoryScreen";
 import SettingsScreen from "../screens/Settings/SettingsScreen";
+import MoreScreen from "../screens/More/MoreScreen";
 
 const Tab = createBottomTabNavigator();
 const CustomerStack = createNativeStackNavigator();
-const SettingsStack = createNativeStackNavigator();
 const ServiceStack = createNativeStackNavigator();
-const AMCStack = createNativeStackNavigator();
-const BillStack = createNativeStackNavigator();
+const MoreStack = createNativeStackNavigator();
+
+// Shared native-stack header styling — keeps every stack header theme-aware
+// (white in light mode, dark surface in dark mode) without repeating options.
+function useStackScreenOptions() {
+  const { colors } = useTheme();
+  return {
+    headerStyle: { backgroundColor: colors.card },
+    headerTintColor: colors.text,
+    headerTitleStyle: { fontWeight: "700", color: colors.text },
+    headerShadowVisible: false,
+    contentStyle: { backgroundColor: colors.background },
+  };
+}
 
 function CustomerNavigator() {
+  const screenOptions = useStackScreenOptions();
   return (
-    <CustomerStack.Navigator>
+    <CustomerStack.Navigator screenOptions={screenOptions}>
       <CustomerStack.Screen
         name="CustomerList"
         component={CustomerListScreen}
@@ -66,8 +78,9 @@ function CustomerNavigator() {
 }
 
 function ServiceNavigator() {
+  const screenOptions = useStackScreenOptions();
   return (
-    <ServiceStack.Navigator>
+    <ServiceStack.Navigator screenOptions={screenOptions}>
       <ServiceStack.Screen
         name="ServiceList"
         component={ServiceListScreen}
@@ -97,64 +110,31 @@ function ServiceNavigator() {
   );
 }
 
-function AMCNavigator() {
+// The "More" tab consolidates all secondary features into one stack whose root
+// is a clean menu screen. Keeps the bottom bar to 4 focused tabs while keeping
+// everything one tap away (nothing hidden behind a gesture).
+function MoreNavigator() {
+  const screenOptions = useStackScreenOptions();
   return (
-    <AMCStack.Navigator>
-      <AMCStack.Screen
-        name="AMCList"
-        component={AMCListScreen}
-        options={{ title: "AMC Contracts" }}
-      />
-      <AMCStack.Screen
-        name="AMCDetail"
-        component={AMCDetailScreen}
-        options={{ title: "AMC Details" }}
-      />
-      <AMCStack.Screen
-        name="CreateAMC"
-        component={CreateAMCScreen}
-        options={{ title: "New AMC Contract" }}
-      />
-    </AMCStack.Navigator>
-  );
-}
+    <MoreStack.Navigator screenOptions={screenOptions}>
+      <MoreStack.Screen name="MoreMenu" component={MoreScreen} options={{ title: "More" }} />
 
-function BillNavigator() {
-  return (
-    <BillStack.Navigator>
-      <BillStack.Screen
-        name="BillList"
-        component={BillListScreen}
-        options={{ title: "Bills" }}
-      />
-      <BillStack.Screen
-        name="BillDetail"
-        component={BillDetailScreen}
-        options={{ title: "Bill Details" }}
-      />
-      <BillStack.Screen
-        name="CreateBill"
-        component={CreateBillScreen}
-        options={{ title: "Create Bill" }}
-      />
-    </BillStack.Navigator>
-  );
-}
+      {/* Bills */}
+      <MoreStack.Screen name="Bills" component={BillListScreen} options={{ title: "Bills" }} />
+      <MoreStack.Screen name="BillDetail" component={BillDetailScreen} options={{ title: "Bill Details" }} />
+      <MoreStack.Screen name="CreateBill" component={CreateBillScreen} options={{ title: "Create Bill" }} />
 
-function SettingsNavigator() {
-  return (
-    <SettingsStack.Navigator>
-      <SettingsStack.Screen
-        name="SettingsMain"
-        component={SettingsScreen}
-        options={{ title: "Settings" }}
-      />
-      <SettingsStack.Screen
-        name="Inventory"
-        component={InventoryScreen}
-        options={{ title: "Parts Inventory" }}
-      />
-    </SettingsStack.Navigator>
+      {/* AMC */}
+      <MoreStack.Screen name="AMC" component={AMCListScreen} options={{ title: "AMC Contracts" }} />
+      <MoreStack.Screen name="AMCDetail" component={AMCDetailScreen} options={{ title: "AMC Details" }} />
+      <MoreStack.Screen name="CreateAMC" component={CreateAMCScreen} options={{ title: "New AMC Contract" }} />
+
+      {/* Inventory */}
+      <MoreStack.Screen name="Inventory" component={InventoryScreen} options={{ title: "Parts Inventory" }} />
+
+      {/* Settings */}
+      <MoreStack.Screen name="Settings" component={SettingsScreen} options={{ title: "Settings" }} />
+    </MoreStack.Navigator>
   );
 }
 
@@ -162,9 +142,7 @@ const TAB_ICONS = {
   Dashboard: { active: "view-dashboard", inactive: "view-dashboard-outline" },
   Customers: { active: "account-group", inactive: "account-group-outline" },
   Services: { active: "wrench", inactive: "wrench-outline" },
-  AMC: { active: "file-document-check", inactive: "file-document-check-outline" },
-  Bills: { active: "receipt", inactive: "text-box-outline" },
-  Settings: { active: "cog", inactive: "cog-outline" },
+  More: { active: "dots-horizontal-circle", inactive: "dots-horizontal-circle-outline" },
 };
 
 export default function AppNavigator() {
@@ -174,10 +152,10 @@ export default function AppNavigator() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: isDark ? "#6B7280" : "#9CA3AF",
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: {
-          backgroundColor: isDark ? colors.card : "#FFFFFF",
+          backgroundColor: colors.card,
           borderTopWidth: 0,
           height: Platform.OS === "ios" ? 88 : 68,
           paddingTop: 8,
@@ -201,7 +179,7 @@ export default function AppNavigator() {
               style={
                 focused
                   ? {
-                      backgroundColor: isDark ? "#1E3A5F" : "#EFF6FF",
+                      backgroundColor: colors.primarySoft,
                       borderRadius: 12,
                       paddingHorizontal: 14,
                       paddingVertical: 4,
@@ -225,6 +203,10 @@ export default function AppNavigator() {
         options={{
           headerShown: true,
           headerTitle: "Water Purifier CRM",
+          headerStyle: { backgroundColor: colors.card },
+          headerTitleStyle: { fontWeight: "700", color: colors.text },
+          headerTintColor: colors.text,
+          headerShadowVisible: false,
           tabBarLabel: "Home",
         }}
       />
@@ -239,21 +221,9 @@ export default function AppNavigator() {
         options={{ tabBarLabel: "Services" }}
       />
       <Tab.Screen
-        name="AMC"
-        component={AMCNavigator}
-        options={{ tabBarLabel: "AMC" }}
-      />
-      <Tab.Screen
-        name="Bills"
-        component={BillNavigator}
-        options={{ tabBarLabel: "Bills" }}
-      />
-      <Tab.Screen
-        name="Settings"
-        component={SettingsNavigator}
-        options={{
-          tabBarLabel: "Settings",
-        }}
+        name="More"
+        component={MoreNavigator}
+        options={{ tabBarLabel: "More" }}
       />
     </Tab.Navigator>
   );

@@ -2,36 +2,52 @@ import React, { useState } from "react";
 import {
   View,
   Text,
-  TextInput,
-  TouchableOpacity,
   StyleSheet,
   Alert,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
+  TouchableOpacity,
 } from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { authAPI } from "../../services/api";
 import { supabase } from "../../services/supabase";
-import { COLORS, FONTS, SIZES } from "../../constants/theme";
-import { isRequired, isEmail, firstError } from "../../utils/validators";
+import { useTheme } from "../../context/ThemeContext";
+import { Button, Card, Input } from "../../components/ui";
+import { isRequired, isEmail } from "../../utils/validators";
 
 export default function LoginScreen({ navigation }) {
+  const { colors, elevation } = useTheme();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+
+  // Per-field validation — returns an error string or null. Used on blur + submit.
+  const validateField = (key, emailVal, passwordVal) => {
+    if (key === "email") {
+      const v = (emailVal ?? email).trim().toLowerCase();
+      return isRequired(v, "Email") || isEmail(v, "Email");
+    }
+    if (key === "password") {
+      return isRequired(passwordVal ?? password, "Password");
+    }
+    return null;
+  };
+
+  const handleBlur = (key) => {
+    setErrors((prev) => ({ ...prev, [key]: validateField(key) }));
+  };
 
   const handleLogin = async () => {
     const trimmedEmail = email.trim().toLowerCase();
 
-    const error = firstError([
-      isRequired(trimmedEmail, "Email"),
-      isEmail(trimmedEmail, "Email"),
-      isRequired(password, "Password"),
-    ]);
-    if (error) {
-      Alert.alert("Invalid input", error);
-      return;
-    }
+    // Validate all fields; inline errors replace the old alert.
+    const nextErrors = {
+      email: validateField("email"),
+      password: validateField("password"),
+    };
+    setErrors(nextErrors);
+    if (Object.values(nextErrors).some(Boolean)) return;
 
     setLoading(true);
     try {
@@ -53,50 +69,73 @@ export default function LoginScreen({ navigation }) {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <View style={styles.header}>
-        <Text style={styles.title}>Water Purifier CRM</Text>
-        <Text style={styles.subtitle}>Manage your services effortlessly</Text>
+        <View
+          style={[
+            styles.iconBadge,
+            { backgroundColor: colors.primary },
+            elevation("lg"),
+          ]}
+        >
+          <MaterialCommunityIcons name="water" size={36} color={colors.onPrimary} />
+        </View>
+        <Text style={[styles.title, { color: colors.primary }]}>
+          Water Purifier CRM
+        </Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+          Manage your services effortlessly
+        </Text>
       </View>
 
-      <View style={styles.form}>
-        <Text style={styles.label}>Email</Text>
-        <TextInput
-          style={styles.input}
+      <Card>
+        <Text style={[styles.formHeading, { color: colors.text }]}>Welcome back</Text>
+
+        <Input
+          label="Email"
           placeholder="Enter your email"
           value={email}
-          onChangeText={setEmail}
+          onChangeText={(v) => {
+            setEmail(v);
+            if (errors.email) setErrors((prev) => ({ ...prev, email: null }));
+          }}
+          error={errors.email}
+          onBlur={() => handleBlur("email")}
+          icon="email-outline"
           keyboardType="email-address"
           autoCapitalize="none"
         />
 
-        <Text style={styles.label}>Password</Text>
-        <TextInput
-          style={styles.input}
+        <Input
+          label="Password"
           placeholder="Enter your password"
           value={password}
-          onChangeText={setPassword}
+          onChangeText={(v) => {
+            setPassword(v);
+            if (errors.password) setErrors((prev) => ({ ...prev, password: null }));
+          }}
+          error={errors.password}
+          onBlur={() => handleBlur("password")}
+          icon="lock-outline"
           secureTextEntry
         />
 
-        <TouchableOpacity
-          style={styles.button}
+        <Button
+          title="Login"
           onPress={handleLogin}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color={COLORS.white} />
-          ) : (
-            <Text style={styles.buttonText}>Login</Text>
-          )}
-        </TouchableOpacity>
+          loading={loading}
+          icon="login"
+          style={{ marginTop: 8 }}
+        />
 
         <TouchableOpacity onPress={() => navigation.navigate("Signup")}>
-          <Text style={styles.link}>Don't have an account? Sign Up</Text>
+          <Text style={[styles.link, { color: colors.primary }]}>
+            Don't have an account? Sign Up
+          </Text>
         </TouchableOpacity>
-      </View>
+      </Card>
     </KeyboardAvoidingView>
   );
 }
@@ -104,61 +143,41 @@ export default function LoginScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
     justifyContent: "center",
-    padding: SIZES.padding * 2,
+    padding: 24,
   },
   header: {
     alignItems: "center",
-    marginBottom: 40,
+    marginBottom: 32,
+  },
+  iconBadge: {
+    width: 72,
+    height: 72,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
   },
   title: {
-    ...FONTS.h1,
-    color: COLORS.primary,
-    marginBottom: 8,
+    fontSize: 24,
+    fontWeight: "800",
+    letterSpacing: -0.3,
+    marginBottom: 6,
+    textAlign: "center",
   },
   subtitle: {
-    ...FONTS.regular,
-    color: COLORS.gray,
+    fontSize: 15,
+    textAlign: "center",
   },
-  form: {
-    backgroundColor: COLORS.white,
-    borderRadius: SIZES.radius,
-    padding: SIZES.padding * 1.5,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  label: {
-    ...FONTS.medium,
-    marginBottom: 6,
-    marginTop: 12,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: COLORS.grayBorder,
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 14,
-    backgroundColor: COLORS.grayLight,
-  },
-  button: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 8,
-    padding: 14,
-    alignItems: "center",
-    marginTop: 24,
-  },
-  buttonText: {
-    color: COLORS.white,
-    ...FONTS.bold,
+  formHeading: {
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 16,
   },
   link: {
-    color: COLORS.primary,
     textAlign: "center",
-    marginTop: 16,
-    ...FONTS.regular,
+    marginTop: 18,
+    fontSize: 14,
+    fontWeight: "500",
   },
 });

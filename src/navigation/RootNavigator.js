@@ -1,12 +1,18 @@
 import React, { useState, useEffect } from "react";
-import { ActivityIndicator, View } from "react-native";
-import { NavigationContainer } from "@react-navigation/native";
+import { View } from "react-native";
+import {
+  NavigationContainer,
+  DefaultTheme,
+  DarkTheme,
+} from "@react-navigation/native";
 import { supabase } from "../services/supabase";
 import AuthNavigator from "./AuthNavigator";
 import AppNavigator from "./AppNavigator";
-import { COLORS } from "../constants/theme";
+import { useTheme } from "../context/ThemeContext";
+import { SkeletonList } from "../components/ui";
 
 export default function RootNavigator() {
+  const { colors, isDark } = useTheme();
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -31,23 +37,31 @@ export default function RootNavigator() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Drive React Navigation's own theme from our tokens so headers, card
+  // backgrounds, and the container respond to light/dark automatically.
+  const navTheme = {
+    ...(isDark ? DarkTheme : DefaultTheme),
+    colors: {
+      ...(isDark ? DarkTheme : DefaultTheme).colors,
+      primary: colors.primary,
+      background: colors.background,
+      card: colors.card,
+      text: colors.text,
+      border: colors.border,
+      notification: colors.danger,
+    },
+  };
+
   if (loading) {
     return (
-      <View
-        style={{
-          flex: 1,
-          justifyContent: "center",
-          alignItems: "center",
-          backgroundColor: COLORS.background,
-        }}
-      >
-        <ActivityIndicator size="large" color={COLORS.primary} />
+      <View style={{ flex: 1, backgroundColor: colors.background, padding: 16, justifyContent: "center" }}>
+        <SkeletonList count={5} />
       </View>
     );
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer theme={navTheme}>
       {session ? <AppNavigator /> : <AuthNavigator />}
     </NavigationContainer>
   );

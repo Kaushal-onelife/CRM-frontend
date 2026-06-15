@@ -3,17 +3,23 @@ import {
   View,
   Text,
   ScrollView,
-  TouchableOpacity,
   StyleSheet,
   Alert,
-  ActivityIndicator,
   Share,
 } from "react-native";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import { useFocusEffect } from "@react-navigation/native";
 import { billAPI } from "../../services/api";
-import { COLORS, FONTS, SIZES } from "../../constants/theme";
+import { Button, Card, Badge, EmptyState, Skeleton } from "../../components/ui";
+import { useTheme } from "../../context/ThemeContext";
+
+const formatMoney = (n) => {
+  const num = Number(n);
+  return Number.isFinite(num) ? `₹${num.toLocaleString("en-IN")}` : "₹0";
+};
 
 export default function BillDetailScreen({ route, navigation }) {
+  const { colors } = useTheme();
   const { id } = route.params;
   const [bill, setBill] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -108,129 +114,176 @@ ${bill.payment_method ? `Method: ${bill.payment_method}` : ""}
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+      <View style={[styles.container, { backgroundColor: colors.background, padding: 16 }]}>
+        <Skeleton width="50%" height={24} style={{ marginBottom: 20 }} />
+        <Skeleton width="100%" height={90} radius={16} style={{ marginBottom: 16 }} />
+        <Skeleton width="100%" height={220} radius={16} style={{ marginBottom: 16 }} />
+        <Skeleton width="100%" height={56} radius={12} />
       </View>
     );
   }
 
   if (!bill) {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.errorTitle}>
-          {error ? "Couldn't load bill" : "Bill not found"}
-        </Text>
-        {error ? <Text style={styles.errorMsg}>{error}</Text> : null}
-        <TouchableOpacity
-          style={styles.retryBtn}
-          onPress={() => {
+      <View style={[styles.container, { backgroundColor: colors.background, flex: 1, justifyContent: "center" }]}>
+        <EmptyState
+          tone="error"
+          icon="file-alert-outline"
+          title={error ? "Couldn't load bill" : "Bill not found"}
+          message={error || "This bill may have been removed."}
+          actionLabel="Retry"
+          onAction={() => {
             setLoading(true);
             fetchBill();
           }}
-        >
-          <Text style={styles.retryText}>Retry</Text>
-        </TouchableOpacity>
+        />
       </View>
     );
   }
 
   const isPaid = bill.payment_status === "paid";
 
+  const TotalRow = ({ label, value, strong }) => (
+    <View style={styles.totalRow}>
+      <Text
+        style={{
+          color: strong ? colors.text : colors.textSecondary,
+          fontSize: strong ? 16 : 14,
+          fontWeight: strong ? "700" : "400",
+        }}
+      >
+        {label}
+      </Text>
+      <Text
+        style={{
+          color: strong ? colors.primary : colors.text,
+          fontSize: strong ? 18 : 14,
+          fontWeight: strong ? "800" : "500",
+        }}
+      >
+        {value}
+      </Text>
+    </View>
+  );
+
   return (
-    <ScrollView style={styles.container}>
-      {/* Bill Header */}
-      <View style={styles.header}>
-        <Text style={styles.billNumber}>{bill.bill_number}</Text>
-        <View
-          style={[
-            styles.statusBadge,
-            {
-              backgroundColor: isPaid
-                ? COLORS.secondary + "20"
-                : COLORS.danger + "20",
-            },
-          ]}
-        >
-          <Text
-            style={[
-              styles.statusText,
-              { color: isPaid ? COLORS.secondary : COLORS.danger },
-            ]}
-          >
-            {bill.payment_status.toUpperCase()}
-          </Text>
-        </View>
-      </View>
+    <ScrollView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* Invoice header */}
+      <Animated.View entering={FadeInDown.duration(300)}>
+        <Card style={{ marginBottom: 16 }}>
+          <View style={styles.headerRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.textSecondary, fontSize: 12 }}>INVOICE</Text>
+              <Text style={{ color: colors.text, fontSize: 22, fontWeight: "800", marginTop: 2 }}>
+                {bill.bill_number}
+              </Text>
+              <Text style={{ color: colors.textMuted, fontSize: 13, marginTop: 4 }}>
+                {new Date(bill.created_at).toLocaleDateString()}
+              </Text>
+            </View>
+            <Badge
+              label={bill.payment_status.toUpperCase()}
+              color={isPaid ? colors.success : colors.danger}
+              icon={isPaid ? "check-circle-outline" : "alert-circle-outline"}
+            />
+          </View>
+        </Card>
+      </Animated.View>
 
       {/* Customer Info */}
-      <View style={styles.card}>
-        <Text style={styles.label}>Customer</Text>
-        <Text style={styles.customerName}>{bill.customers?.name}</Text>
-        <Text style={styles.customerPhone}>{bill.customers?.phone}</Text>
-        {bill.customers?.address && (
-          <Text style={styles.customerAddress}>{bill.customers.address}</Text>
-        )}
-      </View>
+      <Animated.View entering={FadeInDown.delay(60).duration(300)}>
+        <Card style={{ marginBottom: 16 }}>
+          <Text style={{ color: colors.textSecondary, fontSize: 12, marginBottom: 6 }}>
+            BILL TO
+          </Text>
+          <Text style={{ color: colors.text, fontSize: 16, fontWeight: "700" }}>
+            {bill.customers?.name}
+          </Text>
+          <Text style={{ color: colors.textSecondary, fontSize: 14, marginTop: 2 }}>
+            {bill.customers?.phone}
+          </Text>
+          {bill.customers?.address ? (
+            <Text style={{ color: colors.textMuted, fontSize: 13, marginTop: 4 }}>
+              {bill.customers.address}
+            </Text>
+          ) : null}
+        </Card>
+      </Animated.View>
 
       {/* Bill Items */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Items</Text>
-        <View style={styles.tableHeader}>
-          <Text style={[styles.tableCell, { flex: 2 }]}>Description</Text>
-          <Text style={styles.tableCell}>Qty</Text>
-          <Text style={styles.tableCell}>Rate</Text>
-          <Text style={[styles.tableCell, { textAlign: "right" }]}>Total</Text>
-        </View>
-        {(bill.bill_items || []).map((item, index) => (
-          <View key={item.id || index} style={styles.tableRow}>
-            <Text style={[styles.tableCell, { flex: 2 }]}>
-              {item.description}
-            </Text>
-            <Text style={styles.tableCell}>{item.quantity}</Text>
-            <Text style={styles.tableCell}>₹{item.unit_price}</Text>
-            <Text style={[styles.tableCell, { textAlign: "right" }]}>
-              ₹{item.total}
-            </Text>
+      <Animated.View entering={FadeInDown.delay(120).duration(300)}>
+        <Card style={{ marginBottom: 16 }}>
+          <Text style={{ color: colors.text, fontSize: 17, fontWeight: "700", marginBottom: 12 }}>
+            Items
+          </Text>
+          <View style={[styles.tableHeader, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.th, { flex: 2, color: colors.textSecondary }]}>Description</Text>
+            <Text style={[styles.th, { color: colors.textSecondary, textAlign: "center" }]}>Qty</Text>
+            <Text style={[styles.th, { color: colors.textSecondary, textAlign: "right" }]}>Rate</Text>
+            <Text style={[styles.th, { color: colors.textSecondary, textAlign: "right" }]}>Total</Text>
           </View>
-        ))}
+          {(bill.bill_items || []).map((item, index) => (
+            <View
+              key={item.id || index}
+              style={[styles.tableRow, { borderBottomColor: colors.divider }]}
+            >
+              <Text style={[styles.td, { flex: 2, color: colors.text }]}>
+                {item.description}
+              </Text>
+              <Text style={[styles.td, { color: colors.textSecondary, textAlign: "center" }]}>
+                {item.quantity}
+              </Text>
+              <Text style={[styles.td, { color: colors.textSecondary, textAlign: "right" }]}>
+                {formatMoney(item.unit_price)}
+              </Text>
+              <Text style={[styles.td, { color: colors.text, textAlign: "right", fontWeight: "600" }]}>
+                {formatMoney(item.total)}
+              </Text>
+            </View>
+          ))}
 
-        {/* Totals */}
-        <View style={styles.divider} />
-        <View style={styles.totalRow}>
-          <Text style={styles.totalLabel}>Subtotal</Text>
-          <Text style={styles.totalValue}>₹{bill.amount}</Text>
-        </View>
-        <View style={styles.totalRow}>
-          <Text style={styles.totalLabel}>Tax</Text>
-          <Text style={styles.totalValue}>₹{bill.tax}</Text>
-        </View>
-        <View style={styles.divider} />
-        <View style={styles.totalRow}>
-          <Text style={styles.grandTotalLabel}>Total</Text>
-          <Text style={styles.grandTotalValue}>₹{bill.total}</Text>
-        </View>
-      </View>
+          {/* Totals */}
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+          <TotalRow label="Subtotal" value={formatMoney(bill.amount)} />
+          <TotalRow label="Tax" value={formatMoney(bill.tax)} />
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+          <TotalRow label="Total" value={formatMoney(bill.total)} strong />
+        </Card>
+      </Animated.View>
 
       {/* Payment Info */}
-      {isPaid && (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Payment</Text>
-          <Text style={styles.paidText}>
-            Paid on {bill.paid_date} via {bill.payment_method}
-          </Text>
-        </View>
-      )}
+      {isPaid ? (
+        <Animated.View entering={FadeInDown.delay(160).duration(300)}>
+          <Card style={{ marginBottom: 16 }} accent={colors.success}>
+            <Text style={{ color: colors.text, fontSize: 17, fontWeight: "700", marginBottom: 6 }}>
+              Payment
+            </Text>
+            <Text style={{ color: colors.success, fontSize: 14, fontWeight: "500" }}>
+              Paid on {bill.paid_date} via {bill.payment_method}
+            </Text>
+          </Card>
+        </Animated.View>
+      ) : null}
 
       {/* Actions */}
-      <View style={styles.actions}>
-        <TouchableOpacity style={styles.shareBtn} onPress={handleShareBill}>
-          <Text style={styles.shareBtnText}>📤 Share Bill</Text>
-        </TouchableOpacity>
+      <Animated.View entering={FadeInDown.delay(200).duration(300)}>
+        <Button
+          title="Share Bill"
+          icon="share-variant"
+          variant="secondary"
+          onPress={handleShareBill}
+        />
 
-        {!isPaid && (
-          <View style={styles.payActions}>
-            <Text style={styles.payTitle}>Mark as Paid:</Text>
-            <Text style={styles.payHint}>
+        {!isPaid ? (
+          <Card style={{ marginTop: 16 }}>
+            <Text style={{ color: colors.text, fontSize: 15, fontWeight: "600", marginBottom: 4 }}>
+              Mark as Paid
+            </Text>
+            <Text style={{ color: colors.textMuted, fontSize: 13, marginBottom: 12 }}>
               {confirmingMethod
                 ? `Tap ${confirmingMethod.toUpperCase()} again to confirm`
                 : "Tap a method, then tap again to confirm"}
@@ -241,134 +294,61 @@ ${bill.payment_method ? `Method: ${bill.payment_method}` : ""}
                 const isAnyLoading = !!payingMethod;
                 const isConfirming = confirmingMethod === method;
                 return (
-                  <TouchableOpacity
-                    key={method}
-                    style={[
-                      styles.payMethodBtn,
-                      isConfirming && styles.payMethodBtnConfirming,
-                      isAnyLoading && { opacity: isThisLoading ? 1 : 0.5 },
-                    ]}
-                    disabled={isAnyLoading}
-                    onPress={() => handleMarkPaid(method)}
-                    activeOpacity={0.7}
-                  >
-                    {isThisLoading ? (
-                      <ActivityIndicator color={COLORS.white} />
-                    ) : (
-                      <Text style={styles.payMethodText}>
-                        {isConfirming ? `CONFIRM ${method.toUpperCase()}` : method.toUpperCase()}
-                      </Text>
-                    )}
-                  </TouchableOpacity>
+                  <View key={method} style={styles.payMethodCell}>
+                    <Button
+                      title={isConfirming ? `Confirm ${method}` : method.toUpperCase()}
+                      size="sm"
+                      variant={isConfirming ? "primary" : "success"}
+                      loading={isThisLoading}
+                      disabled={isAnyLoading && !isThisLoading}
+                      onPress={() => handleMarkPaid(method)}
+                    />
+                  </View>
                 );
               })}
             </View>
-          </View>
-        )}
-      </View>
+          </Card>
+        ) : null}
+      </Animated.View>
 
-      <View style={{ height: 40 }} />
+      <View style={{ height: 24 }} />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  centered: { flex: 1, justifyContent: "center", alignItems: "center" },
-  header: {
-    backgroundColor: COLORS.white,
-    padding: SIZES.padding * 1.5,
+  container: { flex: 1 },
+  headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.grayBorder,
+    alignItems: "flex-start",
   },
-  billNumber: { ...FONTS.h2 },
-  statusBadge: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  statusText: { fontSize: 12, fontWeight: "700" },
-  card: {
-    backgroundColor: COLORS.white,
-    margin: SIZES.padding,
-    marginBottom: 0,
-    borderRadius: SIZES.radius,
-    padding: SIZES.padding,
-    elevation: 1,
-  },
-  cardTitle: { ...FONTS.h3, marginBottom: 12 },
-  label: { ...FONTS.small, marginBottom: 4 },
-  customerName: { ...FONTS.bold, fontSize: 16 },
-  customerPhone: { ...FONTS.regular, color: COLORS.gray, marginTop: 2 },
-  customerAddress: { ...FONTS.small, marginTop: 4 },
   tableHeader: {
     flexDirection: "row",
     paddingBottom: 8,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.grayBorder,
   },
+  th: { flex: 1, fontSize: 12, fontWeight: "600" },
   tableRow: {
     flexDirection: "row",
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.grayLight,
   },
-  tableCell: { flex: 1, ...FONTS.regular, fontSize: 13 },
-  divider: {
-    height: 1,
-    backgroundColor: COLORS.grayBorder,
-    marginVertical: 8,
-  },
+  td: { flex: 1, fontSize: 13 },
+  divider: { height: 1, marginVertical: 10 },
   totalRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     paddingVertical: 4,
   },
-  totalLabel: { ...FONTS.regular, color: COLORS.gray },
-  totalValue: { ...FONTS.medium },
-  grandTotalLabel: { ...FONTS.bold, fontSize: 16 },
-  grandTotalValue: { ...FONTS.bold, fontSize: 18, color: COLORS.primary },
-  paidText: { ...FONTS.regular, color: COLORS.secondary },
-  actions: { padding: SIZES.padding },
-  shareBtn: {
-    backgroundColor: COLORS.white,
-    borderRadius: 8,
-    padding: 14,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: COLORS.grayBorder,
+  payMethods: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginHorizontal: -4,
   },
-  shareBtnText: { ...FONTS.bold },
-  payActions: { marginTop: 16 },
-  payTitle: { ...FONTS.medium, marginBottom: 4 },
-  payHint: { ...FONTS.small, color: COLORS.gray, marginBottom: 10 },
-  payMethods: { flexDirection: "row", gap: 10, flexWrap: "wrap" },
-  payMethodBtn: {
-    backgroundColor: COLORS.secondary,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
+  payMethodCell: {
+    width: "50%",
+    paddingHorizontal: 4,
+    marginBottom: 8,
   },
-  payMethodBtnConfirming: {
-    backgroundColor: COLORS.warning,
-  },
-  payMethodText: { color: COLORS.white, ...FONTS.bold, fontSize: 13 },
-  errorTitle: { ...FONTS.h3, color: COLORS.danger, marginBottom: 6 },
-  errorMsg: {
-    ...FONTS.regular,
-    color: COLORS.gray,
-    textAlign: "center",
-    paddingHorizontal: 24,
-  },
-  retryBtn: {
-    marginTop: 16,
-    paddingVertical: 10,
-    paddingHorizontal: 24,
-    backgroundColor: COLORS.primary,
-    borderRadius: 8,
-  },
-  retryText: { color: COLORS.white, ...FONTS.bold },
 });

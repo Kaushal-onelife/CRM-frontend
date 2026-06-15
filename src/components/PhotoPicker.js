@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import {
   View,
   Text,
@@ -9,7 +9,8 @@ import {
   ScrollView,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import { COLORS, FONTS, SIZES } from "../constants/theme";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useTheme } from "../context/ThemeContext";
 
 /**
  * PhotoPicker component for adding before/after service photos.
@@ -19,6 +20,9 @@ import { COLORS, FONTS, SIZES } from "../constants/theme";
  *   maxPhotos - max number of photos (default 4)
  */
 export default function PhotoPicker({ photos = [], onChange, maxPhotos = 4 }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
   const pickImage = async (source) => {
     try {
       const options = {
@@ -75,14 +79,22 @@ export default function PhotoPicker({ photos = [], onChange, maxPhotos = 4 }) {
               style={styles.removeBtn}
               onPress={() => removePhoto(index)}
             >
-              <Text style={styles.removeText}>X</Text>
+              <MaterialCommunityIcons
+                name="close"
+                size={14}
+                color={colors.onPrimary}
+              />
             </TouchableOpacity>
           </View>
         ))}
 
         {photos.length < maxPhotos && (
           <TouchableOpacity style={styles.addBtn} onPress={showOptions}>
-            <Text style={styles.addIcon}>+</Text>
+            <MaterialCommunityIcons
+              name="camera-plus-outline"
+              size={26}
+              color={colors.primary}
+            />
             <Text style={styles.addText}>Add Photo</Text>
           </TouchableOpacity>
         )}
@@ -91,60 +103,52 @@ export default function PhotoPicker({ photos = [], onChange, maxPhotos = 4 }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { marginTop: 8 },
-  photoCard: {
-    marginRight: 10,
-    borderRadius: 8,
-    overflow: "hidden",
-    backgroundColor: COLORS.grayLight,
-  },
-  photo: {
-    width: 100,
-    height: 100,
-    borderRadius: 8,
-  },
-  photoLabel: {
-    ...FONTS.small,
-    textAlign: "center",
-    paddingVertical: 4,
-    fontWeight: "600",
-  },
-  removeBtn: {
-    position: "absolute",
-    top: 4,
-    right: 4,
-    backgroundColor: COLORS.danger,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  removeText: {
-    color: COLORS.white,
-    fontSize: 10,
-    fontWeight: "700",
-  },
-  addBtn: {
-    width: 100,
-    height: 100,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: COLORS.grayBorder,
-    borderStyle: "dashed",
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: COLORS.white,
-  },
-  addIcon: {
-    fontSize: 24,
-    color: COLORS.primary,
-    fontWeight: "300",
-  },
-  addText: {
-    ...FONTS.small,
-    color: COLORS.primary,
-    marginTop: 4,
-  },
-});
+const makeStyles = (colors) =>
+  StyleSheet.create({
+    container: { marginTop: 8 },
+    photoCard: {
+      marginRight: 10,
+      borderRadius: 8,
+      overflow: "hidden",
+      backgroundColor: colors.grayLight,
+    },
+    photo: {
+      width: 100,
+      height: 100,
+      borderRadius: 8,
+    },
+    photoLabel: {
+      fontSize: 12,
+      color: colors.text,
+      textAlign: "center",
+      paddingVertical: 4,
+      fontWeight: "600",
+    },
+    removeBtn: {
+      position: "absolute",
+      top: 4,
+      right: 4,
+      backgroundColor: colors.danger,
+      width: 20,
+      height: 20,
+      borderRadius: 10,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    addBtn: {
+      width: 100,
+      height: 100,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderStyle: "dashed",
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: colors.card,
+    },
+    addText: {
+      fontSize: 12,
+      color: colors.primary,
+      marginTop: 4,
+    },
+  });

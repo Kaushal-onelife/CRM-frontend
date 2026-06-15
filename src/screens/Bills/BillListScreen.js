@@ -9,13 +9,22 @@ import {
   Alert,
   RefreshControl,
 } from "react-native";
+import Animated, { FadeInDown } from "react-native-reanimated";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { billAPI } from "../../services/api";
-import { COLORS, FONTS, SIZES } from "../../constants/theme";
+import { Card, Badge, EmptyState, SkeletonList } from "../../components/ui";
+import { useTheme } from "../../context/ThemeContext";
 
 const FILTERS = ["all", "unpaid", "paid"];
 
+const formatMoney = (n) => {
+  const num = Number(n);
+  return Number.isFinite(num) ? `₹${num.toLocaleString("en-IN")}` : "₹0";
+};
+
 export default function BillListScreen({ navigation }) {
+  const { colors, radius, elevation } = useTheme();
   const [bills, setBills] = useState([]);
   const [activeFilter, setActiveFilter] = useState("all");
   const [loading, setLoading] = useState(true);
@@ -55,98 +64,114 @@ export default function BillListScreen({ navigation }) {
     }, [activeFilter])
   );
 
-  const renderBill = ({ item }) => (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={() => navigation.navigate("BillDetail", { id: item.id })}
-    >
-      <View style={styles.row}>
-        <View>
-          <Text style={styles.billNumber}>{item.bill_number}</Text>
-          <Text style={styles.customer}>{item.customers?.name}</Text>
-          <Text style={styles.date}>
-            {new Date(item.created_at).toLocaleDateString()}
-          </Text>
-        </View>
-        <View style={styles.rightCol}>
-          <Text style={styles.amount}>Rs {item.total}</Text>
-          <View
-            style={[
-              styles.badge,
-              {
-                backgroundColor:
-                  item.payment_status === "paid"
-                    ? COLORS.secondary + "20"
-                    : COLORS.danger + "20",
-              },
-            ]}
-          >
-            <Text
-              style={[
-                styles.badgeText,
-                {
-                  color:
-                    item.payment_status === "paid"
-                      ? COLORS.secondary
-                      : COLORS.danger,
-                },
-              ]}
-            >
-              {item.payment_status}
-            </Text>
+  const renderBill = ({ item, index }) => {
+    const isPaid = item.payment_status === "paid";
+    return (
+      <Animated.View entering={FadeInDown.delay(Math.min(index, 8) * 40).duration(300)}>
+        <Card
+          onPress={() => navigation.navigate("BillDetail", { id: item.id })}
+          style={{ marginBottom: 12 }}
+        >
+          <View style={styles.row}>
+            <View style={{ flex: 1, paddingRight: 12 }}>
+              <Text style={{ color: colors.text, fontSize: 16, fontWeight: "700" }}>
+                {item.bill_number}
+              </Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 14, marginTop: 2 }}>
+                {item.customers?.name}
+              </Text>
+              <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 4 }}>
+                {new Date(item.created_at).toLocaleDateString()}
+              </Text>
+            </View>
+            <View style={styles.rightCol}>
+              <Text style={{ color: colors.text, fontSize: 17, fontWeight: "700" }}>
+                {formatMoney(item.total)}
+              </Text>
+              <View style={{ marginTop: 6 }}>
+                <Badge
+                  label={isPaid ? "Paid" : "Unpaid"}
+                  color={isPaid ? colors.success : colors.danger}
+                  icon={isPaid ? "check-circle-outline" : "alert-circle-outline"}
+                  size="sm"
+                />
+              </View>
+            </View>
+            <MaterialCommunityIcons
+              name="chevron-right"
+              size={22}
+              color={colors.textMuted}
+              style={{ marginLeft: 4, alignSelf: "center" }}
+            />
           </View>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
+        </Card>
+      </Animated.View>
+    );
+  };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.filters}>
-        {FILTERS.map((filter) => (
-          <TouchableOpacity
-            key={filter}
-            style={[
-              styles.filterTab,
-              activeFilter === filter && styles.filterTabActive,
-            ]}
-            onPress={() => {
-              setActiveFilter(filter);
-              setLoading(true);
-              setPage(1);
-              setHasMore(true);
-            }}
-          >
-            <Text
+        {FILTERS.map((filter) => {
+          const active = activeFilter === filter;
+          return (
+            <TouchableOpacity
+              key={filter}
               style={[
-                styles.filterText,
-                activeFilter === filter && styles.filterTextActive,
+                styles.filterTab,
+                {
+                  backgroundColor: active ? colors.primary : colors.card,
+                  borderColor: active ? colors.primary : colors.border,
+                },
               ]}
+              onPress={() => {
+                setActiveFilter(filter);
+                setLoading(true);
+                setPage(1);
+                setHasMore(true);
+              }}
             >
-              {filter}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: active ? "600" : "500",
+                  textTransform: "capitalize",
+                  color: active ? colors.onPrimary : colors.textSecondary,
+                }}
+              >
+                {filter}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       {loading ? (
-        <ActivityIndicator
-          size="large"
-          color={COLORS.primary}
-          style={{ marginTop: 40 }}
-        />
+        <SkeletonList count={6} />
       ) : (
         <FlatList
           data={bills}
           keyExtractor={(item) => item.id}
           renderItem={renderBill}
           ListEmptyComponent={
-            <Text style={styles.emptyText}>No bills found</Text>
+            <EmptyState
+              icon="file-document-outline"
+              title="No bills found"
+              message={
+                activeFilter === "all"
+                  ? "Create your first bill to get started."
+                  : `No ${activeFilter} bills right now.`
+              }
+              actionLabel="Create Bill"
+              onAction={() => navigation.navigate("CreateBill")}
+            />
           }
-          contentContainerStyle={{ paddingBottom: 80 }}
+          contentContainerStyle={{ paddingBottom: 100 }}
+          showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
+              tintColor={colors.primary}
               onRefresh={() => {
                 setRefreshing(true);
                 fetchBills(activeFilter, 1);
@@ -159,7 +184,7 @@ export default function BillListScreen({ navigation }) {
             loadingMore ? (
               <ActivityIndicator
                 size="small"
-                color={COLORS.primary}
+                color={colors.primary}
                 style={{ paddingVertical: 16 }}
               />
             ) : null
@@ -168,11 +193,15 @@ export default function BillListScreen({ navigation }) {
       )}
 
       <TouchableOpacity
-        style={styles.fab}
+        style={[
+          styles.fab,
+          { backgroundColor: colors.primary },
+          elevation("lg"),
+        ]}
         onPress={() => navigation.navigate("CreateBill")}
         activeOpacity={0.85}
       >
-        <Text style={styles.fabText}>+</Text>
+        <MaterialCommunityIcons name="plus" size={28} color={colors.onPrimary} />
       </TouchableOpacity>
     </View>
   );
@@ -181,80 +210,26 @@ export default function BillListScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
-    padding: SIZES.padding,
+    padding: 16,
   },
   filters: {
     flexDirection: "row",
-    marginBottom: 12,
+    marginBottom: 16,
   },
   filterTab: {
     paddingHorizontal: 16,
-    paddingVertical: 6,
+    paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: COLORS.white,
     marginRight: 8,
     borderWidth: 1,
-    borderColor: COLORS.grayBorder,
-  },
-  filterTabActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  filterText: {
-    ...FONTS.small,
-    textTransform: "capitalize",
-  },
-  filterTextActive: {
-    color: COLORS.white,
-    fontWeight: "600",
-  },
-  card: {
-    backgroundColor: COLORS.white,
-    borderRadius: SIZES.radius,
-    padding: SIZES.padding,
-    marginBottom: 8,
-    elevation: 1,
   },
   row: {
     flexDirection: "row",
     justifyContent: "space-between",
-  },
-  billNumber: {
-    ...FONTS.bold,
-  },
-  customer: {
-    ...FONTS.regular,
-    color: COLORS.gray,
-    marginTop: 2,
-  },
-  date: {
-    ...FONTS.small,
-    marginTop: 4,
+    alignItems: "center",
   },
   rightCol: {
     alignItems: "flex-end",
-  },
-  amount: {
-    ...FONTS.h3,
-    color: COLORS.black,
-  },
-  badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 12,
-    marginTop: 4,
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: "600",
-    textTransform: "capitalize",
-  },
-  emptyText: {
-    ...FONTS.regular,
-    color: COLORS.gray,
-    textAlign: "center",
-    marginTop: 40,
   },
   fab: {
     position: "absolute",
@@ -263,19 +238,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: COLORS.primary,
     justifyContent: "center",
     alignItems: "center",
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-  },
-  fabText: {
-    color: COLORS.white,
-    fontSize: 28,
-    fontWeight: "300",
-    marginTop: -2,
   },
 });

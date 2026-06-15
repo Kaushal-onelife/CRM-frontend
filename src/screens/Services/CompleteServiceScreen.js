@@ -4,19 +4,19 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   ScrollView,
   Alert,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { serviceAPI } from "../../services/api";
-import { COLORS, FONTS, SIZES } from "../../constants/theme";
 import ServiceHistoryModal from "../../components/ServiceHistoryModal";
 import DatePickerField from "../../components/DatePickerField";
+import { Card, Button, Skeleton } from "../../components/ui";
+import { useTheme } from "../../context/ThemeContext";
+import { isRequired, isNonNegativeNumber, maxLength } from "../../utils/validators";
 
 const NEXT_DUE_OPTIONS = [
   { label: "1 Month", months: 1 },
@@ -37,6 +37,7 @@ function addMonths(dateStr, months) {
 }
 
 export default function CompleteServiceScreen({ route, navigation }) {
+  const { colors, spacing, radius } = useTheme();
   const serviceId = route.params?.id;
   const [service, setService] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -51,6 +52,10 @@ export default function CompleteServiceScreen({ route, navigation }) {
   const [customDueDate, setCustomDueDate] = useState("");
   const [paymentStatus, setPaymentStatus] = useState("paid");
   const [paymentMethod, setPaymentMethod] = useState("cash");
+  // Inline validation errors: notes, serviceCharge, and per-part errors keyed by index.
+  const [notesError, setNotesError] = useState(null);
+  const [chargeError, setChargeError] = useState(null);
+  const [partErrors, setPartErrors] = useState({});
 
   const fetchService = async () => {
     try {
@@ -81,13 +86,52 @@ export default function CompleteServiceScreen({ route, navigation }) {
   };
 
   const updatePart = (index, field, value) => {
+    let v = value;
+    // Qty: digits only. Cost: numeric (digits + decimal point). Name: free text.
+    if (field === "quantity") v = v.replace(/[^0-9]/g, "");
+    else if (field === "cost") v = v.replace(/[^0-9.]/g, "");
     const updated = [...parts];
-    updated[index][field] = value;
+    updated[index][field] = v;
     setParts(updated);
+    if (partErrors[index]?.[field]) {
+      setPartErrors((prev) => ({ ...prev, [index]: { ...prev[index], [field]: null } }));
+    }
+  };
+
+  // Validate a single part field — returns an error string or null.
+  const validatePartField = (field, part) => {
+    switch (field) {
+      case "name":
+        // Name required only when the row carries a qty/cost value.
+        if (!part.name.trim() && (part.cost?.trim() || (part.quantity?.trim() && part.quantity !== "1"))) {
+          return isRequired("", "Part name");
+        }
+        return null;
+      case "quantity":
+        return isNonNegativeNumber(part.quantity || "0", "Qty");
+      case "cost":
+        return isNonNegativeNumber(part.cost || "0", "Cost");
+      default:
+        return null;
+    }
+  };
+
+  const handlePartBlur = (index, field) => {
+    const err = validatePartField(field, parts[index]);
+    setPartErrors((prev) => ({ ...prev, [index]: { ...prev[index], [field]: err } }));
   };
 
   const removePart = (index) => {
     setParts(parts.filter((_, i) => i !== index));
+    setPartErrors((prev) => {
+      const next = {};
+      Object.keys(prev).forEach((k) => {
+        const i = Number(k);
+        if (i < index) next[i] = prev[k];
+        else if (i > index) next[i - 1] = prev[k];
+      });
+      return next;
+    });
   };
 
   // Calculate totals
@@ -111,6 +155,27 @@ export default function CompleteServiceScreen({ route, navigation }) {
   const nextDuePreview = getNextDueDate();
 
   const handleComplete = async () => {
+    // Inline validation for typed fields — collect all so they light up at once.
+    const nErr = maxLength(notes.trim(), 1000, "Notes");
+    const cErr = isNonNegativeNumber(serviceCharge || "0", "Service charge");
+    const nextPartErrors = {};
+    let hasPartError = false;
+    parts.forEach((part, i) => {
+      const rowErr = {};
+      for (const field of ["name", "quantity", "cost"]) {
+        const err = validatePartField(field, part);
+        if (err) {
+          rowErr[field] = err;
+          hasPartError = true;
+        }
+      }
+      if (Object.keys(rowErr).length > 0) nextPartErrors[i] = rowErr;
+    });
+    setNotesError(nErr);
+    setChargeError(cErr);
+    setPartErrors(nextPartErrors);
+    if (nErr || cErr || hasPartError) return;
+
     if (selectedDueOption?.months === null && !customDueDate) {
       Alert.alert("Missing Date", "Please pick a custom due date.");
       return;
@@ -152,10 +217,31 @@ export default function CompleteServiceScreen({ route, navigation }) {
     setSubmitting(false);
   };
 
+  const cardTitleStyle = { color: colors.text, fontSize: 17, fontWeight: "700", marginBottom: spacing.md };
+  const labelStyle = { color: colors.textSecondary, fontSize: 13, fontWeight: "500", marginBottom: spacing.xs };
+
+  // Reusable themed single-line input style for compact part/charge fields.
+  const fieldStyle = {
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: 12,
+    height: 48,
+    fontSize: 15,
+    color: colors.text,
+    backgroundColor: colors.surface,
+    // Strip the web browser's default black input outline on focus.
+    outlineStyle: "none",
+    outlineWidth: 0,
+  };
+
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+      <View style={{ flex: 1, backgroundColor: colors.background, padding: spacing.lg }}>
+        <Skeleton width="100%" height={110} radius={radius.lg} style={{ marginBottom: spacing.md }} />
+        <Skeleton width="100%" height={130} radius={radius.lg} style={{ marginBottom: spacing.md }} />
+        <Skeleton width="100%" height={150} radius={radius.lg} style={{ marginBottom: spacing.md }} />
+        <Skeleton width="100%" height={56} radius={radius.md} />
       </View>
     );
   }
@@ -168,391 +254,370 @@ export default function CompleteServiceScreen({ route, navigation }) {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
     >
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      keyboardShouldPersistTaps="handled"
-    >
-      {/* Customer Info */}
-      <View style={styles.card}>
-        <Text style={styles.customerName}>{service.customers?.name}</Text>
-        <Text style={styles.customerDetail}>{service.customers?.phone}</Text>
-        {service.customers?.purifier_model && (
-          <Text style={styles.customerDetail}>
-            {service.customers.purifier_brand} - {service.customers.purifier_model}
+      <ScrollView
+        style={{ flex: 1, backgroundColor: colors.background }}
+        contentContainerStyle={{ padding: spacing.lg }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Customer Info */}
+        <Card style={{ marginBottom: spacing.md }}>
+          <Text style={{ color: colors.text, fontSize: 18, fontWeight: "700" }}>
+            {service.customers?.name}
           </Text>
-        )}
+          <Text style={{ color: colors.textSecondary, fontSize: 14, marginTop: 2 }}>
+            {service.customers?.phone}
+          </Text>
+          {service.customers?.purifier_model && (
+            <Text style={{ color: colors.textSecondary, fontSize: 14, marginTop: 2 }}>
+              {service.customers.purifier_brand} - {service.customers.purifier_model}
+            </Text>
+          )}
 
-        <TouchableOpacity
-          style={styles.historyBtn}
-          onPress={() => setShowHistory(true)}
-        >
-          <MaterialCommunityIcons name="history" size={18} color={COLORS.primary} />
-          <Text style={styles.historyBtnText}>View Past Services</Text>
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              marginTop: spacing.md,
+              paddingVertical: spacing.sm,
+              paddingHorizontal: spacing.md,
+              backgroundColor: colors.primarySoft,
+              borderRadius: radius.md,
+              alignSelf: "flex-start",
+            }}
+            onPress={() => setShowHistory(true)}
+          >
+            <MaterialCommunityIcons name="history" size={18} color={colors.primary} />
+            <Text style={{ color: colors.primary, fontSize: 14, fontWeight: "600", marginLeft: spacing.xs }}>
+              View Past Services
+            </Text>
+          </TouchableOpacity>
+        </Card>
 
-      {/* Work Details */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Work Details</Text>
+        {/* Work Details */}
+        <Card style={{ marginBottom: spacing.md }}>
+          <Text style={cardTitleStyle}>Work Details</Text>
+          <Text style={labelStyle}>Notes - What was done</Text>
+          <TextInput
+            placeholder="Describe the work performed..."
+            placeholderTextColor={colors.textMuted}
+            value={notes}
+            onChangeText={(v) => {
+              setNotes(v.slice(0, 1000));
+              if (notesError) setNotesError(null);
+            }}
+            onBlur={() => setNotesError(maxLength(notes.trim(), 1000, "Notes"))}
+            underlineColorAndroid="transparent"
+            multiline
+            textAlignVertical="top"
+            style={[
+              fieldStyle,
+              { height: 90, paddingVertical: spacing.md },
+              notesError && { borderColor: colors.danger },
+            ]}
+          />
+          {notesError ? (
+            <Text style={{ color: colors.danger, fontSize: 12, marginTop: 4 }}>{notesError}</Text>
+          ) : null}
+        </Card>
 
-        <Text style={styles.label}>Notes - What was done</Text>
-        <TextInput
-          style={[styles.input, { height: 80, textAlignVertical: "top" }]}
-          placeholder="Describe the work performed..."
-          value={notes}
-          onChangeText={setNotes}
-          multiline
-        />
-      </View>
+        {/* Parts Replaced */}
+        <Card style={{ marginBottom: spacing.md }}>
+          <Text style={cardTitleStyle}>Parts Replaced</Text>
 
-      {/* Parts Replaced */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Parts Replaced</Text>
-
-        {parts.map((part, index) => (
-          <View key={index} style={styles.partItem}>
-            <TextInput
-              style={styles.input}
-              placeholder="Part name"
-              value={part.name}
-              onChangeText={(v) => updatePart(index, "name", v)}
-            />
-            <View style={styles.partSubRow}>
-              <View style={styles.partSubField}>
-                <Text style={styles.partSubLabel}>Qty</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="1"
-                  value={part.quantity}
-                  onChangeText={(v) => updatePart(index, "quantity", v)}
-                  keyboardType="numeric"
-                />
+          {parts.map((part, index) => (
+            <View
+              key={index}
+              style={{
+                marginBottom: spacing.md,
+                padding: spacing.md,
+                backgroundColor: colors.background,
+                borderRadius: radius.md,
+                borderWidth: 1,
+                borderColor: colors.border,
+              }}
+            >
+              <TextInput
+                placeholder="Part name"
+                placeholderTextColor={colors.textMuted}
+                value={part.name}
+                onChangeText={(v) => updatePart(index, "name", v)}
+                onBlur={() => handlePartBlur(index, "name")}
+                underlineColorAndroid="transparent"
+                style={[fieldStyle, partErrors[index]?.name && { borderColor: colors.danger }]}
+              />
+              {partErrors[index]?.name ? (
+                <Text style={{ color: colors.danger, fontSize: 12, marginTop: 4 }}>
+                  {partErrors[index].name}
+                </Text>
+              ) : null}
+              <View style={{ flexDirection: "row", alignItems: "flex-end", marginTop: spacing.sm, gap: spacing.sm }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[labelStyle, { fontSize: 12 }]}>Qty</Text>
+                  <TextInput
+                    placeholder="1"
+                    placeholderTextColor={colors.textMuted}
+                    value={part.quantity}
+                    onChangeText={(v) => updatePart(index, "quantity", v)}
+                    onBlur={() => handlePartBlur(index, "quantity")}
+                    underlineColorAndroid="transparent"
+                    keyboardType="numeric"
+                    style={[fieldStyle, partErrors[index]?.quantity && { borderColor: colors.danger }]}
+                  />
+                </View>
+                <View style={{ flex: 2 }}>
+                  <Text style={[labelStyle, { fontSize: 12 }]}>Cost</Text>
+                  <TextInput
+                    placeholder="0"
+                    placeholderTextColor={colors.textMuted}
+                    value={part.cost}
+                    onChangeText={(v) => updatePart(index, "cost", v)}
+                    onBlur={() => handlePartBlur(index, "cost")}
+                    underlineColorAndroid="transparent"
+                    keyboardType="numeric"
+                    style={[fieldStyle, partErrors[index]?.cost && { borderColor: colors.danger }]}
+                  />
+                </View>
+                <TouchableOpacity
+                  style={{ padding: spacing.xs, marginBottom: spacing.xs }}
+                  onPress={() => removePart(index)}
+                >
+                  <MaterialCommunityIcons name="close-circle" size={24} color={colors.danger} />
+                </TouchableOpacity>
               </View>
-              <View style={[styles.partSubField, { flex: 2 }]}>
-                <Text style={styles.partSubLabel}>Cost</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="0"
-                  value={part.cost}
-                  onChangeText={(v) => updatePart(index, "cost", v)}
-                  keyboardType="numeric"
-                />
-              </View>
-              <TouchableOpacity
-                style={styles.removePartBtn}
-                onPress={() => removePart(index)}
-              >
-                <MaterialCommunityIcons name="close-circle" size={24} color={COLORS.danger} />
-              </TouchableOpacity>
+              {partErrors[index]?.quantity || partErrors[index]?.cost ? (
+                <Text style={{ color: colors.danger, fontSize: 12, marginTop: 4 }}>
+                  {partErrors[index]?.quantity || partErrors[index]?.cost}
+                </Text>
+              ) : null}
+            </View>
+          ))}
+
+          <TouchableOpacity
+            style={{ flexDirection: "row", alignItems: "center", marginTop: spacing.sm, padding: spacing.sm }}
+            onPress={addPart}
+          >
+            <MaterialCommunityIcons name="plus-circle-outline" size={20} color={colors.primary} />
+            <Text style={{ color: colors.primary, fontWeight: "600", marginLeft: spacing.xs, fontSize: 14 }}>
+              Add Part
+            </Text>
+          </TouchableOpacity>
+        </Card>
+
+        {/* Charges */}
+        <Card style={{ marginBottom: spacing.md }}>
+          <Text style={cardTitleStyle}>Charges</Text>
+
+          <Text style={labelStyle}>Service Charge</Text>
+          <TextInput
+            placeholder="0"
+            placeholderTextColor={colors.textMuted}
+            value={serviceCharge}
+            onChangeText={(v) => {
+              setServiceCharge(v.replace(/[^0-9.]/g, ""));
+              if (chargeError) setChargeError(null);
+            }}
+            onBlur={() => setChargeError(isNonNegativeNumber(serviceCharge || "0", "Service charge"))}
+            underlineColorAndroid="transparent"
+            keyboardType="numeric"
+            style={[fieldStyle, chargeError && { borderColor: colors.danger }]}
+          />
+          {chargeError ? (
+            <Text style={{ color: colors.danger, fontSize: 12, marginTop: 4 }}>{chargeError}</Text>
+          ) : null}
+
+          <View style={{ marginTop: spacing.lg, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.divider }}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: spacing.xs }}>
+              <Text style={{ color: colors.textSecondary, fontSize: 14 }}>Service Charge</Text>
+              <Text style={{ color: colors.text, fontSize: 14 }}>₹{charge.toFixed(2)}</Text>
+            </View>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: spacing.xs }}>
+              <Text style={{ color: colors.textSecondary, fontSize: 14 }}>Parts Total</Text>
+              <Text style={{ color: colors.text, fontSize: 14 }}>₹{partsTotal.toFixed(2)}</Text>
+            </View>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                marginTop: spacing.sm,
+                paddingTop: spacing.sm,
+                borderTopWidth: 1,
+                borderTopColor: colors.divider,
+              }}
+            >
+              <Text style={{ color: colors.text, fontSize: 16, fontWeight: "700" }}>Total Amount</Text>
+              <Text style={{ color: colors.primary, fontSize: 16, fontWeight: "700" }}>₹{totalAmount.toFixed(2)}</Text>
             </View>
           </View>
-        ))}
+        </Card>
 
-        <TouchableOpacity style={styles.addPartBtn} onPress={addPart}>
-          <MaterialCommunityIcons name="plus-circle-outline" size={20} color={COLORS.primary} />
-          <Text style={styles.addPartText}>Add Part</Text>
-        </TouchableOpacity>
-      </View>
+        {/* Next Due */}
+        <Card style={{ marginBottom: spacing.md }}>
+          <Text style={cardTitleStyle}>Next Due</Text>
 
-      {/* Charges */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Charges</Text>
-
-        <Text style={styles.label}>Service Charge</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="0"
-          value={serviceCharge}
-          onChangeText={setServiceCharge}
-          keyboardType="numeric"
-        />
-
-        <View style={styles.totalSection}>
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Service Charge</Text>
-            <Text style={styles.totalValue}>{charge.toFixed(2)}</Text>
-          </View>
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Parts Total</Text>
-            <Text style={styles.totalValue}>{partsTotal.toFixed(2)}</Text>
-          </View>
-          <View style={[styles.totalRow, styles.grandTotal]}>
-            <Text style={styles.grandTotalLabel}>Total Amount</Text>
-            <Text style={styles.grandTotalValue}>{totalAmount.toFixed(2)}</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Next Due */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Next Due</Text>
-
-        <View style={styles.dueOptions}>
-          {NEXT_DUE_OPTIONS.map((option) => {
-            const isSelected = selectedDueOption?.label === option.label;
-            return (
-              <TouchableOpacity
-                key={option.label}
-                style={[
-                  styles.dueChip,
-                  isSelected && styles.dueChipActive,
-                ]}
-                onPress={() => setSelectedDueOption(option)}
-              >
-                <Text
-                  style={[
-                    styles.dueChipText,
-                    isSelected && styles.dueChipTextActive,
-                  ]}
-                >
-                  {option.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        {selectedDueOption?.months === null && (
-          <>
-            <Text style={styles.label}>Custom Date</Text>
-            <DatePickerField
-              value={customDueDate}
-              onChange={setCustomDueDate}
-              placeholder="Pick a custom date"
-              minimumDate={new Date()}
-            />
-          </>
-        )}
-
-        {nextDuePreview && (
-          <Text style={styles.dueDatePreview}>Next service: {nextDuePreview}</Text>
-        )}
-      </View>
-
-      {/* Payment */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Payment</Text>
-
-        <View style={styles.paymentStatusRow}>
-          <TouchableOpacity
-            style={[
-              styles.paymentChip,
-              paymentStatus === "paid" && { backgroundColor: COLORS.secondary, borderColor: COLORS.secondary },
-            ]}
-            onPress={() => setPaymentStatus("paid")}
-          >
-            <Text style={[styles.paymentChipText, paymentStatus === "paid" && { color: COLORS.white }]}>
-              Paid
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.paymentChip,
-              paymentStatus === "unpaid" && { backgroundColor: COLORS.warning, borderColor: COLORS.warning },
-            ]}
-            onPress={() => setPaymentStatus("unpaid")}
-          >
-            <Text style={[styles.paymentChipText, paymentStatus === "unpaid" && { color: COLORS.white }]}>
-              Unpaid
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {paymentStatus === "paid" && (
-          <>
-            <Text style={[styles.label, { marginTop: 12 }]}>Payment Method</Text>
-            <View style={styles.methodRow}>
-              {PAYMENT_METHODS.map((method) => (
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.sm }}>
+            {NEXT_DUE_OPTIONS.map((option) => {
+              const isSelected = selectedDueOption?.label === option.label;
+              return (
                 <TouchableOpacity
-                  key={method}
-                  style={[
-                    styles.methodChip,
-                    paymentMethod === method && { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-                  ]}
-                  onPress={() => setPaymentMethod(method)}
+                  key={option.label}
+                  activeOpacity={0.7}
+                  style={{
+                    paddingHorizontal: spacing.lg,
+                    paddingVertical: spacing.sm,
+                    borderRadius: radius.full,
+                    borderWidth: 1,
+                    backgroundColor: isSelected ? colors.primary : colors.background,
+                    borderColor: isSelected ? colors.primary : colors.border,
+                  }}
+                  onPress={() => setSelectedDueOption(option)}
                 >
                   <Text
-                    style={[
-                      styles.methodChipText,
-                      paymentMethod === method && { color: COLORS.white },
-                    ]}
+                    style={{
+                      fontSize: 13,
+                      fontWeight: isSelected ? "600" : "500",
+                      color: isSelected ? colors.onPrimary : colors.textSecondary,
+                    }}
                   >
-                    {method.toUpperCase()}
+                    {option.label}
                   </Text>
                 </TouchableOpacity>
-              ))}
+              );
+            })}
+          </View>
+
+          {selectedDueOption?.months === null && (
+            <View style={{ marginTop: spacing.md }}>
+              <Text style={labelStyle}>Custom Date</Text>
+              <DatePickerField
+                value={customDueDate}
+                onChange={setCustomDueDate}
+                placeholder="Pick a custom date"
+                minimumDate={new Date()}
+              />
             </View>
-          </>
-        )}
-      </View>
+          )}
 
-      {/* Submit */}
-      <TouchableOpacity
-        style={styles.completeBtn}
-        onPress={handleComplete}
-        disabled={submitting}
-      >
-        {submitting ? (
-          <ActivityIndicator color={COLORS.white} />
-        ) : (
-          <>
-            <MaterialCommunityIcons name="check-circle" size={20} color={COLORS.white} />
-            <Text style={styles.completeBtnText}>Complete Service</Text>
-          </>
-        )}
-      </TouchableOpacity>
+          {nextDuePreview && (
+            <Text style={{ color: colors.primary, marginTop: spacing.md, fontWeight: "600" }}>
+              Next service: {nextDuePreview}
+            </Text>
+          )}
+        </Card>
 
-      <View style={{ height: 40 }} />
+        {/* Payment */}
+        <Card style={{ marginBottom: spacing.md }}>
+          <Text style={cardTitleStyle}>Payment</Text>
 
-      {/* History Modal */}
-      {service.customer_id && (
-        <ServiceHistoryModal
-          visible={showHistory}
-          onClose={() => setShowHistory(false)}
-          customerId={service.customer_id}
+          <View style={{ flexDirection: "row", gap: spacing.md }}>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={{
+                flex: 1,
+                paddingVertical: spacing.md,
+                borderRadius: radius.md,
+                borderWidth: 1,
+                alignItems: "center",
+                backgroundColor: paymentStatus === "paid" ? colors.success : colors.background,
+                borderColor: paymentStatus === "paid" ? colors.success : colors.border,
+              }}
+              onPress={() => setPaymentStatus("paid")}
+            >
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: "600",
+                  color: paymentStatus === "paid" ? colors.onPrimary : colors.textSecondary,
+                }}
+              >
+                Paid
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={{
+                flex: 1,
+                paddingVertical: spacing.md,
+                borderRadius: radius.md,
+                borderWidth: 1,
+                alignItems: "center",
+                backgroundColor: paymentStatus === "unpaid" ? colors.warning : colors.background,
+                borderColor: paymentStatus === "unpaid" ? colors.warning : colors.border,
+              }}
+              onPress={() => setPaymentStatus("unpaid")}
+            >
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: "600",
+                  color: paymentStatus === "unpaid" ? colors.onPrimary : colors.textSecondary,
+                }}
+              >
+                Unpaid
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {paymentStatus === "paid" && (
+            <>
+              <Text style={[labelStyle, { marginTop: spacing.md }]}>Payment Method</Text>
+              <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs }}>
+                {PAYMENT_METHODS.map((method) => {
+                  const active = paymentMethod === method;
+                  return (
+                    <TouchableOpacity
+                      key={method}
+                      activeOpacity={0.7}
+                      style={{
+                        paddingHorizontal: spacing.lg,
+                        paddingVertical: spacing.sm,
+                        borderRadius: radius.full,
+                        borderWidth: 1,
+                        backgroundColor: active ? colors.primary : colors.background,
+                        borderColor: active ? colors.primary : colors.border,
+                      }}
+                      onPress={() => setPaymentMethod(method)}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontWeight: active ? "600" : "500",
+                          color: active ? colors.onPrimary : colors.textSecondary,
+                        }}
+                      >
+                        {method.toUpperCase()}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </>
+          )}
+        </Card>
+
+        {/* Submit */}
+        <Button
+          title="Complete Service"
+          icon="check-circle"
+          variant="success"
+          size="lg"
+          onPress={handleComplete}
+          loading={submitting}
+          disabled={submitting}
         />
-      )}
-    </ScrollView>
+
+        <View style={{ height: 40 }} />
+
+        {/* History Modal */}
+        {service.customer_id && (
+          <ServiceHistoryModal
+            visible={showHistory}
+            onClose={() => setShowHistory(false)}
+            customerId={service.customer_id}
+          />
+        )}
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  content: { padding: SIZES.padding },
-  centered: { flex: 1, justifyContent: "center", alignItems: "center" },
-  card: {
-    backgroundColor: COLORS.white,
-    borderRadius: SIZES.radius,
-    padding: SIZES.padding,
-    marginBottom: 12,
-    elevation: 1,
-  },
-  cardTitle: { ...FONTS.h3, marginBottom: 12 },
-  customerName: { ...FONTS.bold, fontSize: 18 },
-  customerDetail: { ...FONTS.regular, color: COLORS.gray, marginTop: 2 },
-  historyBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: COLORS.primaryLight,
-    borderRadius: 8,
-    alignSelf: "flex-start",
-  },
-  historyBtnText: {
-    ...FONTS.medium,
-    color: COLORS.primary,
-    fontSize: 14,
-    marginLeft: 6,
-  },
-  label: { ...FONTS.medium, fontSize: 14, marginBottom: 6, marginTop: 8 },
-  input: {
-    borderWidth: 1,
-    borderColor: COLORS.grayBorder,
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 14,
-    backgroundColor: COLORS.grayLight,
-  },
-  partItem: {
-    marginBottom: 12,
-    padding: 10,
-    backgroundColor: COLORS.grayLight,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: COLORS.grayBorder,
-  },
-  partSubRow: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    marginTop: 8,
-    gap: 8,
-  },
-  partSubField: { flex: 1 },
-  partSubLabel: {
-    ...FONTS.small,
-    fontSize: 12,
-    color: COLORS.gray,
-    marginBottom: 4,
-  },
-  removePartBtn: { padding: 6, marginBottom: 4 },
-  addPartBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 8,
-    padding: 8,
-  },
-  addPartText: { ...FONTS.medium, color: COLORS.primary, marginLeft: 6, fontSize: 14 },
-  totalSection: { marginTop: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: COLORS.grayBorder },
-  totalRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: 4,
-  },
-  totalLabel: { ...FONTS.regular, color: COLORS.gray },
-  totalValue: { ...FONTS.regular },
-  grandTotal: {
-    marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.grayBorder,
-  },
-  grandTotalLabel: { ...FONTS.bold, fontSize: 16 },
-  grandTotalValue: { ...FONTS.bold, fontSize: 16, color: COLORS.primary },
-  dueOptions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  dueChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: COLORS.grayLight,
-    borderWidth: 1,
-    borderColor: COLORS.grayBorder,
-  },
-  dueChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-  dueChipText: { ...FONTS.small, fontSize: 13, fontWeight: "500" },
-  dueChipTextActive: { color: COLORS.white, fontWeight: "600" },
-  dueDatePreview: {
-    ...FONTS.regular,
-    color: COLORS.primary,
-    marginTop: 10,
-    fontWeight: "500",
-  },
-  paymentStatusRow: { flexDirection: "row", gap: 10 },
-  paymentChip: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: COLORS.grayBorder,
-    alignItems: "center",
-  },
-  paymentChipText: { ...FONTS.medium, fontSize: 14 },
-  methodRow: { flexDirection: "row", gap: 8, marginTop: 6 },
-  methodChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: COLORS.grayBorder,
-  },
-  methodChipText: { ...FONTS.small, fontSize: 13, fontWeight: "500" },
-  completeBtn: {
-    flexDirection: "row",
-    backgroundColor: COLORS.secondary,
-    borderRadius: 10,
-    padding: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 8,
-    elevation: 2,
-  },
-  completeBtnText: {
-    color: COLORS.white,
-    ...FONTS.bold,
-    fontSize: 16,
-    marginLeft: 8,
-  },
-});

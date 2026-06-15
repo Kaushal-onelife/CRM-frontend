@@ -3,18 +3,21 @@ import {
   View,
   Text,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   StyleSheet,
   Alert,
-  ActivityIndicator,
   Linking,
 } from "react-native";
+import Animated, { FadeInDown } from "react-native-reanimated";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { customerAPI, serviceAPI } from "../../services/api";
 import ServiceCard from "../../components/ServiceCard";
-import { COLORS, FONTS, SIZES } from "../../constants/theme";
+import { Card, Button, EmptyState, Skeleton } from "../../components/ui";
+import { useTheme } from "../../context/ThemeContext";
 
 export default function CustomerDetailScreen({ route, navigation }) {
+  const { colors, radius, elevation } = useTheme();
   const { id } = route.params;
   const [customer, setCustomer] = useState(null);
   const [services, setServices] = useState([]);
@@ -91,135 +94,193 @@ export default function CustomerDetailScreen({ route, navigation }) {
     );
   };
 
+  // ── Loading: skeleton blocks instead of a blank spinner ──
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+      <View style={[styles.container, { backgroundColor: colors.background, paddingHorizontal: 16 }]}>
+        <View style={{ alignItems: "center", marginTop: 24 }}>
+          <Skeleton width={72} height={72} radius={36} />
+          <Skeleton width="50%" height={20} style={{ marginTop: 12 }} />
+          <Skeleton width="35%" height={14} style={{ marginTop: 8 }} />
+        </View>
+        <Skeleton width="100%" height={120} radius={16} style={{ marginTop: 24 }} />
+        <Skeleton width="100%" height={180} radius={16} style={{ marginTop: 16 }} />
       </View>
     );
   }
 
   if (!customer) {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.errorText}>Customer not found</Text>
+      <View style={[styles.container, { backgroundColor: colors.background, flex: 1 }]}>
+        <EmptyState
+          tone="error"
+          icon="account-off-outline"
+          title="Customer not found"
+          message="This customer may have been removed."
+          actionLabel="Go back"
+          onAction={() => navigation.goBack()}
+        />
       </View>
     );
   }
 
+  const actions = [
+    { icon: "phone", label: "Call", color: colors.success, onPress: handleCall },
+    { icon: "whatsapp", label: "WhatsApp", color: "#25D366", onPress: handleWhatsApp },
+    {
+      icon: "wrench-outline",
+      label: "New Service",
+      color: colors.primary,
+      onPress: () => navigation.navigate("AddService", { customerId: id }),
+    },
+    {
+      icon: "file-document-outline",
+      label: "New AMC",
+      color: colors.accent,
+      onPress: () =>
+        navigation.navigate("More", {
+          screen: "CreateAMC",
+          params: { customerId: id },
+        }),
+    },
+  ];
+
+  const details = [
+    { label: "Email", value: customer.email, icon: "email-outline" },
+    { label: "Address", value: customer.address, icon: "map-marker-outline" },
+    { label: "City", value: customer.city, icon: "city-variant-outline" },
+    { label: "Purifier Brand", value: customer.purifier_brand, icon: "water-outline" },
+    { label: "Purifier Model", value: customer.purifier_model, icon: "cog-outline" },
+    { label: "Installation Date", value: customer.installation_date, icon: "calendar-outline" },
+    { label: "Notes", value: customer.notes, icon: "note-text-outline" },
+  ].filter((item) => item.value);
+
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      showsVerticalScrollIndicator={false}
+    >
       {/* Profile Header */}
-      <View style={styles.header}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
+      <Animated.View
+        entering={FadeInDown.duration(350)}
+        style={[
+          styles.header,
+          { backgroundColor: colors.surface, borderBottomColor: colors.border },
+        ]}
+      >
+        <View style={[styles.avatar, { backgroundColor: colors.primarySoft }]}>
+          <Text style={[styles.avatarText, { color: colors.primary }]}>
             {customer.name.charAt(0).toUpperCase()}
           </Text>
         </View>
-        <Text style={styles.name}>{customer.name}</Text>
-        <Text style={styles.phone}>{customer.phone}</Text>
+        <Text style={[styles.name, { color: colors.text }]}>{customer.name}</Text>
+        <Text style={[styles.phone, { color: colors.textSecondary }]}>{customer.phone}</Text>
 
         {/* Action Buttons */}
         <View style={styles.actions}>
-          <TouchableOpacity style={styles.actionBtn} onPress={handleCall}>
-            <Text style={styles.actionIcon}>📞</Text>
-            <Text style={styles.actionLabel}>Call</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn} onPress={handleWhatsApp}>
-            <Text style={styles.actionIcon}>💬</Text>
-            <Text style={styles.actionLabel}>WhatsApp</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.actionBtn}
-            onPress={() => navigation.navigate("AddService", { customerId: id })}
-          >
-            <Text style={styles.actionIcon}>🔧</Text>
-            <Text style={styles.actionLabel}>New Service</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.actionBtn}
-            onPress={() =>
-              navigation.navigate("AMC", {
-                screen: "CreateAMC",
-                params: { customerId: id },
-              })
-            }
-          >
-            <Text style={styles.actionIcon}>📋</Text>
-            <Text style={styles.actionLabel}>New AMC</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Details Card */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Details</Text>
-        {[
-          { label: "Email", value: customer.email },
-          { label: "Address", value: customer.address },
-          { label: "City", value: customer.city },
-          { label: "Purifier Brand", value: customer.purifier_brand },
-          { label: "Purifier Model", value: customer.purifier_model },
-          { label: "Installation Date", value: customer.installation_date },
-          { label: "Notes", value: customer.notes },
-        ]
-          .filter((item) => item.value)
-          .map((item) => (
-            <View key={item.label} style={styles.detailRow}>
-              <Text style={styles.detailLabel}>{item.label}</Text>
-              <Text style={styles.detailValue}>{item.value}</Text>
-            </View>
+          {actions.map((a) => (
+            <Pressable key={a.label} style={styles.actionBtn} onPress={a.onPress}>
+              <View style={[styles.actionIconWrap, { backgroundColor: `${a.color}1A` }]}>
+                <MaterialCommunityIcons name={a.icon} size={22} color={a.color} />
+              </View>
+              <Text style={[styles.actionLabel, { color: colors.textSecondary }]}>
+                {a.label}
+              </Text>
+            </Pressable>
           ))}
-      </View>
+        </View>
+      </Animated.View>
 
-      {/* Service History */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>
-          Service History ({services.length})
-        </Text>
-        {services.length === 0 ? (
-          <Text style={styles.emptyText}>No services yet</Text>
-        ) : (
-          services.map((service) => (
-            <ServiceCard
-              key={service.id}
-              service={service}
-              onPress={() =>
-                navigation.navigate("Services", {
-                  screen: "ServiceDetail",
-                  params: { id: service.id },
-                })
-              }
-            />
-          ))
-        )}
-      </View>
+      <View style={{ paddingHorizontal: 16 }}>
+        {/* Details Card */}
+        <Animated.View entering={FadeInDown.delay(80).duration(350)} style={{ marginTop: 16 }}>
+          <Card>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>Details</Text>
+            {details.length === 0 ? (
+              <Text style={{ color: colors.textMuted, paddingVertical: 8 }}>
+                No additional details
+              </Text>
+            ) : (
+              details.map((item, i) => (
+                <View
+                  key={item.label}
+                  style={[
+                    styles.detailRow,
+                    {
+                      borderBottomColor: colors.divider,
+                      borderBottomWidth: i === details.length - 1 ? 0 : 1,
+                    },
+                  ]}
+                >
+                  <MaterialCommunityIcons
+                    name={item.icon}
+                    size={18}
+                    color={colors.textMuted}
+                    style={{ marginRight: 10, marginTop: 1 }}
+                  />
+                  <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>
+                    {item.label}
+                  </Text>
+                  <Text style={[styles.detailValue, { color: colors.text }]}>
+                    {item.value}
+                  </Text>
+                </View>
+              ))
+            )}
+          </Card>
+        </Animated.View>
 
-      {/* Edit / Delete */}
-      <View style={styles.bottomActions}>
-        <TouchableOpacity
-          style={[styles.editBtn, deleting && { opacity: 0.5 }]}
-          disabled={deleting}
-          onPress={() =>
-            navigation.navigate("EditCustomer", { id, customer })
-          }
-        >
-          <Text style={styles.editBtnText}>Edit Customer</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.deleteBtn, deleting && { opacity: 0.7 }]}
-          disabled={deleting}
-          onPress={handleDelete}
-        >
-          {deleting ? (
-            <ActivityIndicator color={COLORS.danger} />
+        {/* Service History */}
+        <Animated.View entering={FadeInDown.delay(140).duration(350)} style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+            Service History ({services.length})
+          </Text>
+          {services.length === 0 ? (
+            <Card>
+              <Text style={{ color: colors.textSecondary, textAlign: "center", paddingVertical: 12 }}>
+                No services yet
+              </Text>
+            </Card>
           ) : (
-            <Text style={styles.deleteBtnText}>Delete</Text>
+            services.map((service) => (
+              <ServiceCard
+                key={service.id}
+                service={service}
+                onPress={() =>
+                  navigation.navigate("Services", {
+                    screen: "ServiceDetail",
+                    params: { id: service.id },
+                  })
+                }
+              />
+            ))
           )}
-        </TouchableOpacity>
-      </View>
+        </Animated.View>
 
-      <View style={{ height: 40 }} />
+        {/* Edit / Delete */}
+        <View style={styles.bottomActions}>
+          <View style={{ flex: 1 }}>
+            <Button
+              title="Edit Customer"
+              icon="pencil-outline"
+              disabled={deleting}
+              onPress={() => navigation.navigate("EditCustomer", { id, customer })}
+            />
+          </View>
+          <View style={{ width: 120 }}>
+            <Button
+              title="Delete"
+              variant="danger"
+              icon="trash-can-outline"
+              loading={deleting}
+              disabled={deleting}
+              onPress={handleDelete}
+            />
+          </View>
+        </View>
+
+        <View style={{ height: 40 }} />
+      </View>
     </ScrollView>
   );
 }
@@ -227,30 +288,17 @@ export default function CustomerDetailScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  centered: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  errorText: {
-    ...FONTS.regular,
-    color: COLORS.gray,
   },
   header: {
-    backgroundColor: COLORS.white,
     alignItems: "center",
     paddingVertical: 24,
-    paddingHorizontal: SIZES.padding,
+    paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.grayBorder,
   },
   avatar: {
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: COLORS.primaryLight,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 12,
@@ -258,96 +306,63 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: 28,
     fontWeight: "700",
-    color: COLORS.primary,
   },
   name: {
-    ...FONTS.h2,
+    fontSize: 20,
+    fontWeight: "700",
   },
   phone: {
-    ...FONTS.regular,
-    color: COLORS.gray,
+    fontSize: 15,
     marginTop: 4,
   },
   actions: {
     flexDirection: "row",
     marginTop: 20,
-    gap: 24,
+    gap: 20,
   },
   actionBtn: {
     alignItems: "center",
   },
-  actionIcon: {
-    fontSize: 24,
-    marginBottom: 4,
+  actionIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 6,
   },
   actionLabel: {
-    ...FONTS.small,
-  },
-  card: {
-    backgroundColor: COLORS.white,
-    margin: SIZES.padding,
-    borderRadius: SIZES.radius,
-    padding: SIZES.padding,
-    elevation: 1,
+    fontSize: 12,
   },
   cardTitle: {
-    ...FONTS.h3,
-    marginBottom: 12,
+    fontSize: 17,
+    fontWeight: "700",
+    marginBottom: 8,
   },
   detailRow: {
     flexDirection: "row",
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.grayLight,
+    alignItems: "flex-start",
+    paddingVertical: 10,
   },
   detailLabel: {
-    ...FONTS.regular,
-    color: COLORS.gray,
-    width: 130,
+    fontSize: 14,
+    width: 120,
   },
   detailValue: {
-    ...FONTS.regular,
+    fontSize: 14,
     flex: 1,
   },
   section: {
-    paddingHorizontal: SIZES.padding,
+    marginTop: 20,
   },
   sectionTitle: {
-    ...FONTS.h3,
+    fontSize: 17,
+    fontWeight: "700",
     marginBottom: 10,
-  },
-  emptyText: {
-    ...FONTS.regular,
-    color: COLORS.gray,
-    textAlign: "center",
-    paddingVertical: 20,
   },
   bottomActions: {
     flexDirection: "row",
-    paddingHorizontal: SIZES.padding,
     marginTop: 20,
     gap: 12,
-  },
-  editBtn: {
-    flex: 1,
-    backgroundColor: COLORS.primary,
-    borderRadius: 8,
-    padding: 14,
-    alignItems: "center",
-  },
-  editBtnText: {
-    color: COLORS.white,
-    ...FONTS.bold,
-  },
-  deleteBtn: {
-    backgroundColor: COLORS.danger + "15",
-    borderRadius: 8,
-    padding: 14,
-    paddingHorizontal: 24,
-    alignItems: "center",
-  },
-  deleteBtnText: {
-    color: COLORS.danger,
-    ...FONTS.bold,
   },
 });

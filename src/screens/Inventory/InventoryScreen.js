@@ -3,7 +3,6 @@ import {
   View,
   Text,
   FlatList,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
@@ -11,9 +10,11 @@ import {
   RefreshControl,
   Modal,
 } from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { inventoryAPI } from "../../services/api";
-import { COLORS, FONTS, SIZES } from "../../constants/theme";
+import { useTheme } from "../../context/ThemeContext";
+import { Button, Card, Badge, Input, EmptyState, SkeletonList } from "../../components/ui";
 import {
   isRequired,
   isNonNegativeNumber,
@@ -22,6 +23,7 @@ import {
 } from "../../utils/validators";
 
 export default function InventoryScreen() {
+  const { colors, radius, elevation } = useTheme();
   const [parts, setParts] = useState([]);
   const [lowStockCount, setLowStockCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -36,8 +38,41 @@ export default function InventoryScreen() {
     unit_price: "",
     cost_price: "",
   });
+  const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+
+  // Per-field validation — returns an error string or null. Used on blur + submit.
+  const validateField = (key, value) => {
+    const v = (value || "").trim();
+    switch (key) {
+      case "name":
+        return isRequired(v, "Part name");
+      case "quantity":
+        return isIntegerInRange(v || "0", 0, 999999, "Quantity");
+      case "min_stock":
+        return isIntegerInRange(v || "0", 0, 999999, "Min stock");
+      case "unit_price":
+        return isNonNegativeNumber(v || "0", "Unit price");
+      case "cost_price":
+        return isNonNegativeNumber(v || "0", "Cost price");
+      default:
+        return null;
+    }
+  };
+
+  // Update a form field, applying input filtering, and clear its error on edit.
+  const updateForm = (key, value) => {
+    let v = value;
+    if (key === "quantity" || key === "min_stock") v = v.replace(/[^0-9]/g, "");
+    else if (key === "unit_price" || key === "cost_price") v = v.replace(/[^0-9.]/g, "");
+    setForm((prev) => ({ ...prev, [key]: v }));
+    if (errors[key]) setErrors((prev) => ({ ...prev, [key]: null }));
+  };
+
+  const handleBlur = (key) => {
+    setErrors((prev) => ({ ...prev, [key]: validateField(key, form[key]) }));
+  };
 
   const fetchParts = async () => {
     try {
@@ -61,11 +96,13 @@ export default function InventoryScreen() {
   const openAddModal = () => {
     setEditingPart(null);
     setForm({ name: "", sku: "", quantity: "", min_stock: "5", unit_price: "", cost_price: "" });
+    setErrors({});
     setShowModal(true);
   };
 
   const openEditModal = (part) => {
     setEditingPart(part);
+    setErrors({});
     setForm({
       name: part.name,
       sku: part.sku || "",
@@ -81,17 +118,14 @@ export default function InventoryScreen() {
     const name = form.name.trim();
     const sku = form.sku.trim();
 
-    const error = firstError([
-      isRequired(name, "Part name"),
-      isIntegerInRange(form.quantity || "0", 0, 999999, "Quantity"),
-      isIntegerInRange(form.min_stock || "0", 0, 999999, "Min stock"),
-      isNonNegativeNumber(form.unit_price || "0", "Unit price"),
-      isNonNegativeNumber(form.cost_price || "0", "Cost price"),
-    ]);
-    if (error) {
-      Alert.alert("Invalid input", error);
-      return;
+    // Validate every field; collect all errors so they all light up at once.
+    const nextErrors = {};
+    for (const key of ["name", "quantity", "min_stock", "unit_price", "cost_price"]) {
+      const err = validateField(key, form[key]);
+      if (err) nextErrors[key] = err;
     }
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
 
     const unitPrice = parseFloat(form.unit_price) || 0;
     const costPrice = parseFloat(form.cost_price) || 0;
@@ -161,136 +195,169 @@ export default function InventoryScreen() {
     const isLow = item.quantity <= item.min_stock;
     const isDeleting = deletingId === item.id;
     return (
-      <TouchableOpacity style={styles.card} onPress={() => openEditModal(item)}>
+      <Card onPress={() => openEditModal(item)} padded={false} style={{ marginBottom: 12 }}>
         <View style={styles.cardHeader}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.partName}>{item.name}</Text>
-            {item.sku ? <Text style={styles.sku}>SKU: {item.sku}</Text> : null}
+            <Text style={[styles.partName, { color: colors.text }]}>{item.name}</Text>
+            {item.sku ? (
+              <Text style={[styles.sku, { color: colors.textSecondary }]}>SKU: {item.sku}</Text>
+            ) : null}
           </View>
           <TouchableOpacity
             onPress={() => handleDelete(item)}
             disabled={isDeleting || !!deletingId}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             {isDeleting ? (
-              <ActivityIndicator color={COLORS.danger} size="small" />
+              <ActivityIndicator color={colors.danger} size="small" />
             ) : (
-              <Text style={[styles.deleteText, deletingId && { opacity: 0.4 }]}>
-                Delete
-              </Text>
+              <MaterialCommunityIcons
+                name="trash-can-outline"
+                size={20}
+                color={colors.danger}
+                style={deletingId ? { opacity: 0.4 } : null}
+              />
             )}
           </TouchableOpacity>
         </View>
         <View style={styles.cardBody}>
           <View style={styles.stat}>
-            <Text style={styles.statLabel}>In Stock</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>In Stock</Text>
             <Text
               style={[
                 styles.statValue,
-                isLow && { color: COLORS.danger },
+                { color: colors.text },
+                isLow && { color: colors.danger },
               ]}
             >
               {item.quantity}
             </Text>
           </View>
           <View style={styles.stat}>
-            <Text style={styles.statLabel}>Min Stock</Text>
-            <Text style={styles.statValue}>{item.min_stock}</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Min Stock</Text>
+            <Text style={[styles.statValue, { color: colors.text }]}>{item.min_stock}</Text>
           </View>
           <View style={styles.stat}>
-            <Text style={styles.statLabel}>Sell Price</Text>
-            <Text style={styles.statValue}>Rs {item.unit_price}</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Sell Price</Text>
+            <Text style={[styles.statValue, { color: colors.text }]}>Rs {item.unit_price}</Text>
           </View>
           <View style={styles.stat}>
-            <Text style={styles.statLabel}>Cost</Text>
-            <Text style={styles.statValue}>Rs {item.cost_price}</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Cost</Text>
+            <Text style={[styles.statValue, { color: colors.text }]}>Rs {item.cost_price}</Text>
           </View>
         </View>
         {isLow && (
-          <View style={styles.lowStockBar}>
-            <Text style={styles.lowStockText}>
+          <View style={[styles.lowStockBar, { backgroundColor: colors.dangerSoft }]}>
+            <MaterialCommunityIcons name="alert-outline" size={14} color={colors.danger} />
+            <Text style={[styles.lowStockText, { color: colors.danger }]}>
               Low stock! Only {item.quantity} left (min: {item.min_stock})
             </Text>
           </View>
         )}
-      </TouchableOpacity>
+      </Card>
     );
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {lowStockCount > 0 && (
-        <View style={styles.alertBanner}>
-          <Text style={styles.alertText}>
+        <View style={[styles.alertBanner, { backgroundColor: colors.warningSoft }]}>
+          <MaterialCommunityIcons name="alert-circle-outline" size={16} color={colors.warning} />
+          <Text style={[styles.alertText, { color: colors.warning }]}>
             {lowStockCount} part{lowStockCount > 1 ? "s" : ""} running low on stock
           </Text>
         </View>
       )}
 
       {loading ? (
-        <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 40 }} />
+        <View style={{ padding: 16 }}>
+          <SkeletonList count={5} />
+        </View>
       ) : (
         <FlatList
           data={parts}
           keyExtractor={(item) => item.id}
           renderItem={renderPart}
           ListEmptyComponent={
-            <Text style={styles.emptyText}>
-              No parts in inventory. Tap + to add parts.
-            </Text>
+            <EmptyState
+              icon="package-variant"
+              title="No parts in inventory"
+              message="Tap the + button to add filters and parts."
+              actionLabel="Add Part"
+              onAction={openAddModal}
+            />
           }
-          contentContainerStyle={{ padding: SIZES.padding, paddingBottom: 80 }}
+          contentContainerStyle={{ padding: 16, paddingBottom: 90 }}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchParts(); }} />
+            <RefreshControl
+              refreshing={refreshing}
+              tintColor={colors.primary}
+              onRefresh={() => { setRefreshing(true); fetchParts(); }}
+            />
           }
         />
       )}
 
-      <TouchableOpacity style={styles.fab} onPress={openAddModal}>
-        <Text style={styles.fabText}>+</Text>
+      <TouchableOpacity
+        style={[styles.fab, { backgroundColor: colors.primary }, elevation("lg")]}
+        onPress={openAddModal}
+        activeOpacity={0.85}
+      >
+        <MaterialCommunityIcons name="plus" size={28} color={colors.onPrimary} />
       </TouchableOpacity>
 
       {/* Add/Edit Modal */}
       <Modal visible={showModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>
+          <View
+            style={[
+              styles.modalContent,
+              { backgroundColor: colors.surface, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl },
+            ]}
+          >
+            <View style={styles.modalHandle} />
+            <Text style={[styles.modalTitle, { color: colors.text }]}>
               {editingPart ? "Edit Part" : "Add Part"}
             </Text>
 
-            <Text style={styles.label}>Name *</Text>
-            <TextInput
-              style={styles.input}
+            <Input
+              label="Name *"
               placeholder="e.g. RO Membrane"
+              icon="tag-outline"
               value={form.name}
-              onChangeText={(v) => setForm({ ...form, name: v })}
+              error={errors.name}
+              onChangeText={(v) => updateForm("name", v)}
+              onBlur={() => handleBlur("name")}
             />
 
-            <Text style={styles.label}>SKU (optional)</Text>
-            <TextInput
-              style={styles.input}
+            <Input
+              label="SKU (optional)"
               placeholder="e.g. RO-MEM-001"
+              icon="barcode"
               value={form.sku}
               onChangeText={(v) => setForm({ ...form, sku: v })}
             />
 
             <View style={styles.row}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.label}>Quantity</Text>
-                <TextInput
-                  style={styles.input}
+                <Input
+                  label="Quantity"
                   placeholder="0"
                   value={form.quantity}
-                  onChangeText={(v) => setForm({ ...form, quantity: v })}
+                  error={errors.quantity}
+                  onChangeText={(v) => updateForm("quantity", v)}
+                  onBlur={() => handleBlur("quantity")}
                   keyboardType="numeric"
                 />
               </View>
-              <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={styles.label}>Min Stock</Text>
-                <TextInput
-                  style={styles.input}
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Input
+                  label="Min Stock"
                   placeholder="5"
                   value={form.min_stock}
-                  onChangeText={(v) => setForm({ ...form, min_stock: v })}
+                  error={errors.min_stock}
+                  onChangeText={(v) => updateForm("min_stock", v)}
+                  onBlur={() => handleBlur("min_stock")}
                   keyboardType="numeric"
                 />
               </View>
@@ -298,47 +365,44 @@ export default function InventoryScreen() {
 
             <View style={styles.row}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.label}>Sell Price (Rs)</Text>
-                <TextInput
-                  style={styles.input}
+                <Input
+                  label="Sell Price (Rs)"
                   placeholder="0"
                   value={form.unit_price}
-                  onChangeText={(v) => setForm({ ...form, unit_price: v })}
+                  error={errors.unit_price}
+                  onChangeText={(v) => updateForm("unit_price", v)}
+                  onBlur={() => handleBlur("unit_price")}
                   keyboardType="numeric"
                 />
               </View>
-              <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={styles.label}>Cost Price (Rs)</Text>
-                <TextInput
-                  style={styles.input}
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Input
+                  label="Cost Price (Rs)"
                   placeholder="0"
                   value={form.cost_price}
-                  onChangeText={(v) => setForm({ ...form, cost_price: v })}
+                  error={errors.cost_price}
+                  onChangeText={(v) => updateForm("cost_price", v)}
+                  onBlur={() => handleBlur("cost_price")}
                   keyboardType="numeric"
                 />
               </View>
             </View>
 
             <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.cancelBtn}
-                onPress={() => setShowModal(false)}
-              >
-                <Text style={styles.cancelBtnText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.saveBtn}
-                onPress={handleSave}
-                disabled={saving}
-              >
-                {saving ? (
-                  <ActivityIndicator color={COLORS.white} />
-                ) : (
-                  <Text style={styles.saveBtnText}>
-                    {editingPart ? "Update" : "Add Part"}
-                  </Text>
-                )}
-              </TouchableOpacity>
+              <View style={{ flex: 1 }}>
+                <Button
+                  title="Cancel"
+                  variant="secondary"
+                  onPress={() => setShowModal(false)}
+                />
+              </View>
+              <View style={{ flex: 2, marginLeft: 12 }}>
+                <Button
+                  title={editingPart ? "Update" : "Add Part"}
+                  onPress={handleSave}
+                  loading={saving}
+                />
+              </View>
             </View>
           </View>
         </View>
@@ -348,46 +412,41 @@ export default function InventoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+  container: { flex: 1 },
   alertBanner: {
-    backgroundColor: COLORS.warning + "15",
-    padding: 12,
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    padding: 12,
   },
-  alertText: { ...FONTS.medium, color: COLORS.warning, fontSize: 13 },
-  card: {
-    backgroundColor: COLORS.white,
-    borderRadius: SIZES.radius,
-    marginBottom: 10,
-    elevation: 1,
-    overflow: "hidden",
-  },
+  alertText: { fontSize: 13, fontWeight: "500" },
   cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: SIZES.padding,
+    padding: 16,
     paddingBottom: 8,
   },
-  partName: { ...FONTS.bold, fontSize: 15 },
-  sku: { ...FONTS.small, color: COLORS.gray, marginTop: 2 },
-  deleteText: { ...FONTS.small, color: COLORS.danger },
+  partName: { fontSize: 15, fontWeight: "700" },
+  sku: { fontSize: 12, marginTop: 2 },
   cardBody: {
     flexDirection: "row",
-    paddingHorizontal: SIZES.padding,
-    paddingBottom: SIZES.padding,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
     gap: 4,
   },
   stat: { flex: 1, alignItems: "center" },
-  statLabel: { ...FONTS.small, color: COLORS.gray, fontSize: 10 },
-  statValue: { ...FONTS.bold, fontSize: 14, marginTop: 2 },
+  statLabel: { fontSize: 10 },
+  statValue: { fontSize: 14, fontWeight: "700", marginTop: 2 },
   lowStockBar: {
-    backgroundColor: COLORS.danger + "10",
-    padding: 6,
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    padding: 8,
   },
-  lowStockText: { ...FONTS.small, color: COLORS.danger, fontWeight: "600" },
-  emptyText: { ...FONTS.regular, color: COLORS.gray, textAlign: "center", marginTop: 40 },
+  lowStockText: { fontSize: 12, fontWeight: "600" },
   fab: {
     position: "absolute",
     right: 20,
@@ -395,55 +454,30 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: COLORS.primary,
     justifyContent: "center",
     alignItems: "center",
-    elevation: 4,
   },
-  fabText: { color: COLORS.white, fontSize: 28, fontWeight: "300", marginTop: -2 },
-  // Modal
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "flex-end",
   },
   modalContent: {
-    backgroundColor: COLORS.white,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: SIZES.padding * 1.5,
-    maxHeight: "80%",
+    padding: 20,
+    maxHeight: "85%",
   },
-  modalTitle: { ...FONTS.h2, marginBottom: 8 },
-  label: { ...FONTS.medium, marginBottom: 4, marginTop: 10, fontSize: 13 },
-  input: {
-    borderWidth: 1,
-    borderColor: COLORS.grayBorder,
-    borderRadius: 8,
-    padding: 10,
-    fontSize: 14,
-    backgroundColor: COLORS.grayLight,
+  modalHandle: {
+    alignSelf: "center",
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "rgba(128,128,128,0.4)",
+    marginBottom: 12,
   },
+  modalTitle: { fontSize: 20, fontWeight: "700", marginBottom: 16 },
   row: { flexDirection: "row" },
   modalActions: {
     flexDirection: "row",
-    gap: 12,
-    marginTop: 20,
+    marginTop: 12,
   },
-  cancelBtn: {
-    flex: 1,
-    borderRadius: 8,
-    padding: 14,
-    alignItems: "center",
-    backgroundColor: COLORS.grayLight,
-  },
-  cancelBtnText: { ...FONTS.bold, color: COLORS.gray },
-  saveBtn: {
-    flex: 2,
-    borderRadius: 8,
-    padding: 14,
-    alignItems: "center",
-    backgroundColor: COLORS.primary,
-  },
-  saveBtnText: { ...FONTS.bold, color: COLORS.white },
 });

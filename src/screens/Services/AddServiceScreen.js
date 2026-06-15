@@ -4,14 +4,14 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   ScrollView,
   Alert,
   ActivityIndicator,
 } from "react-native";
 import { customerAPI, serviceAPI } from "../../services/api";
 import DatePickerField from "../../components/DatePickerField";
-import { COLORS, FONTS, SIZES } from "../../constants/theme";
+import { Input, Button } from "../../components/ui";
+import { useTheme } from "../../context/ThemeContext";
 import {
   isRequired,
   isNonNegativeNumber,
@@ -28,6 +28,7 @@ const SERVICE_TYPES = [
 ];
 
 export default function AddServiceScreen({ navigation, route }) {
+  const { colors, spacing, radius } = useTheme();
   const preselectedCustomerId = route.params?.customerId;
   const [customers, setCustomers] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState(
@@ -41,6 +42,7 @@ export default function AddServiceScreen({ navigation, route }) {
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
   const [searching, setSearching] = useState(false);
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
     if (!preselectedCustomerId) {
@@ -69,16 +71,18 @@ export default function AddServiceScreen({ navigation, route }) {
     }
 
     const trimmedNotes = notes.trim();
-    const error = firstError([
-      isRequired(serviceType, "Service type"),
-      isRequired(scheduledDate, "Scheduled date"),
-      isNonNegativeNumber(amount || "0", "Amount"),
-      maxLength(trimmedNotes, 500, "Notes"),
-    ]);
-    if (error) {
-      Alert.alert("Invalid input", error);
-      return;
-    }
+    // Inline field errors for service type / date so they highlight under the field.
+    const nextErrors = {};
+    const typeErr = isRequired(serviceType, "Service type");
+    const dateErr = isRequired(scheduledDate, "Scheduled date");
+    const amountErr = isNonNegativeNumber(amount || "0", "Amount");
+    const notesErr = maxLength(trimmedNotes, 500, "Notes");
+    if (typeErr) nextErrors.serviceType = typeErr;
+    if (dateErr) nextErrors.scheduledDate = dateErr;
+    if (amountErr) nextErrors.amount = amountErr;
+    if (notesErr) nextErrors.notes = notesErr;
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
 
     setLoading(true);
     try {
@@ -97,19 +101,31 @@ export default function AddServiceScreen({ navigation, route }) {
     setLoading(false);
   };
 
+  // Consistent vertical rhythm: every field group is separated by spacing.lg (16).
+  const labelStyle = {
+    color: colors.textSecondary,
+    fontSize: 13,
+    fontWeight: "500",
+    marginBottom: spacing.sm,
+    marginTop: spacing.lg,
+  };
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={{ flex: 1, backgroundColor: colors.background }}
+      contentContainerStyle={{ padding: spacing.lg, paddingBottom: 40 }}
+      keyboardShouldPersistTaps="handled"
+    >
       {/* Customer Selection */}
       {!preselectedCustomerId && (
         <>
-          <Text style={styles.label}>Select Customer *</Text>
-          <TextInput
-            style={[
-              styles.input,
-              selectedCustomer && styles.inputSelected,
-            ]}
+          <Input
+            label="Select Customer *"
+            icon="account-search-outline"
             placeholder="Search customer by name or phone..."
             value={customerSearch}
+            style={{ marginBottom: 0, marginTop: spacing.xs }}
+            autoCapitalize="words"
             onChangeText={(text) => {
               setCustomerSearch(text);
               // Editing search clears selection so user can't submit a stale customer
@@ -124,44 +140,71 @@ export default function AddServiceScreen({ navigation, route }) {
           />
 
           {selectedCustomer && !showDropdown && (
-            <View style={styles.selectedBadge}>
-              <Text style={styles.selectedBadgeText}>✓ Customer selected</Text>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                backgroundColor: colors.successSoft,
+                paddingHorizontal: spacing.md,
+                paddingVertical: spacing.sm,
+                borderRadius: radius.md,
+                marginTop: spacing.sm,
+              }}
+            >
+              <Text style={{ color: colors.success, fontSize: 13, fontWeight: "600" }}>
+                ✓ Customer selected
+              </Text>
               <TouchableOpacity
                 onPress={() => {
                   setSelectedCustomer(null);
                   setCustomerSearch("");
                 }}
               >
-                <Text style={styles.changeText}>Change</Text>
+                <Text style={{ color: colors.primary, fontSize: 13, fontWeight: "600" }}>Change</Text>
               </TouchableOpacity>
             </View>
           )}
 
           {showDropdown && customerSearch.length > 2 && (
-            <View style={styles.dropdown}>
+            <View
+              style={{
+                backgroundColor: colors.card,
+                borderRadius: radius.md,
+                borderWidth: 1,
+                borderColor: colors.border,
+                marginTop: spacing.xs,
+                maxHeight: 180,
+                overflow: "hidden",
+              }}
+            >
               {searching ? (
                 <ActivityIndicator
                   size="small"
-                  color={COLORS.primary}
-                  style={{ padding: 12 }}
+                  color={colors.primary}
+                  style={{ padding: spacing.md }}
                 />
               ) : customers.length === 0 ? (
-                <Text style={styles.dropdownEmpty}>No customers found</Text>
+                <Text style={{ color: colors.textSecondary, padding: spacing.md, textAlign: "center" }}>
+                  No customers found
+                </Text>
               ) : (
                 customers.map((c) => (
                   <TouchableOpacity
                     key={c.id}
-                    style={[
-                      styles.dropdownItem,
-                      selectedCustomer === c.id && styles.dropdownItemActive,
-                    ]}
+                    style={{
+                      padding: spacing.md,
+                      borderBottomWidth: 1,
+                      borderBottomColor: colors.divider,
+                      backgroundColor: selectedCustomer === c.id ? colors.primarySoft : "transparent",
+                    }}
                     onPress={() => {
                       setSelectedCustomer(c.id);
                       setCustomerSearch(`${c.name} - ${c.phone}`);
                       setShowDropdown(false);
                     }}
                   >
-                    <Text style={styles.dropdownText}>
+                    <Text style={{ color: colors.text, fontSize: 14 }}>
                       {c.name} - {c.phone}
                     </Text>
                   </TouchableOpacity>
@@ -173,178 +216,122 @@ export default function AddServiceScreen({ navigation, route }) {
       )}
 
       {/* Service Type */}
-      <Text style={styles.label}>Service Type *</Text>
-      <View style={styles.typeGrid}>
-        {SERVICE_TYPES.map((type) => (
-          <TouchableOpacity
-            key={type}
-            style={[
-              styles.typeChip,
-              serviceType === type && styles.typeChipActive,
-            ]}
-            onPress={() => setServiceType(type)}
-          >
-            <Text
-              style={[
-                styles.typeText,
-                serviceType === type && styles.typeTextActive,
-              ]}
+      <Text style={labelStyle}>Service Type *</Text>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.sm }}>
+        {SERVICE_TYPES.map((type) => {
+          const active = serviceType === type;
+          return (
+            <TouchableOpacity
+              key={type}
+              activeOpacity={0.7}
+              style={{
+                paddingHorizontal: spacing.lg,
+                paddingVertical: spacing.sm,
+                borderRadius: radius.full,
+                borderWidth: 1,
+                backgroundColor: active ? colors.primary : colors.card,
+                borderColor: active ? colors.primary : colors.border,
+              }}
+              onPress={() => {
+                setServiceType(type);
+                if (errors.serviceType) setErrors((p) => ({ ...p, serviceType: null }));
+              }}
             >
-              {type.replace(/_/g, " ")}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <Text
+                style={{
+                  fontSize: 13,
+                  textTransform: "capitalize",
+                  fontWeight: active ? "600" : "500",
+                  color: active ? colors.onPrimary : colors.textSecondary,
+                }}
+              >
+                {type.replace(/_/g, " ")}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
+      {errors.serviceType ? (
+        <Text style={{ color: colors.danger, fontSize: 12, marginTop: spacing.xs }}>
+          {errors.serviceType}
+        </Text>
+      ) : null}
 
       {/* Date */}
-      <DatePickerField
-        label="Scheduled Date *"
-        value={scheduledDate}
-        onChange={setScheduledDate}
-        placeholder="Select scheduled date"
-        minDate={new Date()}
-      />
+      <View style={{ marginTop: spacing.md }}>
+        <DatePickerField
+          label="Scheduled Date *"
+          value={scheduledDate}
+          onChange={(d) => {
+            setScheduledDate(d);
+            if (errors.scheduledDate) setErrors((p) => ({ ...p, scheduledDate: null }));
+          }}
+          placeholder="Select scheduled date"
+          minDate={new Date()}
+        />
+        {errors.scheduledDate ? (
+          <Text style={{ color: colors.danger, fontSize: 12, marginTop: spacing.xs }}>
+            {errors.scheduledDate}
+          </Text>
+        ) : null}
+      </View>
 
       {/* Amount */}
-      <Text style={styles.label}>Amount (optional)</Text>
-      <TextInput
-        style={styles.input}
+      <Input
+        label="Amount (optional)"
+        icon="currency-inr"
         placeholder="0"
         value={amount}
-        onChangeText={setAmount}
+        error={errors.amount}
+        onChangeText={(t) => {
+          setAmount(t.replace(/[^0-9.]/g, ""));
+          if (errors.amount) setErrors((p) => ({ ...p, amount: null }));
+        }}
         keyboardType="numeric"
+        style={{ marginBottom: 0, marginTop: spacing.lg }}
       />
 
       {/* Notes */}
-      <Text style={styles.label}>Notes</Text>
+      <Text style={labelStyle}>Notes</Text>
       <TextInput
-        style={[styles.input, { height: 80, textAlignVertical: "top" }]}
         placeholder="Any additional notes"
+        placeholderTextColor={colors.textMuted}
         value={notes}
-        onChangeText={setNotes}
+        onChangeText={(t) => {
+          setNotes(t);
+          if (errors.notes) setErrors((p) => ({ ...p, notes: null }));
+        }}
         multiline
+        textAlignVertical="top"
+        underlineColorAndroid="transparent"
+        style={{
+          borderWidth: 1.5,
+          borderColor: errors.notes ? colors.danger : colors.border,
+          borderRadius: radius.md,
+          backgroundColor: colors.surface,
+          paddingHorizontal: 14,
+          paddingVertical: spacing.md,
+          minHeight: 90,
+          color: colors.text,
+          fontSize: 15,
+          outlineStyle: "none",
+          outlineWidth: 0,
+        }}
       />
+      {errors.notes ? (
+        <Text style={{ color: colors.danger, fontSize: 12, marginTop: spacing.xs }}>
+          {errors.notes}
+        </Text>
+      ) : null}
 
-      <TouchableOpacity
-        style={styles.button}
+      <Button
+        title="Schedule Service"
+        icon="calendar-check"
         onPress={handleSubmit}
+        loading={loading}
         disabled={loading}
-      >
-        {loading ? (
-          <ActivityIndicator color={COLORS.white} />
-        ) : (
-          <Text style={styles.buttonText}>Schedule Service</Text>
-        )}
-      </TouchableOpacity>
+        style={{ marginTop: spacing["2xl"] }}
+      />
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  content: {
-    padding: SIZES.padding,
-    paddingBottom: 40,
-  },
-  label: {
-    ...FONTS.medium,
-    marginBottom: 6,
-    marginTop: 14,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: COLORS.grayBorder,
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 14,
-    backgroundColor: COLORS.white,
-  },
-  dropdown: {
-    backgroundColor: COLORS.white,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: COLORS.grayBorder,
-    marginTop: 4,
-    maxHeight: 150,
-  },
-  dropdownItem: {
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.grayLight,
-  },
-  dropdownItemActive: {
-    backgroundColor: COLORS.primaryLight,
-  },
-  dropdownText: {
-    ...FONTS.regular,
-  },
-  dropdownEmpty: {
-    ...FONTS.regular,
-    color: COLORS.gray,
-    padding: 12,
-    textAlign: "center",
-  },
-  inputSelected: {
-    borderColor: COLORS.secondary,
-    borderWidth: 1.5,
-  },
-  selectedBadge: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: COLORS.primaryLight,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 6,
-    marginTop: 6,
-  },
-  selectedBadgeText: {
-    ...FONTS.medium,
-    fontSize: 13,
-    color: COLORS.secondary,
-  },
-  changeText: {
-    ...FONTS.medium,
-    fontSize: 13,
-    color: COLORS.primary,
-  },
-  typeGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  typeChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: COLORS.white,
-    borderWidth: 1,
-    borderColor: COLORS.grayBorder,
-  },
-  typeChipActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  typeText: {
-    ...FONTS.small,
-    textTransform: "capitalize",
-  },
-  typeTextActive: {
-    color: COLORS.white,
-    fontWeight: "600",
-  },
-  button: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 8,
-    padding: 14,
-    alignItems: "center",
-    marginTop: 28,
-  },
-  buttonText: {
-    color: COLORS.white,
-    ...FONTS.bold,
-  },
-});

@@ -1,16 +1,10 @@
 import React, { useState } from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Alert,
-  ActivityIndicator,
-  Linking,
-} from "react-native";
+import { View, Text, ScrollView, Alert, Linking } from "react-native";
+import Animated, { FadeInDown, ZoomIn } from "react-native-reanimated";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { serviceAPI } from "../../services/api";
-import { COLORS, FONTS, SIZES } from "../../constants/theme";
+import { Card, Button, Badge } from "../../components/ui";
+import { useTheme } from "../../context/ThemeContext";
 
 const safeNum = (n) => {
   const v = Number(n);
@@ -18,6 +12,7 @@ const safeNum = (n) => {
 };
 
 export default function ServiceSuccessScreen({ route, navigation }) {
+  const { colors, spacing, radius } = useTheme();
   const params = route.params || {};
   const {
     serviceId,
@@ -110,178 +105,141 @@ export default function ServiceSuccessScreen({ route, navigation }) {
   };
 
   return (
-    <View style={styles.container}>
-      {/* Success Icon */}
-      <View style={styles.successIcon}>
-        <MaterialCommunityIcons name="check-circle" size={64} color={COLORS.secondary} />
-      </View>
-      <Text style={styles.successTitle}>Service Completed!</Text>
+    <ScrollView
+      style={{ flex: 1, backgroundColor: colors.background }}
+      contentContainerStyle={{ padding: spacing.lg, flexGrow: 1 }}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* Celebratory header */}
+      <Animated.View entering={ZoomIn.duration(400)} style={{ alignItems: "center", marginTop: spacing["3xl"] }}>
+        <View
+          style={{
+            width: 104,
+            height: 104,
+            borderRadius: 52,
+            backgroundColor: colors.successSoft,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <MaterialCommunityIcons name="check-circle" size={72} color={colors.success} />
+        </View>
+      </Animated.View>
+
+      <Animated.View entering={FadeInDown.delay(150).duration(400)} style={{ alignItems: "center" }}>
+        <Text
+          style={{
+            color: colors.success,
+            fontSize: 24,
+            fontWeight: "800",
+            letterSpacing: -0.3,
+            textAlign: "center",
+            marginTop: spacing.lg,
+          }}
+        >
+          Service Completed! 🎉
+        </Text>
+        <Text style={{ color: colors.textSecondary, fontSize: 14, textAlign: "center", marginTop: spacing.xs }}>
+          Great work — the job is done.
+        </Text>
+      </Animated.View>
 
       {/* Summary Card */}
-      <View style={styles.card}>
-        <Text style={styles.customerName}>{customerName}</Text>
-
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Service Charge</Text>
-          <Text style={styles.summaryValue}>{serviceCharge.toFixed(2)}</Text>
-        </View>
-        {partsTotal > 0 && (
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Parts</Text>
-            <Text style={styles.summaryValue}>{partsTotal.toFixed(2)}</Text>
-          </View>
-        )}
-        <View style={[styles.summaryRow, styles.totalRow]}>
-          <Text style={styles.totalLabel}>Total</Text>
-          <Text style={styles.totalValue}>{totalAmount.toFixed(2)}</Text>
-        </View>
-
-        <View style={styles.infoRow}>
-          <MaterialCommunityIcons
-            name={paymentStatus === "paid" ? "check-circle" : "clock-outline"}
-            size={16}
-            color={paymentStatus === "paid" ? COLORS.secondary : COLORS.warning}
-          />
-          <Text style={styles.infoText}>
-            {paymentStatus === "paid"
-              ? `Paid via ${paymentMethod?.toUpperCase()}`
-              : "Payment Pending"}
+      <Animated.View entering={FadeInDown.delay(250).duration(400)} style={{ marginTop: spacing["2xl"] }}>
+        <Card>
+          <Text style={{ color: colors.text, fontSize: 18, fontWeight: "700", marginBottom: spacing.md }}>
+            {customerName}
           </Text>
-        </View>
 
-        {nextDueDate && (
-          <View style={styles.infoRow}>
-            <MaterialCommunityIcons name="calendar-clock" size={16} color={COLORS.primary} />
-            <Text style={styles.infoText}>Next Due: {nextDueDate}</Text>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: spacing.xs }}>
+            <Text style={{ color: colors.textSecondary, fontSize: 14 }}>Service Charge</Text>
+            <Text style={{ color: colors.text, fontSize: 14, fontWeight: "500" }}>₹{serviceCharge.toFixed(2)}</Text>
           </View>
-        )}
-      </View>
+          {partsTotal > 0 && (
+            <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: spacing.xs }}>
+              <Text style={{ color: colors.textSecondary, fontSize: 14 }}>Parts</Text>
+              <Text style={{ color: colors.text, fontSize: 14, fontWeight: "500" }}>₹{partsTotal.toFixed(2)}</Text>
+            </View>
+          )}
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              marginTop: spacing.sm,
+              paddingTop: spacing.md,
+              borderTopWidth: 1,
+              borderTopColor: colors.divider,
+            }}
+          >
+            <Text style={{ color: colors.text, fontSize: 16, fontWeight: "700" }}>Total</Text>
+            <Text style={{ color: colors.primary, fontSize: 16, fontWeight: "700" }}>₹{totalAmount.toFixed(2)}</Text>
+          </View>
+
+          <View style={{ flexDirection: "row", alignItems: "center", marginTop: spacing.md }}>
+            <Badge
+              status={paymentStatus === "paid" ? "completed" : "pending"}
+              label={paymentStatus === "paid" ? `Paid via ${paymentMethod?.toUpperCase()}` : "Payment Pending"}
+              icon={paymentStatus === "paid" ? "check-circle" : "clock-outline"}
+              size="sm"
+            />
+          </View>
+
+          {nextDueDate && (
+            <View style={{ flexDirection: "row", alignItems: "center", marginTop: spacing.md }}>
+              <MaterialCommunityIcons name="calendar-clock" size={16} color={colors.primary} />
+              <Text style={{ color: colors.text, fontSize: 13, marginLeft: spacing.sm }}>
+                Next Due: {nextDueDate}
+              </Text>
+            </View>
+          )}
+        </Card>
+      </Animated.View>
 
       {/* Action Buttons */}
-      <View style={styles.actions}>
+      <Animated.View entering={FadeInDown.delay(350).duration(400)} style={{ marginTop: spacing["2xl"], gap: spacing.md }}>
         {!billGenerated ? (
-          <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: COLORS.primary }]}
+          <Button
+            title="Generate Bill"
+            icon="receipt"
+            variant="primary"
             onPress={handleGenerateBill}
+            loading={generatingBill}
             disabled={generatingBill}
-          >
-            {generatingBill ? (
-              <ActivityIndicator color={COLORS.white} />
-            ) : (
-              <>
-                <MaterialCommunityIcons name="receipt" size={20} color={COLORS.white} />
-                <Text style={styles.actionBtnText}>Generate Bill</Text>
-              </>
-            )}
-          </TouchableOpacity>
+          />
         ) : (
-          <View style={styles.billGeneratedBadge}>
-            <MaterialCommunityIcons name="check" size={18} color={COLORS.secondary} />
-            <Text style={styles.billGeneratedText}>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: spacing.md,
+              backgroundColor: colors.successSoft,
+              borderRadius: radius.md,
+              borderWidth: 1,
+              borderColor: colors.success,
+            }}
+          >
+            <MaterialCommunityIcons name="check" size={18} color={colors.success} />
+            <Text style={{ color: colors.success, fontWeight: "600", marginLeft: spacing.xs }}>
               Bill {billData?.bill_number} Created
             </Text>
           </View>
         )}
 
-        <TouchableOpacity
-          style={[styles.actionBtn, { backgroundColor: "#25D366" }]}
+        <Button
+          title="Send Bill via WhatsApp"
+          icon="whatsapp"
+          variant="primary"
+          style={{ backgroundColor: "#25D366" }}
           onPress={handleSendBill}
+          loading={generatingBill}
           disabled={generatingBill}
-        >
-          {generatingBill ? (
-            <ActivityIndicator color={COLORS.white} />
-          ) : (
-            <>
-              <MaterialCommunityIcons name="whatsapp" size={20} color={COLORS.white} />
-              <Text style={styles.actionBtnText}>Send Bill via WhatsApp</Text>
-            </>
-          )}
-        </TouchableOpacity>
+        />
 
-        <TouchableOpacity
-          style={[styles.actionBtn, { backgroundColor: COLORS.grayLight, marginTop: 8 }]}
-          onPress={handleDone}
-        >
-          <Text style={[styles.actionBtnText, { color: COLORS.black }]}>Done</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+        <Button title="Done" variant="secondary" onPress={handleDone} />
+      </Animated.View>
+
+      <View style={{ height: 40 }} />
+    </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-    padding: SIZES.padding,
-  },
-  successIcon: { alignItems: "center", marginTop: 24 },
-  successTitle: {
-    ...FONTS.h2,
-    textAlign: "center",
-    marginTop: 12,
-    marginBottom: 24,
-    color: COLORS.secondary,
-  },
-  card: {
-    backgroundColor: COLORS.white,
-    borderRadius: SIZES.radius,
-    padding: SIZES.padding,
-    elevation: 2,
-  },
-  customerName: { ...FONTS.bold, fontSize: 18, marginBottom: 12 },
-  summaryRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: 6,
-  },
-  summaryLabel: { ...FONTS.regular, color: COLORS.gray },
-  summaryValue: { ...FONTS.medium },
-  totalRow: {
-    marginTop: 8,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.grayBorder,
-  },
-  totalLabel: { ...FONTS.bold, fontSize: 16 },
-  totalValue: { ...FONTS.bold, fontSize: 16, color: COLORS.primary },
-  infoRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 10,
-  },
-  infoText: { ...FONTS.regular, marginLeft: 8, fontSize: 13 },
-  actions: {
-    marginTop: 24,
-    gap: 10,
-  },
-  actionBtn: {
-    flexDirection: "row",
-    borderRadius: 10,
-    padding: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    elevation: 1,
-  },
-  actionBtnText: {
-    color: COLORS.white,
-    ...FONTS.bold,
-    fontSize: 15,
-    marginLeft: 8,
-  },
-  billGeneratedBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 12,
-    backgroundColor: "#ECFDF5",
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: COLORS.secondary,
-  },
-  billGeneratedText: {
-    ...FONTS.medium,
-    color: COLORS.secondary,
-    marginLeft: 6,
-  },
-});

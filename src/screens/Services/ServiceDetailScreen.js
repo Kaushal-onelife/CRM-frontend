@@ -4,16 +4,16 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  StyleSheet,
   Alert,
-  ActivityIndicator,
   Linking,
 } from "react-native";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import { useFocusEffect } from "@react-navigation/native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { serviceAPI } from "../../services/api";
 import DatePickerField from "../../components/DatePickerField";
-import { COLORS, FONTS, SIZES } from "../../constants/theme";
+import { Card, Badge, Button, EmptyState, Skeleton } from "../../components/ui";
+import { useTheme } from "../../context/ThemeContext";
 
 // Helper to determine display status for 'scheduled' services
 function getDisplayStatus(service) {
@@ -22,16 +22,18 @@ function getDisplayStatus(service) {
   return service.scheduled_date >= today ? "upcoming" : "due";
 }
 
-const STATUS_CONFIG = {
-  upcoming: { color: "#2563EB", label: "UPCOMING" },
-  due: { color: "#F97316", label: "DUE" },
-  pending: { color: "#F59E0B", label: "PENDING" },
-  completed: { color: "#10B981", label: "COMPLETED" },
-  rejected: { color: "#EF4444", label: "REJECTED" },
-  followup: { color: "#8B5CF6", label: "FOLLOW UP" },
+// Map raw display status -> Badge status preset + accent color helper key.
+const STATUS_PRESET = {
+  upcoming: "upcoming",
+  due: "due",
+  pending: "pending",
+  completed: "completed",
+  rejected: "rejected",
+  followup: "followup",
 };
 
 export default function ServiceDetailScreen({ route, navigation }) {
+  const { colors, spacing, radius } = useTheme();
   const { id } = route.params;
   const [service, setService] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -83,207 +85,235 @@ export default function ServiceDetailScreen({ route, navigation }) {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+      <View style={{ flex: 1, backgroundColor: colors.background, padding: spacing.lg }}>
+        <Skeleton width="40%" height={28} radius={radius.full} style={{ alignSelf: "center", marginVertical: spacing.lg }} />
+        <Skeleton width="100%" height={180} radius={radius.lg} style={{ marginBottom: spacing.md }} />
+        <Skeleton width="100%" height={120} radius={radius.lg} style={{ marginBottom: spacing.md }} />
+        <Skeleton width="100%" height={56} radius={radius.md} style={{ marginBottom: spacing.md }} />
+        <Skeleton width="100%" height={56} radius={radius.md} />
       </View>
     );
   }
 
   if (!service) {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.errorTitle}>
-          {error ? "Couldn't load service" : "Service not found"}
-        </Text>
-        {error ? <Text style={styles.errorMsg}>{error}</Text> : null}
-        <TouchableOpacity
-          style={styles.retryBtn}
-          onPress={() => {
+      <View style={{ flex: 1, backgroundColor: colors.background, justifyContent: "center" }}>
+        <EmptyState
+          tone="error"
+          icon="cloud-off-outline"
+          title={error ? "Couldn't load service" : "Service not found"}
+          message={error || undefined}
+          actionLabel="Retry"
+          onAction={() => {
             setLoading(true);
             fetchService();
           }}
-        >
-          <Text style={styles.retryText}>Retry</Text>
-        </TouchableOpacity>
+        />
       </View>
     );
   }
 
   const displayStatus = getDisplayStatus(service);
-  const statusInfo = STATUS_CONFIG[displayStatus] || STATUS_CONFIG.upcoming;
+  const statusPreset = STATUS_PRESET[displayStatus] || "upcoming";
   // Actions available for scheduled (upcoming/due), pending, followup
   const isActionable = ["scheduled", "pending", "followup"].includes(service.status);
 
+  const detailRows = [
+    { label: "Type", value: service.service_type.replace(/_/g, " ") },
+    { label: "Scheduled Date", value: service.scheduled_date },
+    { label: "Completed Date", value: service.completed_date },
+    { label: "Next Due Date", value: service.next_due_date },
+    { label: "Next Contact", value: service.next_contact_date },
+    { label: "Amount", value: service.amount > 0 ? `₹${parseFloat(service.amount).toFixed(2)}` : null },
+    { label: "Service Charge", value: service.service_charge > 0 ? `₹${parseFloat(service.service_charge).toFixed(2)}` : null },
+    { label: "Notes", value: service.notes },
+  ].filter((item) => item.value);
+
   return (
-    <ScrollView style={styles.container}>
-      {/* Status Banner */}
-      <View style={[styles.statusBanner, { backgroundColor: statusInfo.color + "15" }]}>
-        <Text style={[styles.statusText, { color: statusInfo.color }]}>
-          {statusInfo.label}
-        </Text>
-      </View>
+    <ScrollView
+      style={{ flex: 1, backgroundColor: colors.background }}
+      contentContainerStyle={{ padding: spacing.lg }}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* Status badge */}
+      <Animated.View
+        entering={FadeInDown.duration(300)}
+        style={{ alignItems: "center", marginBottom: spacing.lg }}
+      >
+        <Badge status={statusPreset} size="md" />
+      </Animated.View>
 
       {/* Service Info */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Service Details</Text>
-        {[
-          { label: "Type", value: service.service_type.replace(/_/g, " ") },
-          { label: "Scheduled Date", value: service.scheduled_date },
-          { label: "Completed Date", value: service.completed_date },
-          { label: "Next Due Date", value: service.next_due_date },
-          { label: "Next Contact", value: service.next_contact_date },
-          { label: "Amount", value: service.amount > 0 ? `${parseFloat(service.amount).toFixed(2)}` : null },
-          { label: "Service Charge", value: service.service_charge > 0 ? `${parseFloat(service.service_charge).toFixed(2)}` : null },
-          { label: "Notes", value: service.notes },
-        ]
-          .filter((item) => item.value)
-          .map((item) => (
-            <View key={item.label} style={styles.detailRow}>
-              <Text style={styles.detailLabel}>{item.label}</Text>
-              <Text style={styles.detailValue}>{item.value}</Text>
+      <Animated.View entering={FadeInDown.delay(60).duration(350)}>
+        <Card style={{ marginBottom: spacing.md }}>
+          <Text style={{ color: colors.text, fontSize: 17, fontWeight: "700", marginBottom: spacing.md }}>
+            Service Details
+          </Text>
+          {detailRows.map((item) => (
+            <View
+              key={item.label}
+              style={{
+                flexDirection: "row",
+                paddingVertical: spacing.sm,
+                borderBottomWidth: 1,
+                borderBottomColor: colors.divider,
+              }}
+            >
+              <Text style={{ color: colors.textSecondary, fontSize: 14, width: 130 }}>{item.label}</Text>
+              <Text style={{ color: colors.text, fontSize: 14, flex: 1, textTransform: "capitalize" }}>
+                {item.value}
+              </Text>
             </View>
           ))}
 
-        {/* Parts replaced */}
-        {service.parts_replaced && service.parts_replaced.length > 0 && (
-          <View style={{ marginTop: 8 }}>
-            <Text style={styles.detailLabel}>Parts Replaced</Text>
-            {service.parts_replaced.map((part, index) => (
-              <Text key={index} style={styles.partText}>
-                {part.name} x{part.quantity} - {parseFloat(part.cost).toFixed(2)}
+          {/* Parts replaced */}
+          {service.parts_replaced && service.parts_replaced.length > 0 && (
+            <View style={{ marginTop: spacing.sm }}>
+              <Text style={{ color: colors.textSecondary, fontSize: 14, marginBottom: spacing.xs }}>
+                Parts Replaced
               </Text>
-            ))}
-          </View>
-        )}
-      </View>
+              {service.parts_replaced.map((part, index) => (
+                <Text key={index} style={{ color: colors.text, fontSize: 13, marginTop: spacing.xs, marginLeft: spacing.sm }}>
+                  {part.name} x{part.quantity} - ₹{parseFloat(part.cost).toFixed(2)}
+                </Text>
+              ))}
+            </View>
+          )}
+        </Card>
+      </Animated.View>
 
       {/* Customer Info */}
       {service.customers && (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Customer</Text>
-          <Text style={styles.customerName}>{service.customers.name}</Text>
-          <Text style={styles.customerPhone}>{service.customers.phone}</Text>
-          {service.customers.purifier_model && (
-            <Text style={styles.customerDetail}>
-              {service.customers.purifier_brand} - {service.customers.purifier_model}
+        <Animated.View entering={FadeInDown.delay(120).duration(350)}>
+          <Card style={{ marginBottom: spacing.md }}>
+            <Text style={{ color: colors.text, fontSize: 17, fontWeight: "700", marginBottom: spacing.md }}>
+              Customer
             </Text>
-          )}
-          {service.customers.address && (
-            <Text style={styles.customerAddress}>{service.customers.address}</Text>
-          )}
-          <View style={styles.contactActions}>
-            <TouchableOpacity
-              style={styles.contactBtn}
-              onPress={() => Linking.openURL(`tel:${service.customers.phone}`)}
-            >
-              <MaterialCommunityIcons name="phone" size={16} color={COLORS.primary} />
-              <Text style={styles.contactBtnText}>Call</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.contactBtn}
-              onPress={() => {
-                const phone = service.customers.phone.replace(/\D/g, "");
-                const number = phone.startsWith("91") ? phone : `91${phone}`;
-                Linking.openURL(`whatsapp://send?phone=${number}`);
-              }}
-            >
-              <MaterialCommunityIcons name="whatsapp" size={16} color="#25D366" />
-              <Text style={styles.contactBtnText}>WhatsApp</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+            <Text style={{ color: colors.text, fontSize: 16, fontWeight: "700" }}>
+              {service.customers.name}
+            </Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 14, marginTop: 2 }}>
+              {service.customers.phone}
+            </Text>
+            {service.customers.purifier_model && (
+              <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: spacing.xs }}>
+                {service.customers.purifier_brand} - {service.customers.purifier_model}
+              </Text>
+            )}
+            {service.customers.address && (
+              <Text style={{ color: colors.text, fontSize: 13, marginTop: spacing.xs }}>
+                {service.customers.address}
+              </Text>
+            )}
+            <View style={{ flexDirection: "row", marginTop: spacing.md, gap: spacing.md }}>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  backgroundColor: colors.primarySoft,
+                  paddingHorizontal: spacing.lg,
+                  paddingVertical: spacing.sm,
+                  borderRadius: radius.full,
+                  gap: spacing.xs,
+                }}
+                onPress={() => Linking.openURL(`tel:${service.customers.phone}`)}
+              >
+                <MaterialCommunityIcons name="phone" size={16} color={colors.primary} />
+                <Text style={{ color: colors.primary, fontSize: 13, fontWeight: "600" }}>Call</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  backgroundColor: colors.successSoft,
+                  paddingHorizontal: spacing.lg,
+                  paddingVertical: spacing.sm,
+                  borderRadius: radius.full,
+                  gap: spacing.xs,
+                }}
+                onPress={() => {
+                  const phone = service.customers.phone.replace(/\D/g, "");
+                  const number = phone.startsWith("91") ? phone : `91${phone}`;
+                  Linking.openURL(`whatsapp://send?phone=${number}`);
+                }}
+              >
+                <MaterialCommunityIcons name="whatsapp" size={16} color="#25D366" />
+                <Text style={{ color: colors.success, fontSize: 13, fontWeight: "600" }}>WhatsApp</Text>
+              </TouchableOpacity>
+            </View>
+          </Card>
+        </Animated.View>
       )}
 
       {/* Action Buttons */}
       {isActionable && (
-        <View style={styles.actionSection}>
+        <Animated.View entering={FadeInDown.delay(180).duration(350)} style={{ gap: spacing.md }}>
           {/* Pending - customer accepted */}
           {(service.status === "scheduled" || service.status === "followup") && (
-            <TouchableOpacity
-              style={[
-                styles.actionBtn,
-                { backgroundColor: COLORS.warning, opacity: actionInFlight ? 0.7 : 1 },
-              ]}
+            <Button
+              title="Customer Accepted (Pending)"
+              icon="check"
+              variant="primary"
+              style={{ backgroundColor: colors.warning }}
+              loading={actionInFlight === "pending"}
               disabled={!!actionInFlight}
               onPress={() => handleStatusChange("pending")}
-            >
-              {actionInFlight === "pending" ? (
-                <ActivityIndicator color={COLORS.white} />
-              ) : (
-                <>
-                  <MaterialCommunityIcons name="check" size={18} color={COLORS.white} />
-                  <Text style={styles.actionBtnText}>Customer Accepted (Pending)</Text>
-                </>
-              )}
-            </TouchableOpacity>
+            />
           )}
 
           {/* Complete - navigate to completion form */}
-          <TouchableOpacity
-            style={[
-              styles.actionBtn,
-              { backgroundColor: COLORS.secondary, opacity: actionInFlight ? 0.7 : 1 },
-            ]}
+          <Button
+            title="Mark as Completed"
+            icon="check-circle"
+            variant="success"
             disabled={!!actionInFlight}
             onPress={() => navigation.navigate("CompleteService", { id: service.id })}
-          >
-            <MaterialCommunityIcons name="check-circle" size={18} color={COLORS.white} />
-            <Text style={styles.actionBtnText}>Mark as Completed</Text>
-          </TouchableOpacity>
+          />
 
           {/* Follow Up */}
           {(service.status === "scheduled" || service.status === "followup") && (
             <>
-              <TouchableOpacity
-                style={[
-                  styles.actionBtn,
-                  { backgroundColor: "#8B5CF6", opacity: actionInFlight ? 0.7 : 1 },
-                ]}
+              <Button
+                title="Mark as Follow Up"
+                icon="phone-return-outline"
+                variant="primary"
+                style={{ backgroundColor: colors.accent }}
                 disabled={!!actionInFlight}
                 onPress={() => setShowFollowupForm(!showFollowupForm)}
-              >
-                <MaterialCommunityIcons name="phone-return-outline" size={18} color={COLORS.white} />
-                <Text style={styles.actionBtnText}>Mark as Follow Up</Text>
-              </TouchableOpacity>
+              />
 
               {showFollowupForm && (
-                <View style={styles.followupForm}>
-                  <Text style={styles.label}>Next Contact Date (optional)</Text>
+                <Card style={{ gap: spacing.sm }}>
+                  <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: "500" }}>
+                    Next Contact Date (optional)
+                  </Text>
                   <DatePickerField
                     value={nextContactDate}
                     onChange={setNextContactDate}
                     placeholder="Pick a date"
                     minimumDate={new Date()}
                   />
-                  <TouchableOpacity
-                    style={[
-                      styles.actionBtn,
-                      {
-                        backgroundColor: "#8B5CF6",
-                        marginTop: 10,
-                        opacity: actionInFlight ? 0.7 : 1,
-                      },
-                    ]}
+                  <Button
+                    title="Confirm Follow Up"
+                    variant="primary"
+                    style={{ backgroundColor: colors.accent, marginTop: spacing.sm }}
+                    loading={actionInFlight === "followup-confirm"}
                     disabled={!!actionInFlight}
                     onPress={handleFollowup}
-                  >
-                    {actionInFlight === "followup-confirm" ? (
-                      <ActivityIndicator color={COLORS.white} />
-                    ) : (
-                      <Text style={styles.actionBtnText}>Confirm Follow Up</Text>
-                    )}
-                  </TouchableOpacity>
-                </View>
+                  />
+                </Card>
               )}
             </>
           )}
 
           {/* Reject */}
-          <TouchableOpacity
-            style={[
-              styles.actionBtn,
-              { backgroundColor: COLORS.danger, opacity: actionInFlight ? 0.7 : 1 },
-            ]}
+          <Button
+            title="Reject"
+            icon="close-circle"
+            variant="danger"
+            loading={actionInFlight === "rejected"}
             disabled={!!actionInFlight}
             onPress={() =>
               Alert.alert("Reject Service", "Are you sure?", [
@@ -295,102 +325,11 @@ export default function ServiceDetailScreen({ route, navigation }) {
                 },
               ])
             }
-          >
-            {actionInFlight === "rejected" ? (
-              <ActivityIndicator color={COLORS.white} />
-            ) : (
-              <>
-                <MaterialCommunityIcons name="close-circle" size={18} color={COLORS.white} />
-                <Text style={styles.actionBtnText}>Reject</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
+          />
+        </Animated.View>
       )}
 
       <View style={{ height: 40 }} />
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  centered: { flex: 1, justifyContent: "center", alignItems: "center" },
-  statusBanner: {
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  statusText: {
-    fontSize: 14,
-    fontWeight: "700",
-    letterSpacing: 1,
-  },
-  card: {
-    backgroundColor: COLORS.white,
-    margin: SIZES.padding,
-    marginBottom: 0,
-    borderRadius: SIZES.radius,
-    padding: SIZES.padding,
-    elevation: 1,
-  },
-  cardTitle: { ...FONTS.h3, marginBottom: 12 },
-  detailRow: {
-    flexDirection: "row",
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.grayLight,
-  },
-  detailLabel: { ...FONTS.regular, color: COLORS.gray, width: 130 },
-  detailValue: { ...FONTS.regular, flex: 1, textTransform: "capitalize" },
-  partText: { ...FONTS.regular, fontSize: 13, marginTop: 4, marginLeft: 8 },
-  customerName: { ...FONTS.bold, fontSize: 16 },
-  customerPhone: { ...FONTS.regular, color: COLORS.gray, marginTop: 2 },
-  customerDetail: { ...FONTS.small, marginTop: 4, color: COLORS.gray },
-  customerAddress: { ...FONTS.small, marginTop: 4 },
-  contactActions: { flexDirection: "row", marginTop: 12, gap: 12 },
-  contactBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: COLORS.grayLight,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 6,
-  },
-  contactBtnText: { ...FONTS.regular, fontSize: 13 },
-  actionSection: {
-    padding: SIZES.padding,
-    gap: 10,
-  },
-  actionBtn: {
-    flexDirection: "row",
-    borderRadius: 8,
-    padding: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-  actionBtnText: { color: COLORS.white, ...FONTS.bold },
-  followupForm: {
-    backgroundColor: COLORS.white,
-    padding: SIZES.padding,
-    borderRadius: SIZES.radius,
-    elevation: 1,
-  },
-  label: { ...FONTS.medium, marginBottom: 6 },
-  errorTitle: { ...FONTS.h3, color: COLORS.danger, marginBottom: 6 },
-  errorMsg: {
-    ...FONTS.regular,
-    color: COLORS.gray,
-    textAlign: "center",
-    paddingHorizontal: 24,
-  },
-  retryBtn: {
-    marginTop: 16,
-    paddingVertical: 10,
-    paddingHorizontal: 24,
-    backgroundColor: COLORS.primary,
-    borderRadius: 8,
-  },
-  retryText: { color: COLORS.white, ...FONTS.bold },
-});

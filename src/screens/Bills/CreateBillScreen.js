@@ -2,17 +2,30 @@ import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
   Alert,
   ActivityIndicator,
 } from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { customerAPI, billAPI } from "../../services/api";
-import { COLORS, FONTS, SIZES } from "../../constants/theme";
+import { Button, Card, Input } from "../../components/ui";
+import { useTheme } from "../../context/ThemeContext";
+import {
+  isRequired,
+  isIntegerInRange,
+  isPositiveNumber,
+  isNonNegativeNumber,
+} from "../../utils/validators";
+
+const formatMoney = (n) => {
+  const num = Number(n);
+  return Number.isFinite(num) ? `₹${num.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "₹0.00";
+};
 
 export default function CreateBillScreen({ route, navigation }) {
+  const { colors, radius } = useTheme();
   const preCustomerId = route.params?.customerId;
   const preServiceId = route.params?.serviceId;
 
@@ -26,6 +39,26 @@ export default function CreateBillScreen({ route, navigation }) {
   const [tax, setTax] = useState("0");
   const [loading, setLoading] = useState(false);
   const [searching, setSearching] = useState(false);
+  // Errors keyed per line item by index, e.g. itemErrors[0] = { description, quantity, unit_price }.
+  const [itemErrors, setItemErrors] = useState({});
+  const [taxError, setTaxError] = useState(null);
+
+  // Per-field validation for a line item — returns an error string or null.
+  const validateItemField = (key, value) => {
+    const v = (value || "").trim();
+    switch (key) {
+      case "description":
+        return isRequired(v, "Description");
+      case "quantity":
+        return isRequired(v, "Quantity") || isIntegerInRange(v, 1, 999999, "Quantity");
+      case "unit_price":
+        return isRequired(v, "Unit price") || isPositiveNumber(v, "Unit price");
+      default:
+        return null;
+    }
+  };
+
+  const validateTax = (value) => isNonNegativeNumber((value || "").trim() || "0", "Tax");
 
   useEffect(() => {
     if (!preCustomerId) fetchCustomers();
@@ -46,9 +79,33 @@ export default function CreateBillScreen({ route, navigation }) {
   };
 
   const updateItem = (index, key, value) => {
+    let v = value;
+    // Quantity: digits only. Unit price: numeric (digits + decimal point).
+    if (key === "quantity") v = v.replace(/[^0-9]/g, "");
+    else if (key === "unit_price") v = v.replace(/[^0-9.]/g, "");
     const updated = [...items];
-    updated[index][key] = value;
+    updated[index][key] = v;
     setItems(updated);
+    // Clear this field's error as soon as the user edits it.
+    if (itemErrors[index]?.[key]) {
+      setItemErrors((prev) => ({
+        ...prev,
+        [index]: { ...prev[index], [key]: null },
+      }));
+    }
+  };
+
+  const handleItemBlur = (index, key) => {
+    const err = validateItemField(key, items[index][key]);
+    setItemErrors((prev) => ({
+      ...prev,
+      [index]: { ...prev[index], [key]: err },
+    }));
+  };
+
+  const updateTax = (value) => {
+    setTax(value.replace(/[^0-9.]/g, ""));
+    if (taxError) setTaxError(null);
   };
 
   const addItem = () => {
@@ -58,6 +115,16 @@ export default function CreateBillScreen({ route, navigation }) {
   const removeItem = (index) => {
     if (items.length === 1) return;
     setItems(items.filter((_, i) => i !== index));
+    // Drop the removed row's errors so stale messages don't linger.
+    setItemErrors((prev) => {
+      const next = {};
+      Object.keys(prev).forEach((k) => {
+        const i = Number(k);
+        if (i < index) next[i] = prev[k];
+        else if (i > index) next[i - 1] = prev[k];
+      });
+      return next;
+    });
   };
 
   const getSubtotal = () =>
@@ -73,32 +140,28 @@ export default function CreateBillScreen({ route, navigation }) {
       return;
     }
 
-    // Per-item validation with specific feedback
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      const desc = item.description.trim();
-      const qty = parseInt(item.quantity);
-      const price = parseFloat(item.unit_price);
+    // Per-item validation — collect inline errors so they all light up at once.
+    const nextItemErrors = {};
+    let hasItemError = false;
+    items.forEach((item, i) => {
+      const rowErr = {};
+      for (const key of ["description", "quantity", "unit_price"]) {
+        const err = validateItemField(key, item[key]);
+        if (err) {
+          rowErr[key] = err;
+          hasItemError = true;
+        }
+      }
+      if (Object.keys(rowErr).length > 0) nextItemErrors[i] = rowErr;
+    });
+    setItemErrors(nextItemErrors);
 
-      if (!desc) {
-        Alert.alert("Missing description", `Item ${i + 1} needs a description.`);
-        return;
-      }
-      if (!qty || qty < 1) {
-        Alert.alert("Invalid quantity", `Item ${i + 1} quantity must be at least 1.`);
-        return;
-      }
-      if (isNaN(price) || price <= 0) {
-        Alert.alert("Invalid price", `Item ${i + 1} unit price must be greater than 0.`);
-        return;
-      }
-    }
+    const tErr = validateTax(tax);
+    setTaxError(tErr);
+
+    if (hasItemError || tErr) return;
 
     const taxValue = parseFloat(tax) || 0;
-    if (taxValue < 0) {
-      Alert.alert("Invalid tax", "Tax cannot be negative.");
-      return;
-    }
 
     setLoading(true);
     try {
@@ -127,18 +190,21 @@ export default function CreateBillScreen({ route, navigation }) {
   const total = subtotal + (parseFloat(tax) || 0);
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+    >
       {/* Customer Selection */}
       {!preCustomerId && (
-        <>
-          <Text style={styles.label}>Select Customer *</Text>
-          <TextInput
-            style={[
-              styles.input,
-              selectedCustomer && styles.inputSelected,
-            ]}
+        <View>
+          <Input
+            label="Select Customer *"
+            icon="account-search-outline"
             placeholder="Search customer..."
             value={customerSearch}
+            style={{ marginBottom: 0 }}
             onChangeText={(text) => {
               setCustomerSearch(text);
               // Editing the search clears any previous selection so the user
@@ -154,36 +220,56 @@ export default function CreateBillScreen({ route, navigation }) {
           />
 
           {selectedCustomer && !showDropdown && (
-            <View style={styles.selectedBadge}>
-              <Text style={styles.selectedBadgeText}>✓ Customer selected</Text>
+            <View style={[styles.selectedBadge, { backgroundColor: colors.successSoft }]}>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <MaterialCommunityIcons
+                  name="check-circle"
+                  size={16}
+                  color={colors.success}
+                  style={{ marginRight: 6 }}
+                />
+                <Text style={{ color: colors.success, fontSize: 13, fontWeight: "600" }}>
+                  Customer selected
+                </Text>
+              </View>
               <TouchableOpacity
                 onPress={() => {
                   setSelectedCustomer(null);
                   setCustomerSearch("");
                 }}
               >
-                <Text style={styles.changeText}>Change</Text>
+                <Text style={{ color: colors.primary, fontSize: 13, fontWeight: "600" }}>
+                  Change
+                </Text>
               </TouchableOpacity>
             </View>
           )}
 
           {showDropdown && customerSearch.length > 2 && (
-            <View style={styles.dropdown}>
+            <View
+              style={[
+                styles.dropdown,
+                { backgroundColor: colors.card, borderColor: colors.border, borderRadius: radius.md },
+              ]}
+            >
               {searching ? (
                 <ActivityIndicator
                   size="small"
-                  color={COLORS.primary}
+                  color={colors.primary}
                   style={{ padding: 12 }}
                 />
               ) : customers.length === 0 ? (
-                <Text style={styles.dropdownEmpty}>No customers found</Text>
+                <Text style={{ color: colors.textMuted, padding: 12, textAlign: "center", fontSize: 14 }}>
+                  No customers found
+                </Text>
               ) : (
                 customers.map((c) => (
                   <TouchableOpacity
                     key={c.id}
                     style={[
                       styles.dropdownItem,
-                      selectedCustomer === c.id && styles.dropdownItemActive,
+                      { borderBottomColor: colors.divider },
+                      selectedCustomer === c.id && { backgroundColor: colors.primarySoft },
                     ]}
                     onPress={() => {
                       setSelectedCustomer(c.id);
@@ -191,7 +277,9 @@ export default function CreateBillScreen({ route, navigation }) {
                       setShowDropdown(false);
                     }}
                   >
-                    <Text>{c.name} - {c.phone}</Text>
+                    <Text style={{ color: colors.text, fontSize: 14 }}>
+                      {c.name} - {c.phone}
+                    </Text>
                   </TouchableOpacity>
                 ))
               )}
@@ -199,214 +287,171 @@ export default function CreateBillScreen({ route, navigation }) {
           )}
 
           {!showDropdown && !selectedCustomer && customerSearch.length <= 2 && (
-            <Text style={styles.dropdownHint}>
+            <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 6, fontStyle: "italic" }}>
               Type at least 3 characters to search
             </Text>
           )}
-        </>
+        </View>
       )}
 
       {/* Line Items */}
-      <Text style={[styles.label, { marginTop: 20 }]}>Bill Items</Text>
+      <Text style={[styles.sectionLabel, { color: colors.text, marginTop: 24 }]}>
+        Bill Items
+      </Text>
       {items.map((item, index) => (
-        <View key={index} style={styles.itemCard}>
+        <Card
+          key={index}
+          elevated={false}
+          style={{ marginBottom: 12, borderWidth: 1, borderColor: colors.border }}
+        >
           <View style={styles.itemHeader}>
-            <Text style={styles.itemNumber}>Item {index + 1}</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: "600" }}>
+              Item {index + 1}
+            </Text>
             {items.length > 1 && (
-              <TouchableOpacity onPress={() => removeItem(index)}>
-                <Text style={styles.removeText}>Remove</Text>
+              <TouchableOpacity
+                onPress={() => removeItem(index)}
+                style={{ flexDirection: "row", alignItems: "center" }}
+              >
+                <MaterialCommunityIcons name="trash-can-outline" size={16} color={colors.danger} />
+                <Text style={{ color: colors.danger, fontSize: 13, marginLeft: 4 }}>Remove</Text>
               </TouchableOpacity>
             )}
           </View>
-          <TextInput
-            style={styles.input}
+          <Input
             placeholder="Description (e.g. RO Filter)"
             value={item.description}
+            error={itemErrors[index]?.description}
             onChangeText={(v) => updateItem(index, "description", v)}
+            onBlur={() => handleItemBlur(index, "description")}
+            style={{ marginBottom: 12 }}
           />
           <View style={styles.itemRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.miniLabel}>Qty</Text>
-              <TextInput
-                style={styles.input}
+            <View style={{ flex: 1, marginRight: 6 }}>
+              <Input
+                label="Qty"
                 value={item.quantity}
+                error={itemErrors[index]?.quantity}
                 onChangeText={(v) => updateItem(index, "quantity", v)}
+                onBlur={() => handleItemBlur(index, "quantity")}
                 keyboardType="numeric"
+                style={{ marginBottom: 0 }}
               />
             </View>
-            <View style={{ flex: 1, marginLeft: 10 }}>
-              <Text style={styles.miniLabel}>Unit Price (₹)</Text>
-              <TextInput
-                style={styles.input}
+            <View style={{ flex: 1, marginLeft: 6 }}>
+              <Input
+                label="Unit Price (₹)"
                 placeholder="0"
                 value={item.unit_price}
+                error={itemErrors[index]?.unit_price}
                 onChangeText={(v) => updateItem(index, "unit_price", v)}
+                onBlur={() => handleItemBlur(index, "unit_price")}
                 keyboardType="numeric"
+                style={{ marginBottom: 0 }}
               />
             </View>
           </View>
-        </View>
+        </Card>
       ))}
 
-      <TouchableOpacity style={styles.addItemBtn} onPress={addItem}>
-        <Text style={styles.addItemText}>+ Add Item</Text>
+      <TouchableOpacity
+        style={[styles.addItemBtn, { borderColor: colors.primary, borderRadius: radius.md }]}
+        onPress={addItem}
+        activeOpacity={0.7}
+      >
+        <MaterialCommunityIcons name="plus" size={18} color={colors.primary} />
+        <Text style={{ color: colors.primary, fontWeight: "600", marginLeft: 4 }}>Add Item</Text>
       </TouchableOpacity>
 
       {/* Tax */}
-      <Text style={styles.label}>Tax (₹)</Text>
-      <TextInput
-        style={styles.input}
+      <Input
+        label="Tax (₹)"
         placeholder="0"
         value={tax}
-        onChangeText={setTax}
+        error={taxError}
+        onChangeText={updateTax}
+        onBlur={() => setTaxError(validateTax(tax))}
         keyboardType="numeric"
+        style={{ marginTop: 20 }}
       />
 
       {/* Summary */}
-      <View style={styles.summary}>
+      <Card style={{ marginTop: 8 }}>
         <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Subtotal</Text>
-          <Text style={styles.summaryValue}>₹{subtotal.toFixed(2)}</Text>
-        </View>
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Tax</Text>
-          <Text style={styles.summaryValue}>
-            ₹{(parseFloat(tax) || 0).toFixed(2)}
+          <Text style={{ color: colors.textSecondary, fontSize: 14 }}>Subtotal</Text>
+          <Text style={{ color: colors.text, fontSize: 14, fontWeight: "500" }}>
+            {formatMoney(subtotal)}
           </Text>
         </View>
-        <View style={styles.divider} />
         <View style={styles.summaryRow}>
-          <Text style={styles.grandLabel}>Total</Text>
-          <Text style={styles.grandValue}>₹{total.toFixed(2)}</Text>
+          <Text style={{ color: colors.textSecondary, fontSize: 14 }}>Tax</Text>
+          <Text style={{ color: colors.text, fontSize: 14, fontWeight: "500" }}>
+            {formatMoney(parseFloat(tax) || 0)}
+          </Text>
         </View>
-      </View>
+        <View style={[styles.divider, { backgroundColor: colors.border }]} />
+        <View style={styles.summaryRow}>
+          <Text style={{ color: colors.text, fontSize: 16, fontWeight: "700" }}>Total</Text>
+          <Text style={{ color: colors.primary, fontSize: 18, fontWeight: "800" }}>
+            {formatMoney(total)}
+          </Text>
+        </View>
+      </Card>
 
-      <TouchableOpacity
-        style={styles.button}
+      <Button
+        title="Generate Bill"
+        icon="file-document-outline"
         onPress={handleSubmit}
+        loading={loading}
         disabled={loading}
-      >
-        {loading ? (
-          <ActivityIndicator color={COLORS.white} />
-        ) : (
-          <Text style={styles.buttonText}>Generate Bill</Text>
-        )}
-      </TouchableOpacity>
+        style={{ marginTop: 24 }}
+      />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  content: { padding: SIZES.padding, paddingBottom: 40 },
-  label: { ...FONTS.medium, marginBottom: 6, marginTop: 14 },
-  miniLabel: { ...FONTS.small, marginBottom: 4 },
-  input: {
-    borderWidth: 1,
-    borderColor: COLORS.grayBorder,
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 14,
-    backgroundColor: COLORS.white,
-  },
+  container: { flex: 1 },
+  content: { padding: 16, paddingBottom: 40 },
+  sectionLabel: { fontSize: 15, fontWeight: "600", marginBottom: 10 },
   dropdown: {
-    backgroundColor: COLORS.white,
-    borderRadius: 8,
     borderWidth: 1,
-    borderColor: COLORS.grayBorder,
-    marginTop: 4,
-    maxHeight: 150,
+    marginTop: 6,
+    maxHeight: 180,
   },
   dropdownItem: {
     padding: 12,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.grayLight,
-  },
-  dropdownItemActive: { backgroundColor: COLORS.primaryLight },
-  dropdownEmpty: {
-    ...FONTS.regular,
-    color: COLORS.gray,
-    padding: 12,
-    textAlign: "center",
-  },
-  dropdownHint: {
-    ...FONTS.small,
-    color: COLORS.gray,
-    marginTop: 6,
-    fontStyle: "italic",
-  },
-  inputSelected: {
-    borderColor: COLORS.secondary,
-    borderWidth: 1.5,
   },
   selectedBadge: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: COLORS.primaryLight,
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 6,
-    marginTop: 6,
-  },
-  selectedBadgeText: {
-    ...FONTS.medium,
-    fontSize: 13,
-    color: COLORS.secondary,
-  },
-  changeText: {
-    ...FONTS.medium,
-    fontSize: 13,
-    color: COLORS.primary,
-  },
-  itemCard: {
-    backgroundColor: COLORS.white,
+    paddingVertical: 10,
     borderRadius: 8,
-    padding: 12,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: COLORS.grayBorder,
+    marginTop: 8,
   },
   itemHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 8,
-  },
-  itemNumber: { ...FONTS.medium, fontSize: 13 },
-  removeText: { color: COLORS.danger, fontSize: 13 },
-  itemRow: { flexDirection: "row", marginTop: 8 },
-  addItemBtn: {
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-    borderStyle: "dashed",
-    borderRadius: 8,
-    padding: 12,
     alignItems: "center",
-    marginTop: 4,
+    marginBottom: 12,
   },
-  addItemText: { color: COLORS.primary, ...FONTS.medium },
-  summary: {
-    backgroundColor: COLORS.white,
-    borderRadius: SIZES.radius,
-    padding: SIZES.padding,
-    marginTop: 20,
+  itemRow: { flexDirection: "row" },
+  addItemBtn: {
+    flexDirection: "row",
+    borderWidth: 1,
+    borderStyle: "dashed",
+    padding: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 4,
   },
   summaryRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     paddingVertical: 4,
   },
-  summaryLabel: { ...FONTS.regular, color: COLORS.gray },
-  summaryValue: { ...FONTS.medium },
-  divider: { height: 1, backgroundColor: COLORS.grayBorder, marginVertical: 8 },
-  grandLabel: { ...FONTS.bold, fontSize: 16 },
-  grandValue: { ...FONTS.bold, fontSize: 18, color: COLORS.primary },
-  button: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 8,
-    padding: 14,
-    alignItems: "center",
-    marginTop: 20,
-  },
-  buttonText: { color: COLORS.white, ...FONTS.bold },
+  divider: { height: 1, marginVertical: 10 },
 });

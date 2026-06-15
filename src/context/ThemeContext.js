@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useMemo } from "react";
 import { useColorScheme } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { palette, spacing, radius, typography, shadow } from "../theme/tokens";
 
 const THEME_KEY = "@app_theme";
 
@@ -12,39 +13,9 @@ const ThemeContext = createContext({
   colors: {},
 });
 
-const lightColors = {
-  primary: "#2563EB",
-  primaryDark: "#1D4ED8",
-  primaryLight: "#DBEAFE",
-  secondary: "#10B981",
-  danger: "#EF4444",
-  warning: "#F59E0B",
-  background: "#F9FAFB",
-  surface: "#FFFFFF",
-  card: "#FFFFFF",
-  text: "#1F2937",
-  textSecondary: "#6B7280",
-  border: "#E5E7EB",
-  gray: "#6B7280",
-  grayLight: "#F3F4F6",
-};
-
-const darkColors = {
-  primary: "#3B82F6",
-  primaryDark: "#2563EB",
-  primaryLight: "#1E3A5F",
-  secondary: "#34D399",
-  danger: "#F87171",
-  warning: "#FBBF24",
-  background: "#121218",
-  surface: "#1E1E2E",
-  card: "#252536",
-  text: "#E5E7EB",
-  textSecondary: "#9CA3AF",
-  border: "#374151",
-  gray: "#9CA3AF",
-  grayLight: "#374151",
-};
+// Colors now come from the single token source (src/theme/tokens.js).
+const lightColors = palette.light;
+const darkColors = palette.dark;
 
 export function ThemeProvider({ children }) {
   const systemScheme = useColorScheme();
@@ -69,7 +40,18 @@ export function ThemeProvider({ children }) {
   }, [isDark, setTheme]);
 
   const value = useMemo(
-    () => ({ isDark, theme, toggleTheme, setTheme, colors }),
+    () => ({
+      isDark,
+      theme,
+      toggleTheme,
+      setTheme,
+      colors,
+      spacing,
+      radius,
+      typography,
+      // theme-aware elevation: const { elevation } = useTheme(); style={elevation("lg")}
+      elevation: (level) => shadow(isDark, level),
+    }),
     [isDark, theme, toggleTheme, setTheme, colors]
   );
 

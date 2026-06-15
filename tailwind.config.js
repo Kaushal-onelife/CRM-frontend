@@ -1,53 +1,34 @@
 /** @type {import('tailwindcss').Config} */
+// Colors are imported from the single token source so className utilities and
+// the runtime theme can never drift apart. Dark variants resolve via `dark:` +
+// darkMode "class" (NativeWind toggles the class from the system/app theme).
+const { palette, spacing, radius } = require("./src/theme/tokens");
+
+const l = palette.light;
+const d = palette.dark;
+
 module.exports = {
-  content: [
-    "./App.{js,jsx,ts,tsx}",
-    "./src/**/*.{js,jsx,ts,tsx}",
-  ],
+  content: ["./App.{js,jsx,ts,tsx}", "./src/**/*.{js,jsx,ts,tsx}"],
   presets: [require("nativewind/preset")],
   darkMode: "class",
   theme: {
     extend: {
       colors: {
-        primary: {
-          DEFAULT: "#2563EB",
-          dark: "#1D4ED8",
-          light: "#DBEAFE",
-        },
-        secondary: {
-          DEFAULT: "#10B981",
-        },
-        danger: {
-          DEFAULT: "#EF4444",
-        },
-        warning: {
-          DEFAULT: "#F59E0B",
-        },
-        surface: {
-          light: "#FFFFFF",
-          dark: "#1E1E2E",
-        },
-        background: {
-          light: "#F9FAFB",
-          dark: "#121218",
-        },
-        card: {
-          light: "#FFFFFF",
-          dark: "#252536",
-        },
-        text: {
-          light: "#1F2937",
-          dark: "#E5E7EB",
-        },
-        "text-secondary": {
-          light: "#6B7280",
-          dark: "#9CA3AF",
-        },
-        border: {
-          light: "#E5E7EB",
-          dark: "#374151",
-        },
+        primary: { DEFAULT: l.primary, dark: l.primaryDark, light: l.primaryLight },
+        secondary: { DEFAULT: l.secondary },
+        success: { DEFAULT: l.success },
+        warning: { DEFAULT: l.warning },
+        danger: { DEFAULT: l.danger },
+        accent: { DEFAULT: l.accent },
+        surface: { light: l.surface, dark: d.surface },
+        background: { light: l.background, dark: d.background },
+        card: { light: l.card, dark: d.card },
+        text: { light: l.text, dark: d.text },
+        "text-secondary": { light: l.textSecondary, dark: d.textSecondary },
+        border: { light: l.border, dark: d.border },
       },
+      spacing,
+      borderRadius: radius,
     },
   },
   plugins: [],

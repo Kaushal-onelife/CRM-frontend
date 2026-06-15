@@ -4,17 +4,20 @@ import {
   Text,
   FlatList,
   TextInput,
-  TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Alert,
   RefreshControl,
+  Pressable,
 } from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import { useFocusEffect } from "@react-navigation/native";
 import { customerAPI } from "../../services/api";
-import { COLORS, FONTS, SIZES } from "../../constants/theme";
+import { Card, EmptyState, SkeletonList } from "../../components/ui";
+import { useTheme } from "../../context/ThemeContext";
 
 export default function CustomerListScreen({ navigation }) {
+  const { colors, radius, elevation } = useTheme();
   const [customers, setCustomers] = useState([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -24,6 +27,7 @@ export default function CustomerListScreen({ navigation }) {
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
+  const [searchFocused, setSearchFocused] = useState(false);
   const debounceRef = useRef(null);
   const lastQueryRef = useRef("");
 
@@ -97,55 +101,127 @@ export default function CustomerListScreen({ navigation }) {
   };
 
   const renderCustomer = ({ item }) => (
-    <TouchableOpacity
-      style={styles.card}
+    <Card
       onPress={() =>
         navigation.navigate("CustomerDetail", { id: item.id, name: item.name })
       }
+      style={styles.card}
+      padded={false}
     >
-      <View style={styles.avatar}>
-        <Text style={styles.avatarText}>
-          {item.name.charAt(0).toUpperCase()}
-        </Text>
+      <View style={styles.cardInner}>
+        <View style={[styles.avatar, { backgroundColor: colors.primarySoft }]}>
+          <Text style={[styles.avatarText, { color: colors.primary }]}>
+            {item.name.charAt(0).toUpperCase()}
+          </Text>
+        </View>
+        <View style={styles.info}>
+          <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
+            {item.name}
+          </Text>
+          <Text style={[styles.phone, { color: colors.textSecondary }]} numberOfLines={1}>
+            {item.phone}
+          </Text>
+          {item.city ? (
+            <Text style={[styles.city, { color: colors.textMuted }]} numberOfLines={1}>
+              {item.city}
+            </Text>
+          ) : null}
+        </View>
+        {item.purifier_model ? (
+          <Text style={[styles.model, { color: colors.textMuted }]} numberOfLines={1}>
+            {item.purifier_model}
+          </Text>
+        ) : null}
+        <MaterialCommunityIcons
+          name="chevron-right"
+          size={22}
+          color={colors.textMuted}
+          style={{ marginLeft: 4 }}
+        />
       </View>
-      <View style={styles.info}>
-        <Text style={styles.name}>{item.name}</Text>
-        <Text style={styles.phone}>{item.phone}</Text>
-        {item.city && <Text style={styles.city}>{item.city}</Text>}
-      </View>
-      <Text style={styles.model}>{item.purifier_model || ""}</Text>
-    </TouchableOpacity>
+    </Card>
   );
 
   return (
-    <View style={styles.container}>
-      <TextInput
-        style={styles.searchInput}
-        placeholder="Search by name or phone..."
-        value={search}
-        onChangeText={handleSearch}
-      />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Search */}
+      <View
+        style={[
+          styles.searchBar,
+          {
+            backgroundColor: colors.surface,
+            borderColor: searchFocused ? colors.primary : colors.border,
+            borderRadius: radius.md,
+          },
+        ]}
+      >
+        <MaterialCommunityIcons
+          name="magnify"
+          size={20}
+          color={searchFocused ? colors.primary : colors.textMuted}
+          style={{ marginRight: 8 }}
+        />
+        <TextInput
+          style={{
+            flex: 1,
+            color: colors.text,
+            fontSize: 15,
+            paddingVertical: 0,
+            outlineStyle: "none",
+            outlineWidth: 0,
+          }}
+          placeholder="Search by name or phone..."
+          placeholderTextColor={colors.textMuted}
+          value={search}
+          onChangeText={handleSearch}
+          onFocus={() => setSearchFocused(true)}
+          onBlur={() => setSearchFocused(false)}
+          underlineColorAndroid="transparent"
+        />
+        {searching ? <ActivityIndicator size="small" color={colors.primary} /> : null}
+      </View>
 
       {loading ? (
-        <ActivityIndicator
-          size="large"
-          color={COLORS.primary}
-          style={{ marginTop: 40 }}
-        />
+        <View style={{ marginTop: 4 }}>
+          <SkeletonList count={6} />
+        </View>
       ) : (
         <FlatList
           data={customers}
           keyExtractor={(item) => item.id}
           renderItem={renderCustomer}
           ListEmptyComponent={
-            <Text style={styles.emptyText}>
-              {error ? `Error: ${error}` : "No customers found"}
-            </Text>
+            error ? (
+              <EmptyState
+                tone="error"
+                icon="cloud-off-outline"
+                title="Couldn't load customers"
+                message={error}
+                actionLabel="Try again"
+                onAction={() => {
+                  setLoading(true);
+                  fetchCustomers(search, 1);
+                }}
+              />
+            ) : (
+              <EmptyState
+                icon="account-search-outline"
+                title="No customers found"
+                message={
+                  search
+                    ? "Try a different name or phone number."
+                    : "Add your first customer to get started."
+                }
+                actionLabel={search ? undefined : "Add Customer"}
+                onAction={search ? undefined : () => navigation.navigate("AddCustomer")}
+              />
+            )
           }
-          contentContainerStyle={{ paddingBottom: 80 }}
+          contentContainerStyle={{ paddingBottom: 96 }}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
+              tintColor={colors.primary}
               onRefresh={() => {
                 setRefreshing(true);
                 fetchCustomers(search, 1);
@@ -158,7 +234,7 @@ export default function CustomerListScreen({ navigation }) {
             loadingMore ? (
               <ActivityIndicator
                 size="small"
-                color={COLORS.primary}
+                color={colors.primary}
                 style={{ paddingVertical: 16 }}
               />
             ) : null
@@ -166,12 +242,22 @@ export default function CustomerListScreen({ navigation }) {
         />
       )}
 
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => navigation.navigate("AddCustomer")}
+      {/* FAB */}
+      <Animated.View
+        entering={FadeInDown.delay(150).duration(350)}
+        style={styles.fabWrap}
       >
-        <Text style={styles.fabText}>+</Text>
-      </TouchableOpacity>
+        <Pressable
+          onPress={() => navigation.navigate("AddCustomer")}
+          style={[
+            styles.fab,
+            { backgroundColor: colors.primary },
+            elevation("lg"),
+          ]}
+        >
+          <MaterialCommunityIcons name="plus" size={28} color={colors.onPrimary} />
+        </Pressable>
+      </Animated.View>
     </View>
   );
 }
@@ -179,89 +265,67 @@ export default function CustomerListScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
-    padding: SIZES.padding,
+    padding: 16,
   },
-  searchInput: {
-    backgroundColor: COLORS.white,
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 14,
-    borderWidth: 1,
-    borderColor: COLORS.grayBorder,
+  searchBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    height: 50,
+    borderWidth: 1.5,
+    paddingHorizontal: 14,
     marginBottom: 12,
   },
   card: {
+    marginBottom: 10,
+  },
+  cardInner: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: COLORS.white,
-    borderRadius: SIZES.radius,
-    padding: SIZES.padding,
-    marginBottom: 8,
-    elevation: 1,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    padding: 12,
   },
   avatar: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: COLORS.primaryLight,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
   },
   avatarText: {
-    ...FONTS.bold,
-    color: COLORS.primary,
     fontSize: 18,
+    fontWeight: "700",
   },
   info: {
     flex: 1,
   },
   name: {
-    ...FONTS.bold,
+    fontSize: 15,
+    fontWeight: "700",
   },
   phone: {
-    ...FONTS.small,
+    fontSize: 13,
     marginTop: 2,
   },
   city: {
-    ...FONTS.small,
-    color: COLORS.gray,
+    fontSize: 12,
+    marginTop: 1,
   },
   model: {
-    ...FONTS.small,
-    color: COLORS.gray,
+    fontSize: 12,
+    maxWidth: 90,
+    textAlign: "right",
+    marginLeft: 8,
   },
-  emptyText: {
-    ...FONTS.regular,
-    color: COLORS.gray,
-    textAlign: "center",
-    marginTop: 40,
-  },
-  fab: {
+  fabWrap: {
     position: "absolute",
     right: 20,
     bottom: 20,
+  },
+  fab: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: COLORS.primary,
     justifyContent: "center",
     alignItems: "center",
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-  },
-  fabText: {
-    color: COLORS.white,
-    fontSize: 28,
-    fontWeight: "300",
-    marginTop: -2,
   },
 });

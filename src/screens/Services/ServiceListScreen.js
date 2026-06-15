@@ -4,16 +4,18 @@ import {
   Text,
   FlatList,
   TouchableOpacity,
-  StyleSheet,
   ActivityIndicator,
   Alert,
   RefreshControl,
   ScrollView,
 } from "react-native";
+import Animated, { FadeInDown } from "react-native-reanimated";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { serviceAPI } from "../../services/api";
 import ServiceCard from "../../components/ServiceCard";
-import { COLORS, FONTS, SIZES } from "../../constants/theme";
+import { EmptyState, SkeletonList } from "../../components/ui";
+import { useTheme } from "../../context/ThemeContext";
 
 const FILTERS = [
   "all",
@@ -24,16 +26,6 @@ const FILTERS = [
   "completed",
   "rejected",
 ];
-
-const FILTER_COLORS = {
-  all: COLORS.primary,
-  upcoming: "#2563EB",
-  due: "#F97316",
-  pending: "#F59E0B",
-  followup: "#8B5CF6",
-  completed: "#10B981",
-  rejected: "#EF4444",
-};
 
 const FILTER_LABELS = {
   all: "All",
@@ -46,6 +38,7 @@ const FILTER_LABELS = {
 };
 
 export default function ServiceListScreen({ navigation }) {
+  const { colors, spacing, radius, elevation } = useTheme();
   const [services, setServices] = useState([]);
   const [activeFilter, setActiveFilter] = useState("all");
   const [loading, setLoading] = useState(true);
@@ -53,6 +46,25 @@ export default function ServiceListScreen({ navigation }) {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+
+  const filterColor = (filter) => {
+    switch (filter) {
+      case "upcoming":
+        return colors.primary;
+      case "due":
+        return "#F97316";
+      case "pending":
+        return colors.warning;
+      case "followup":
+        return colors.accent;
+      case "completed":
+        return colors.success;
+      case "rejected":
+        return colors.danger;
+      default:
+        return colors.primary;
+    }
+  };
 
   const fetchServices = async (filter = "all", pageNum = 1, append = false) => {
     if (append) setLoadingMore(true);
@@ -91,43 +103,51 @@ export default function ServiceListScreen({ navigation }) {
   );
 
   const renderServiceItem = useCallback(
-    ({ item }) => <ServiceCard service={item} onPress={handleServicePress} />,
+    ({ item, index }) => (
+      <Animated.View entering={FadeInDown.delay(Math.min(index, 8) * 40).duration(300)}>
+        <ServiceCard service={item} onPress={handleServicePress} />
+      </Animated.View>
+    ),
     [handleServicePress]
   );
 
   const keyExtractor = useCallback((item) => item.id, []);
 
   return (
-    <View style={styles.container}>
+    <View style={{ flex: 1, backgroundColor: colors.background, paddingHorizontal: spacing.lg }}>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        style={styles.filtersScroll}
-        contentContainerStyle={styles.filters}
+        style={{ maxHeight: 48, marginTop: spacing.md, marginBottom: spacing.md }}
+        contentContainerStyle={{ flexDirection: "row", paddingRight: spacing.lg, alignItems: "center" }}
       >
         {FILTERS.map((filter) => {
           const isActive = activeFilter === filter;
-          const filterColor = FILTER_COLORS[filter] || COLORS.primary;
+          const fColor = filterColor(filter);
           return (
             <TouchableOpacity
               key={filter}
-              style={[
-                styles.filterTab,
-                isActive && {
-                  backgroundColor: filterColor,
-                  borderColor: filterColor,
-                },
-              ]}
+              activeOpacity={0.7}
+              style={{
+                paddingHorizontal: spacing.lg,
+                paddingVertical: spacing.sm,
+                borderRadius: radius.full,
+                marginRight: spacing.sm,
+                borderWidth: 1,
+                backgroundColor: isActive ? fColor : colors.card,
+                borderColor: isActive ? fColor : colors.border,
+              }}
               onPress={() => {
                 setActiveFilter(filter);
                 setLoading(true);
               }}
             >
               <Text
-                style={[
-                  styles.filterText,
-                  isActive && styles.filterTextActive,
-                ]}
+                style={{
+                  fontSize: 13,
+                  fontWeight: isActive ? "600" : "500",
+                  color: isActive ? colors.onPrimary : colors.textSecondary,
+                }}
               >
                 {FILTER_LABELS[filter] || filter}
               </Text>
@@ -137,23 +157,30 @@ export default function ServiceListScreen({ navigation }) {
       </ScrollView>
 
       {loading ? (
-        <ActivityIndicator
-          size="large"
-          color={COLORS.primary}
-          style={{ marginTop: 40 }}
-        />
+        <SkeletonList count={6} />
       ) : (
         <FlatList
           data={services}
           keyExtractor={keyExtractor}
           renderItem={renderServiceItem}
           ListEmptyComponent={
-            <Text style={styles.emptyText}>No services found</Text>
+            <EmptyState
+              icon="clipboard-text-outline"
+              title="No services found"
+              message={
+                activeFilter === "all"
+                  ? "Schedule your first service to get started."
+                  : `No ${FILTER_LABELS[activeFilter]?.toLowerCase() || activeFilter} services right now.`
+              }
+              actionLabel="Add Service"
+              onAction={() => navigation.navigate("AddService")}
+            />
           }
-          contentContainerStyle={{ paddingBottom: 80 }}
+          contentContainerStyle={{ paddingBottom: 96, flexGrow: 1 }}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
+              tintColor={colors.primary}
               onRefresh={() => {
                 setRefreshing(true);
                 fetchServices(activeFilter, 1);
@@ -170,8 +197,8 @@ export default function ServiceListScreen({ navigation }) {
             loadingMore ? (
               <ActivityIndicator
                 size="small"
-                color={COLORS.primary}
-                style={{ paddingVertical: 16 }}
+                color={colors.primary}
+                style={{ paddingVertical: spacing.lg }}
               />
             ) : null
           }
@@ -179,69 +206,25 @@ export default function ServiceListScreen({ navigation }) {
       )}
 
       <TouchableOpacity
-        style={styles.fab}
+        activeOpacity={0.85}
+        style={[
+          {
+            position: "absolute",
+            right: spacing.xl,
+            bottom: spacing.xl,
+            width: 56,
+            height: 56,
+            borderRadius: 28,
+            backgroundColor: colors.primary,
+            justifyContent: "center",
+            alignItems: "center",
+          },
+          elevation("lg"),
+        ]}
         onPress={() => navigation.navigate("AddService")}
       >
-        <Text style={styles.fabText}>+</Text>
+        <MaterialCommunityIcons name="plus" size={28} color={colors.onPrimary} />
       </TouchableOpacity>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-    padding: SIZES.padding,
-  },
-  filtersScroll: {
-    maxHeight: 44,
-    marginBottom: 12,
-  },
-  filters: {
-    flexDirection: "row",
-    paddingRight: 16,
-  },
-  filterTab: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 20,
-    backgroundColor: COLORS.white,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: COLORS.grayBorder,
-  },
-  filterText: {
-    ...FONTS.small,
-    fontSize: 13,
-    fontWeight: "500",
-  },
-  filterTextActive: {
-    color: COLORS.white,
-    fontWeight: "600",
-  },
-  emptyText: {
-    ...FONTS.regular,
-    color: COLORS.gray,
-    textAlign: "center",
-    marginTop: 40,
-  },
-  fab: {
-    position: "absolute",
-    right: 20,
-    bottom: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: COLORS.primary,
-    justifyContent: "center",
-    alignItems: "center",
-    elevation: 4,
-  },
-  fabText: {
-    color: COLORS.white,
-    fontSize: 28,
-    fontWeight: "300",
-    marginTop: -2,
-  },
-});
