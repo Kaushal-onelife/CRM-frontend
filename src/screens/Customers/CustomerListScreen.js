@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   Pressable,
+  Alert,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
@@ -15,6 +16,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { customerAPI } from "../../services/api";
 import { Card, EmptyState, SkeletonList } from "../../components/ui";
 import { useTheme } from "../../context/ThemeContext";
+import { downloadCsv, pickCsvText, fileSupported } from "../../utils/fileTransfer";
 
 export default function CustomerListScreen({ navigation }) {
   const { colors, radius, elevation } = useTheme();
@@ -28,6 +30,8 @@ export default function CustomerListScreen({ navigation }) {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
   const [searchFocused, setSearchFocused] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
   const debounceRef = useRef(null);
   const lastQueryRef = useRef("");
 
@@ -100,6 +104,50 @@ export default function CustomerListScreen({ navigation }) {
     }
   };
 
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const csv = await customerAPI.exportCsv();
+      const stamp = new Date().toISOString().split("T")[0];
+      downloadCsv(`customers-${stamp}.csv`, csv);
+    } catch (err) {
+      Alert.alert("Export failed", err.message || "Could not export customers.");
+    }
+    setExporting(false);
+  };
+
+  const handleImport = async () => {
+    try {
+      const csv = await pickCsvText();
+      if (!csv) return; // user cancelled
+      setImporting(true);
+      const { summary, errors } = await customerAPI.importCsv(csv, "update");
+
+      const lines = [
+        `Added: ${summary.inserted}`,
+        `Updated: ${summary.updated}`,
+        summary.skipped ? `Skipped: ${summary.skipped}` : null,
+        summary.failed ? `Failed rows: ${summary.failed}` : null,
+      ].filter(Boolean);
+
+      // Show up to the first few row errors so the user can fix the file.
+      if (errors && errors.length) {
+        const preview = errors
+          .slice(0, 5)
+          .map((e) => (e.row ? `Row ${e.row}: ${e.error}` : e.error))
+          .join("\n");
+        lines.push("", "Issues:", preview);
+        if (errors.length > 5) lines.push(`…and ${errors.length - 5} more`);
+      }
+
+      Alert.alert("Import complete", lines.join("\n"));
+      fetchCustomers("", 1); // refresh list
+    } catch (err) {
+      Alert.alert("Import failed", err.message || "Could not import customers.");
+    }
+    setImporting(false);
+  };
+
   const renderCustomer = ({ item }) => (
     <Card
       onPress={() =>
@@ -144,6 +192,53 @@ export default function CustomerListScreen({ navigation }) {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Export / Import toolbar */}
+      {fileSupported ? (
+        <View style={styles.toolbar}>
+          <Pressable
+            onPress={handleExport}
+            disabled={exporting}
+            style={({ pressed }) => [
+              styles.toolBtn,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+                borderRadius: radius.md,
+                opacity: pressed || exporting ? 0.7 : 1,
+              },
+            ]}
+          >
+            {exporting ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <MaterialCommunityIcons name="download-outline" size={18} color={colors.primary} />
+            )}
+            <Text style={[styles.toolBtnText, { color: colors.text }]}>Export</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={handleImport}
+            disabled={importing}
+            style={({ pressed }) => [
+              styles.toolBtn,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+                borderRadius: radius.md,
+                opacity: pressed || importing ? 0.7 : 1,
+              },
+            ]}
+          >
+            {importing ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <MaterialCommunityIcons name="upload-outline" size={18} color={colors.primary} />
+            )}
+            <Text style={[styles.toolBtnText, { color: colors.text }]}>Import</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
       {/* Search */}
       <View
         style={[
@@ -266,6 +361,24 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
+  },
+  toolbar: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 12,
+  },
+  toolBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    height: 42,
+    borderWidth: 1,
+    gap: 6,
+  },
+  toolBtnText: {
+    fontSize: 14,
+    fontWeight: "600",
   },
   searchBar: {
     flexDirection: "row",

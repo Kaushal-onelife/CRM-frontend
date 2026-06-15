@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
@@ -357,34 +356,18 @@ export default function CreateAMCScreen({ route, navigation }) {
       </View>
 
       {/* Notes */}
-      <Text style={[styles.label, { color: colors.text }]}>Notes</Text>
-      <TextInput
-        style={[
-          styles.notesInput,
-          {
-            borderColor: errors.notes ? colors.danger : colors.border,
-            borderRadius: radius.md,
-            backgroundColor: colors.surface,
-            color: colors.text,
-            // Strip the web browser's default black input outline.
-            outlineStyle: "none",
-            outlineWidth: 0,
-          },
-        ]}
-        placeholder="Any additional notes..."
-        placeholderTextColor={colors.textMuted}
+      <Input
+        label="Notes"
+        placeholder="Any additional notes"
         value={notes}
+        error={errors.notes}
         onChangeText={(v) => {
           setNotes(v.slice(0, 500));
           clearError("notes");
         }}
         onBlur={() => handleBlur("notes", notes)}
-        underlineColorAndroid="transparent"
         multiline
       />
-      {errors.notes ? (
-        <Text style={{ color: colors.danger, fontSize: 12, marginTop: 4 }}>{errors.notes}</Text>
-      ) : null}
 
       <Button
         title="Create AMC Contract"
@@ -428,11 +411,4 @@ const styles = StyleSheet.create({
   },
   switchLabel: { fontSize: 14, fontWeight: "500" },
   switchHint: { fontSize: 12, marginTop: 2, lineHeight: 16 },
-  notesInput: {
-    borderWidth: 1.5,
-    padding: 14,
-    fontSize: 15,
-    minHeight: 90,
-    textAlignVertical: "top",
-  },
 });

@@ -69,6 +69,22 @@ export const customerAPI = {
   update: (id, body) =>
     apiCall(`/customers/${id}`, { method: "PUT", body: JSON.stringify(body) }),
   delete: (id) => apiCall(`/customers/${id}`, { method: "DELETE" }),
+  // Export returns raw CSV text (not JSON), so it bypasses apiCall's .json().
+  exportCsv: async () => {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_URL}/customers/export`, { headers });
+    if (!res.ok) {
+      const msg = await res.text().catch(() => "");
+      throw new Error(msg || `Export failed (${res.status})`);
+    }
+    return res.text();
+  },
+  // Import posts raw CSV text; returns { summary, errors }.
+  importCsv: (csv, mode = "update") =>
+    apiCall("/customers/import", {
+      method: "POST",
+      body: JSON.stringify({ csv, mode }),
+    }),
 };
 
 // Services

@@ -22,6 +22,11 @@ import {
   firstError,
 } from "../../utils/validators";
 
+const formatMoney = (n) => {
+  const num = Number(n);
+  return Number.isFinite(num) ? `₹${num.toLocaleString("en-IN")}` : "₹0";
+};
+
 export default function InventoryScreen() {
   const { colors, radius, elevation } = useTheme();
   const [parts, setParts] = useState([]);
@@ -77,8 +82,8 @@ export default function InventoryScreen() {
   const fetchParts = async () => {
     try {
       const result = await inventoryAPI.getAll();
-      setParts(result.parts);
-      setLowStockCount(result.low_stock_count);
+      setParts(result.parts || []);
+      setLowStockCount(result.low_stock_count || 0);
     } catch (error) {
       Alert.alert("Error", "Failed to load inventory");
     } finally {
@@ -239,11 +244,11 @@ export default function InventoryScreen() {
           </View>
           <View style={styles.stat}>
             <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Sell Price</Text>
-            <Text style={[styles.statValue, { color: colors.text }]}>Rs {item.unit_price}</Text>
+            <Text style={[styles.statValue, { color: colors.text }]}>{formatMoney(item.unit_price)}</Text>
           </View>
           <View style={styles.stat}>
             <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Cost</Text>
-            <Text style={[styles.statValue, { color: colors.text }]}>Rs {item.cost_price}</Text>
+            <Text style={[styles.statValue, { color: colors.text }]}>{formatMoney(item.cost_price)}</Text>
           </View>
         </View>
         {isLow && (
@@ -366,7 +371,7 @@ export default function InventoryScreen() {
             <View style={styles.row}>
               <View style={{ flex: 1 }}>
                 <Input
-                  label="Sell Price (Rs)"
+                  label="Sell Price (₹)"
                   placeholder="0"
                   value={form.unit_price}
                   error={errors.unit_price}
@@ -377,7 +382,7 @@ export default function InventoryScreen() {
               </View>
               <View style={{ flex: 1, marginLeft: 12 }}>
                 <Input
-                  label="Cost Price (Rs)"
+                  label="Cost Price (₹)"
                   placeholder="0"
                   value={form.cost_price}
                   error={errors.cost_price}

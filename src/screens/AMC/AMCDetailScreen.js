@@ -237,7 +237,7 @@ export default function AMCDetailScreen({ route, navigation }) {
               >
                 <View style={{ flex: 1, paddingRight: 8 }}>
                   <Text style={[styles.serviceType, { color: colors.text }]}>
-                    {service.service_type.replace(/_/g, " ")}
+                    {(service.service_type || "").replace(/_/g, " ")}
                   </Text>
                   <Text style={[styles.serviceDate, { color: colors.textSecondary }]}>
                     {service.scheduled_date}

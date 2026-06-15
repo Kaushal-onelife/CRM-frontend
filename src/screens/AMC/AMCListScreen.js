@@ -38,7 +38,7 @@ export default function AMCListScreen({ navigation }) {
       const params = new URLSearchParams({ page: pageNum, limit: 20 });
       if (filter !== "all") params.set("status", filter);
       const result = await amcAPI.getAll(params.toString());
-      const newData = result.contracts;
+      const newData = result.contracts || [];
       setContracts(append ? (prev) => [...prev, ...newData] : newData);
       setPage(pageNum);
       setHasMore(newData.length >= 20);
