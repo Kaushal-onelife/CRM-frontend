@@ -3,7 +3,7 @@ import { View, Text, ScrollView, StyleSheet, RefreshControl } from "react-native
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
-import { dashboardAPI } from "../../services/api";
+import { dashboardAPI, reminderAPI } from "../../services/api";
 import ServiceCard from "../../components/ServiceCard";
 import { Card, Badge, EmptyState, SkeletonList, Skeleton } from "../../components/ui";
 import { useTheme } from "../../context/ThemeContext";
@@ -82,6 +82,13 @@ export default function DashboardScreen({ navigation }) {
     queryKey: ["dashboard"],
     queryFn: () => dashboardAPI.get(),
   });
+
+  // Reminder count — shares the ["reminders"] cache with the Reminders screen.
+  const { data: reminders } = useQuery({
+    queryKey: ["reminders"],
+    queryFn: () => reminderAPI.get(),
+  });
+  const reminderCount = reminders?.counts?.total || 0;
 
   const goToService = (service) =>
     navigation.navigate("Services", { screen: "ServiceDetail", params: { id: service.id } });
@@ -176,6 +183,28 @@ export default function DashboardScreen({ navigation }) {
           </View>
         </View>
       </Animated.View>
+
+      {/* Reminders alert — only when something needs outreach */}
+      {reminderCount > 0 && (
+        <Animated.View entering={FadeInDown.delay(90).duration(400)} style={{ marginTop: 12 }}>
+          <Card
+            onPress={() => navigation.navigate("More", { screen: "Reminders" })}
+            haptic
+            style={{ flexDirection: "row", alignItems: "center", backgroundColor: colors.warningSoft }}
+          >
+            <MaterialCommunityIcons name="bell-ring-outline" size={22} color={colors.warning} />
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={{ color: colors.text, fontSize: 15, fontWeight: "700" }}>
+                {reminderCount} customer{reminderCount === 1 ? "" : "s"} need a reminder
+              </Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 1 }}>
+                Service due, overdue, or AMC expiring
+              </Text>
+            </View>
+            <MaterialCommunityIcons name="chevron-right" size={22} color={colors.textMuted} />
+          </Card>
+        </Animated.View>
+      )}
 
       {/* Stat grid */}
       <View style={styles.grid}>

@@ -122,6 +122,13 @@ export const billAPI = {
     }),
 };
 
+// Reminders (service due/overdue, AMC expiring) — computed live, tenant-scoped.
+export const reminderAPI = {
+  get: (params = "") => apiCall(`/reminders?${params}`),
+  logContacted: (body) =>
+    apiCall("/reminders/contacted", { method: "POST", body: JSON.stringify(body) }),
+};
+
 // AMC Contracts
 export const amcAPI = {
   getAll: (params = "") => apiCall(`/amc?${params}`),

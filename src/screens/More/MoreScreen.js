@@ -9,6 +9,13 @@ import { tap } from "../../utils/haptics";
 // Each row navigates into its own stack (registered in MoreNavigator).
 const ITEMS = [
   {
+    route: "Reminders",
+    label: "Reminders",
+    subtitle: "Service due, overdue & AMC expiring",
+    icon: "bell-ring-outline",
+    color: "warning",
+  },
+  {
     route: "Bills",
     label: "Bills",
     subtitle: "Invoices and payments",

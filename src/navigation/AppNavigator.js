@@ -25,6 +25,7 @@ import CreateAMCScreen from "../screens/AMC/CreateAMCScreen";
 import InventoryScreen from "../screens/Inventory/InventoryScreen";
 import SettingsScreen from "../screens/Settings/SettingsScreen";
 import MoreScreen from "../screens/More/MoreScreen";
+import RemindersScreen from "../screens/Reminders/RemindersScreen";
 
 const Tab = createBottomTabNavigator();
 const CustomerStack = createNativeStackNavigator();
@@ -118,6 +119,9 @@ function MoreNavigator() {
   return (
     <MoreStack.Navigator screenOptions={screenOptions}>
       <MoreStack.Screen name="MoreMenu" component={MoreScreen} options={{ title: "More" }} />
+
+      {/* Reminders */}
+      <MoreStack.Screen name="Reminders" component={RemindersScreen} options={{ title: "Reminders" }} />
 
       {/* Bills */}
       <MoreStack.Screen name="Bills" component={BillListScreen} options={{ title: "Bills" }} />
