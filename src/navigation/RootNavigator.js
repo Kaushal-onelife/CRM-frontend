@@ -9,7 +9,7 @@ import { supabase } from "../services/supabase";
 import AuthNavigator from "./AuthNavigator";
 import AppNavigator from "./AppNavigator";
 import { useTheme } from "../context/ThemeContext";
-import { SkeletonList } from "../components/ui";
+import { SkeletonList, OfflineBanner } from "../components/ui";
 
 export default function RootNavigator() {
   const { colors, isDark } = useTheme();
@@ -62,7 +62,12 @@ export default function RootNavigator() {
 
   return (
     <NavigationContainer theme={navTheme}>
-      {session ? <AppNavigator /> : <AuthNavigator />}
+      {/* Banner renders inline only when offline; when online it returns null and
+          takes no space, so the navigator's own safe-area handling is untouched. */}
+      <OfflineBanner topInset />
+      <View style={{ flex: 1 }}>
+        {session ? <AppNavigator /> : <AuthNavigator />}
+      </View>
     </NavigationContainer>
   );
 }

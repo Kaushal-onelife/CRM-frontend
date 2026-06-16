@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -8,8 +8,9 @@ import {
   Share,
 } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
-import { useFocusEffect } from "@react-navigation/native";
+import { useQuery } from "@tanstack/react-query";
 import { billAPI } from "../../services/api";
+import { requireOnline } from "../../hooks/useRequireOnline";
 import { Button, Card, Badge, EmptyState, Skeleton } from "../../components/ui";
 import { useTheme } from "../../context/ThemeContext";
 
@@ -21,35 +22,24 @@ const formatMoney = (n) => {
 export default function BillDetailScreen({ route, navigation }) {
   const { colors } = useTheme();
   const { id } = route.params;
-  const [bill, setBill] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  const [error, setError] = useState(null);
   const [payingMethod, setPayingMethod] = useState(null);
   const [confirmingMethod, setConfirmingMethod] = useState(null);
 
-  const fetchBill = async () => {
-    try {
-      const data = await billAPI.getById(id);
-      setBill(data);
-      setError(null);
-    } catch (err) {
-      console.error(err.message);
-      setError(err.message || "Failed to load bill");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchBill();
-    }, [id])
-  );
+  // Cache-first: persisted data shows instantly (incl. offline), then refreshes.
+  const {
+    data: bill,
+    error,
+    isLoading,
+    refetch,
+  } = useQuery({
+    queryKey: ["bill", id],
+    queryFn: () => billAPI.getById(id),
+  });
 
   // Two-tap confirm avoids Alert.alert, which silently drops button callbacks
   // on react-native-web. First tap arms the method; second tap commits.
   const handleMarkPaid = async (method) => {
+    if (!requireOnline()) return;
     if (payingMethod) return;
 
     if (confirmingMethod !== method) {
@@ -65,7 +55,7 @@ export default function BillDetailScreen({ route, navigation }) {
     setConfirmingMethod(null);
     try {
       await billAPI.markPaid(id, { payment_method: method });
-      await fetchBill();
+      await refetch();
     } catch (err) {
       Alert.alert("Error", err.message);
     } finally {
@@ -112,7 +102,8 @@ ${bill.payment_method ? `Method: ${bill.payment_method}` : ""}
     }
   };
 
-  if (loading) {
+  // Skeletons only when there's no cached data yet.
+  if (isLoading && !bill) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background, padding: 16 }]}>
         <Skeleton width="50%" height={24} style={{ marginBottom: 20 }} />
@@ -123,6 +114,7 @@ ${bill.payment_method ? `Method: ${bill.payment_method}` : ""}
     );
   }
 
+  // Only show the error screen when we have NO cached data to fall back on.
   if (!bill) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background, flex: 1, justifyContent: "center" }]}>
@@ -130,12 +122,9 @@ ${bill.payment_method ? `Method: ${bill.payment_method}` : ""}
           tone="error"
           icon="file-alert-outline"
           title={error ? "Couldn't load bill" : "Bill not found"}
-          message={error || "This bill may have been removed."}
+          message={error?.message || "This bill may have been removed."}
           actionLabel="Retry"
-          onAction={() => {
-            setLoading(true);
-            fetchBill();
-          }}
+          onAction={() => refetch()}
         />
       </View>
     );

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -10,8 +10,9 @@ import {
 } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useFocusEffect } from "@react-navigation/native";
+import { useQuery } from "@tanstack/react-query";
 import { customerAPI, serviceAPI } from "../../services/api";
+import { requireOnline } from "../../hooks/useRequireOnline";
 import ServiceCard from "../../components/ServiceCard";
 import { Card, Button, EmptyState, Skeleton } from "../../components/ui";
 import { useTheme } from "../../context/ThemeContext";
@@ -19,41 +20,25 @@ import { useTheme } from "../../context/ThemeContext";
 export default function CustomerDetailScreen({ route, navigation }) {
   const { colors, radius, elevation } = useTheme();
   const { id } = route.params;
-  const [customer, setCustomer] = useState(null);
-  const [services, setServices] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
 
-  const fetchData = async () => {
-    try {
-      const [custResult, svcResult] = await Promise.allSettled([
-        customerAPI.getById(id),
-        serviceAPI.getAll(`customer_id=${id}`),
-      ]);
+  // Cache-first: customer profile shows instantly (incl. offline), then refreshes.
+  const {
+    data: customer,
+    error,
+    isLoading,
+    refetch,
+  } = useQuery({
+    queryKey: ["customer", id],
+    queryFn: () => customerAPI.getById(id),
+  });
 
-      if (custResult.status === "fulfilled") {
-        setCustomer(custResult.value);
-      } else {
-        Alert.alert("Error", "Failed to load customer info");
-      }
-
-      if (svcResult.status === "fulfilled") {
-        setServices(svcResult.value.services);
-      } else {
-        setServices([]);
-      }
-    } catch (error) {
-      Alert.alert("Error", "Failed to load customer details");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchData();
-    }, [id])
-  );
+  // Service history — its own key so it caches/refreshes independently.
+  const { data: historyData } = useQuery({
+    queryKey: ["customer", id, "services"],
+    queryFn: () => serviceAPI.getAll(`customer_id=${id}`),
+  });
+  const services = historyData?.services || [];
 
   const handleCall = () => {
     if (customer?.phone) {
@@ -71,6 +56,7 @@ export default function CustomerDetailScreen({ route, navigation }) {
 
   const handleDelete = () => {
     if (deleting) return;
+    if (!requireOnline()) return;
     Alert.alert(
       "Delete Customer",
       `Are you sure you want to delete ${customer.name}? This cannot be undone.`,
@@ -95,7 +81,7 @@ export default function CustomerDetailScreen({ route, navigation }) {
   };
 
   // ── Loading: skeleton blocks instead of a blank spinner ──
-  if (loading) {
+  if (isLoading && !customer) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background, paddingHorizontal: 16 }]}>
         <View style={{ alignItems: "center", marginTop: 24 }}>
@@ -105,6 +91,21 @@ export default function CustomerDetailScreen({ route, navigation }) {
         </View>
         <Skeleton width="100%" height={120} radius={16} style={{ marginTop: 24 }} />
         <Skeleton width="100%" height={180} radius={16} style={{ marginTop: 16 }} />
+      </View>
+    );
+  }
+
+  if (error && !customer) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background, flex: 1 }]}>
+        <EmptyState
+          tone="error"
+          icon="account-off-outline"
+          title="Couldn't load customer"
+          message={error.message || "This customer may have been removed."}
+          actionLabel="Try again"
+          onAction={() => refetch()}
+        />
       </View>
     );
   }

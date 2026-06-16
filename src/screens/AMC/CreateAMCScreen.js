@@ -10,6 +10,7 @@ import {
   Switch,
 } from "react-native";
 import { customerAPI, amcAPI } from "../../services/api";
+import { requireOnline } from "../../hooks/useRequireOnline";
 import DatePickerField from "../../components/DatePickerField";
 import { Input, Button, Card } from "../../components/ui";
 import { useTheme } from "../../context/ThemeContext";
@@ -34,6 +35,7 @@ export default function CreateAMCScreen({ route, navigation }) {
   const [customers, setCustomers] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState(preCustomerId || null);
   const [customerSearch, setCustomerSearch] = useState("");
+  const [showDropdown, setShowDropdown] = useState(false);
   const [searching, setSearching] = useState(false);
 
   const [selectedPlan, setSelectedPlan] = useState(null);
@@ -132,6 +134,7 @@ export default function CreateAMCScreen({ route, navigation }) {
   };
 
   const handleSubmit = async () => {
+    if (!requireOnline()) return;
     if (!selectedCustomer) {
       Alert.alert("Missing customer", "Please select a customer.");
       return;
@@ -195,10 +198,17 @@ export default function CreateAMCScreen({ route, navigation }) {
             style={{ marginBottom: 0 }}
             onChangeText={(text) => {
               setCustomerSearch(text);
-              if (text.length > 2) fetchCustomers(text);
+              // Editing clears any prior selection and reopens the dropdown.
+              if (selectedCustomer) setSelectedCustomer(null);
+              if (text.length > 2) {
+                setShowDropdown(true);
+                fetchCustomers(text);
+              } else {
+                setShowDropdown(false);
+              }
             }}
           />
-          {customerSearch.length > 2 && (
+          {showDropdown && customerSearch.length > 2 && (
             <View
               style={[
                 styles.dropdown,
@@ -223,6 +233,7 @@ export default function CreateAMCScreen({ route, navigation }) {
                     onPress={() => {
                       setSelectedCustomer(c.id);
                       setCustomerSearch(c.name);
+                      setShowDropdown(false); // close after selecting
                     }}
                   >
                     <Text style={[styles.dropdownText, { color: colors.text }]}>

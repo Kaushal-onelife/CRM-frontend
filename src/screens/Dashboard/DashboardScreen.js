@@ -1,8 +1,8 @@
-import React, { useState, useCallback } from "react";
+import React from "react";
 import { View, Text, ScrollView, StyleSheet, RefreshControl } from "react-native";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useFocusEffect } from "@react-navigation/native";
+import { useQuery } from "@tanstack/react-query";
 import { dashboardAPI } from "../../services/api";
 import ServiceCard from "../../components/ServiceCard";
 import { Card, Badge, EmptyState, SkeletonList, Skeleton } from "../../components/ui";
@@ -70,36 +70,24 @@ function Section({ title, color, children }) {
 
 export default function DashboardScreen({ navigation }) {
   const { colors, isDark, elevation } = useTheme();
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState(null);
 
-  const fetchDashboard = async () => {
-    try {
-      const result = await dashboardAPI.get();
-      setData(result);
-      setError(null);
-    } catch (err) {
-      console.error("Dashboard error:", err.message);
-      setError(err.message || "Failed to load dashboard");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchDashboard();
-    }, [])
-  );
+  // Cache-first: persisted data shows instantly (incl. offline), then refreshes.
+  const {
+    data,
+    error,
+    isLoading,
+    isRefetching,
+    refetch,
+  } = useQuery({
+    queryKey: ["dashboard"],
+    queryFn: () => dashboardAPI.get(),
+  });
 
   const goToService = (service) =>
     navigation.navigate("Services", { screen: "ServiceDetail", params: { id: service.id } });
 
-  // ── Loading: skeletons instead of a blank spinner (feels fast, not stuck) ──
-  if (loading && !data) {
+  // ── Loading: skeletons only when there's no cached data yet ──
+  if (isLoading && !data) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <Skeleton width="55%" height={26} style={{ marginTop: 8, marginBottom: 20 }} />
@@ -109,6 +97,7 @@ export default function DashboardScreen({ navigation }) {
     );
   }
 
+  // Only show the error screen when we have NO cached data to fall back on.
   if (error && !data) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background, flex: 1 }]}>
@@ -116,12 +105,9 @@ export default function DashboardScreen({ navigation }) {
           tone="error"
           icon="cloud-off-outline"
           title="Couldn't load dashboard"
-          message={error}
+          message={error.message || "Failed to load dashboard"}
           actionLabel="Try again"
-          onAction={() => {
-            setLoading(true);
-            fetchDashboard();
-          }}
+          onAction={() => refetch()}
         />
       </View>
     );
@@ -138,12 +124,9 @@ export default function DashboardScreen({ navigation }) {
       showsVerticalScrollIndicator={false}
       refreshControl={
         <RefreshControl
-          refreshing={refreshing}
+          refreshing={isRefetching}
           tintColor={colors.primary}
-          onRefresh={() => {
-            setRefreshing(true);
-            fetchDashboard();
-          }}
+          onRefresh={() => refetch()}
         />
       }
     >

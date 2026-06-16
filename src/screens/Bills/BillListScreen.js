@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useFocusEffect } from "@react-navigation/native";
+import { useQuery } from "@tanstack/react-query";
 import { billAPI } from "../../services/api";
 import { Card, Badge, EmptyState, SkeletonList } from "../../components/ui";
 import { useTheme } from "../../context/ThemeContext";
@@ -25,44 +25,64 @@ const formatMoney = (n) => {
 
 export default function BillListScreen({ navigation }) {
   const { colors, radius, elevation } = useTheme();
-  const [bills, setBills] = useState([]);
   const [activeFilter, setActiveFilter] = useState("all");
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  // Pages beyond the first are appended here; the first page comes from useQuery.
+  const [extraBills, setExtraBills] = useState([]);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
 
-  const fetchBills = async (filter = "all", pageNum = 1, append = false) => {
-    if (append) setLoadingMore(true);
+  const buildParams = (filter, pageNum) => {
+    const params = new URLSearchParams({ page: pageNum, limit: 20 });
+    if (filter !== "all") params.set("payment_status", filter);
+    return params.toString();
+  };
+
+  // Cache-first first page; reset pagination whenever the filter changes.
+  const {
+    data,
+    error,
+    isLoading,
+    isRefetching,
+    refetch,
+  } = useQuery({
+    queryKey: ["bills", activeFilter],
+    queryFn: () => billAPI.getAll(buildParams(activeFilter, 1)),
+  });
+
+  const firstPage = data?.bills || [];
+  const bills = [...firstPage, ...extraBills];
+  // No more pages once the first page came back short, or a later page did.
+  const canLoadMore = firstPage.length >= 20 && hasMore;
+
+  const handleLoadMore = async () => {
+    if (loadingMore || !canLoadMore || isLoading) return;
+    setLoadingMore(true);
     try {
-      const params = new URLSearchParams({ page: pageNum, limit: 20 });
-      if (filter !== "all") params.set("payment_status", filter);
-      const result = await billAPI.getAll(params.toString());
+      const nextPage = page + 1;
+      const result = await billAPI.getAll(buildParams(activeFilter, nextPage));
       const newData = result.bills || [];
-      setBills(append ? (prev) => [...prev, ...newData] : newData);
-      setPage(pageNum);
+      setExtraBills((prev) => [...prev, ...newData]);
+      setPage(nextPage);
       setHasMore(newData.length >= 20);
     } catch (error) {
       Alert.alert("Error", "Failed to load bills");
     } finally {
-      setLoading(false);
-      setRefreshing(false);
       setLoadingMore(false);
     }
   };
 
-  const handleLoadMore = () => {
-    if (!loadingMore && hasMore && !loading) {
-      fetchBills(activeFilter, page + 1, true);
-    }
+  // Drop any appended pages so we show only the freshly-fetched first page.
+  const resetPagination = () => {
+    setExtraBills([]);
+    setPage(1);
+    setHasMore(true);
   };
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchBills(activeFilter);
-    }, [activeFilter])
-  );
+  const handleFilterChange = (filter) => {
+    setActiveFilter(filter);
+    resetPagination();
+  };
 
   const renderBill = ({ item, index }) => {
     const isPaid = item.payment_status === "paid";
@@ -124,12 +144,7 @@ export default function BillListScreen({ navigation }) {
                   borderColor: active ? colors.primary : colors.border,
                 },
               ]}
-              onPress={() => {
-                setActiveFilter(filter);
-                setLoading(true);
-                setPage(1);
-                setHasMore(true);
-              }}
+              onPress={() => handleFilterChange(filter)}
             >
               <Text
                 style={{
@@ -146,8 +161,17 @@ export default function BillListScreen({ navigation }) {
         })}
       </View>
 
-      {loading ? (
+      {isLoading && !data ? (
         <SkeletonList count={6} />
+      ) : error && !data ? (
+        <EmptyState
+          tone="error"
+          icon="cloud-off-outline"
+          title="Couldn't load bills"
+          message={error.message || "Failed to load bills"}
+          actionLabel="Try again"
+          onAction={() => refetch()}
+        />
       ) : (
         <FlatList
           data={bills}
@@ -170,11 +194,11 @@ export default function BillListScreen({ navigation }) {
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
-              refreshing={refreshing}
+              refreshing={isRefetching}
               tintColor={colors.primary}
               onRefresh={() => {
-                setRefreshing(true);
-                fetchBills(activeFilter, 1);
+                resetPagination();
+                refetch();
               }}
             />
           }

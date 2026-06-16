@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
   RefreshControl,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useFocusEffect } from "@react-navigation/native";
+import { useQuery } from "@tanstack/react-query";
 import { amcAPI } from "../../services/api";
 import { Card, Badge, EmptyState, SkeletonList } from "../../components/ui";
 import { useTheme } from "../../context/ThemeContext";
@@ -24,38 +24,60 @@ const formatMoney = (n) => {
 
 export default function AMCListScreen({ navigation }) {
   const { colors, elevation } = useTheme();
-  const [contracts, setContracts] = useState([]);
   const [activeFilter, setActiveFilter] = useState("all");
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+
+  // Helper to build the query params for a given filter + page.
+  const buildParams = (filter, pageNum) => {
+    const params = new URLSearchParams({ page: pageNum, limit: 20 });
+    if (filter !== "all") params.set("status", filter);
+    return params.toString();
+  };
+
+  // Cache-first primary fetch (page 1). Keyed per filter so each tab caches
+  // independently and the persisted list shows instantly (incl. offline).
+  const {
+    data,
+    error,
+    isLoading,
+    isRefetching,
+    refetch,
+  } = useQuery({
+    queryKey: ["amc", activeFilter],
+    queryFn: () => amcAPI.getAll(buildParams(activeFilter, 1)),
+  });
+
+  const firstPage = data?.contracts || [];
+
+  // Pagination kept as local "load more" state layered on top of the cached
+  // first page. Reset whenever the cached first page changes (filter/refresh).
+  const [extraContracts, setExtraContracts] = useState([]);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
 
-  const fetchContracts = async (filter = "all", pageNum = 1, append = false) => {
-    if (append) setLoadingMore(true);
+  React.useEffect(() => {
+    setExtraContracts([]);
+    setPage(1);
+    setHasMore(firstPage.length >= 20);
+  }, [data, activeFilter]);
+
+  const contracts = [...firstPage, ...extraContracts];
+
+  const loadMore = async () => {
+    setLoadingMore(true);
     try {
-      const params = new URLSearchParams({ page: pageNum, limit: 20 });
-      if (filter !== "all") params.set("status", filter);
-      const result = await amcAPI.getAll(params.toString());
+      const nextPage = page + 1;
+      const result = await amcAPI.getAll(buildParams(activeFilter, nextPage));
       const newData = result.contracts || [];
-      setContracts(append ? (prev) => [...prev, ...newData] : newData);
-      setPage(pageNum);
+      setExtraContracts((prev) => [...prev, ...newData]);
+      setPage(nextPage);
       setHasMore(newData.length >= 20);
-    } catch (error) {
-      Alert.alert("Error", "Failed to load AMC contracts");
+    } catch (e) {
+      Alert.alert("Error", "Failed to load more AMC contracts");
     } finally {
-      setLoading(false);
-      setRefreshing(false);
       setLoadingMore(false);
     }
   };
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchContracts(activeFilter);
-    }, [activeFilter])
-  );
 
   const getDaysRemaining = (endDate) => {
     const diff = new Date(endDate) - new Date();
@@ -151,12 +173,7 @@ export default function AMCListScreen({ navigation }) {
                   borderColor: active ? colors.primary : colors.border,
                 },
               ]}
-              onPress={() => {
-                setActiveFilter(filter);
-                setLoading(true);
-                setPage(1);
-                setHasMore(true);
-              }}
+              onPress={() => setActiveFilter(filter)}
             >
               <Text
                 style={[
@@ -172,8 +189,17 @@ export default function AMCListScreen({ navigation }) {
         })}
       </View>
 
-      {loading ? (
+      {isLoading && !data ? (
         <SkeletonList count={5} />
+      ) : error && !data ? (
+        <EmptyState
+          tone="error"
+          icon="cloud-off-outline"
+          title="Couldn't load AMC contracts"
+          message={error.message || "Failed to load AMC contracts"}
+          actionLabel="Try again"
+          onAction={() => refetch()}
+        />
       ) : (
         <FlatList
           data={contracts}
@@ -190,17 +216,14 @@ export default function AMCListScreen({ navigation }) {
           contentContainerStyle={{ paddingBottom: 90 }}
           refreshControl={
             <RefreshControl
-              refreshing={refreshing}
+              refreshing={isRefetching}
               tintColor={colors.primary}
-              onRefresh={() => {
-                setRefreshing(true);
-                fetchContracts(activeFilter, 1);
-              }}
+              onRefresh={() => refetch()}
             />
           }
           onEndReached={() => {
-            if (!loadingMore && hasMore && !loading) {
-              fetchContracts(activeFilter, page + 1, true);
+            if (!loadingMore && hasMore && !isLoading) {
+              loadMore();
             }
           }}
           onEndReachedThreshold={0.3}

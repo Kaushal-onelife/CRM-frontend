@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { customerAPI, serviceAPI } from "../../services/api";
+import { requireOnline } from "../../hooks/useRequireOnline";
 import DatePickerField from "../../components/DatePickerField";
 import { Input, Button } from "../../components/ui";
 import { useTheme } from "../../context/ThemeContext";
@@ -65,6 +66,7 @@ export default function AddServiceScreen({ navigation, route }) {
   };
 
   const handleSubmit = async () => {
+    if (!requireOnline()) return;
     if (!selectedCustomer) {
       Alert.alert("Missing customer", "Please select a customer from the search results.");
       return;

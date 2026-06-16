@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -11,8 +11,9 @@ import {
   Modal,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useFocusEffect } from "@react-navigation/native";
+import { useQuery } from "@tanstack/react-query";
 import { inventoryAPI } from "../../services/api";
+import { requireOnline } from "../../hooks/useRequireOnline";
 import { useTheme } from "../../context/ThemeContext";
 import { Button, Card, Badge, Input, EmptyState, SkeletonList } from "../../components/ui";
 import {
@@ -29,10 +30,21 @@ const formatMoney = (n) => {
 
 export default function InventoryScreen() {
   const { colors, radius, elevation } = useTheme();
-  const [parts, setParts] = useState([]);
-  const [lowStockCount, setLowStockCount] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+
+  // Cache-first: persisted inventory shows instantly (incl. offline), then refreshes.
+  const {
+    data,
+    error,
+    isLoading,
+    isRefetching,
+    refetch,
+  } = useQuery({
+    queryKey: ["inventory"],
+    queryFn: () => inventoryAPI.getAll(),
+  });
+  const parts = data?.parts || [];
+  const lowStockCount = data?.low_stock_count || 0;
+
   const [showModal, setShowModal] = useState(false);
   const [editingPart, setEditingPart] = useState(null);
   const [form, setForm] = useState({
@@ -79,25 +91,6 @@ export default function InventoryScreen() {
     setErrors((prev) => ({ ...prev, [key]: validateField(key, form[key]) }));
   };
 
-  const fetchParts = async () => {
-    try {
-      const result = await inventoryAPI.getAll();
-      setParts(result.parts || []);
-      setLowStockCount(result.low_stock_count || 0);
-    } catch (error) {
-      Alert.alert("Error", "Failed to load inventory");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchParts();
-    }, [])
-  );
-
   const openAddModal = () => {
     setEditingPart(null);
     setForm({ name: "", sku: "", quantity: "", min_stock: "5", unit_price: "", cost_price: "" });
@@ -120,6 +113,7 @@ export default function InventoryScreen() {
   };
 
   const handleSave = async () => {
+    if (!requireOnline()) return;
     const name = form.name.trim();
     const sku = form.sku.trim();
 
@@ -167,7 +161,7 @@ export default function InventoryScreen() {
       }
 
       setShowModal(false);
-      fetchParts();
+      refetch();
     } catch (error) {
       Alert.alert("Error", error.message);
     }
@@ -176,6 +170,7 @@ export default function InventoryScreen() {
 
   const handleDelete = (part) => {
     if (deletingId) return;
+    if (!requireOnline()) return;
     Alert.alert("Delete Part", `Delete "${part.name}" from inventory?`, [
       { text: "Cancel", style: "cancel" },
       {
@@ -185,7 +180,7 @@ export default function InventoryScreen() {
           setDeletingId(part.id);
           try {
             await inventoryAPI.delete(part.id);
-            await fetchParts();
+            await refetch();
           } catch (error) {
             Alert.alert("Error", error.message);
           } finally {
@@ -274,10 +269,19 @@ export default function InventoryScreen() {
         </View>
       )}
 
-      {loading ? (
+      {isLoading && !data ? (
         <View style={{ padding: 16 }}>
           <SkeletonList count={5} />
         </View>
+      ) : error && !data ? (
+        <EmptyState
+          tone="error"
+          icon="cloud-off-outline"
+          title="Couldn't load inventory"
+          message={error.message || "Failed to load inventory"}
+          actionLabel="Try again"
+          onAction={() => refetch()}
+        />
       ) : (
         <FlatList
           data={parts}
@@ -295,9 +299,9 @@ export default function InventoryScreen() {
           contentContainerStyle={{ padding: 16, paddingBottom: 90 }}
           refreshControl={
             <RefreshControl
-              refreshing={refreshing}
+              refreshing={isRefetching}
               tintColor={colors.primary}
-              onRefresh={() => { setRefreshing(true); fetchParts(); }}
+              onRefresh={() => refetch()}
             />
           }
         />

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -12,68 +12,53 @@ import {
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
-import { useFocusEffect } from "@react-navigation/native";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { customerAPI } from "../../services/api";
 import { Card, EmptyState, SkeletonList } from "../../components/ui";
 import { useTheme } from "../../context/ThemeContext";
 import { downloadCsv, pickCsvText, fileSupported } from "../../utils/fileTransfer";
 
+const PAGE_SIZE = 20;
+
 export default function CustomerListScreen({ navigation }) {
   const { colors, radius, elevation } = useTheme();
-  const [customers, setCustomers] = useState([]);
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [searching, setSearching] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [error, setError] = useState(null);
+  // The actual query term, updated debounced — separate from the input value so
+  // typing doesn't refire the query on every keystroke.
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
   const debounceRef = useRef(null);
-  const lastQueryRef = useRef("");
 
-  const fetchCustomers = async (
-    searchText = "",
-    pageNum = 1,
-    append = false
-  ) => {
-    lastQueryRef.current = searchText;
-    if (append) setLoadingMore(true);
-    if (searchText && !append) setSearching(true);
-    try {
-      const params = new URLSearchParams({ page: pageNum, limit: 20 });
-      if (searchText) params.set("search", searchText);
+  // useInfiniteQuery handles pagination + caching + persistence (offline) and
+  // replaces the old manual page/hasMore/loadingMore/stale-guard machinery.
+  // The cache key includes debouncedSearch so each search term caches separately
+  // and stale responses are dropped automatically by React Query.
+  const {
+    data,
+    error,
+    isLoading,
+    isRefetching,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+    refetch,
+  } = useInfiniteQuery({
+    queryKey: ["customers", debouncedSearch],
+    queryFn: async ({ pageParam = 1 }) => {
+      const params = new URLSearchParams({ page: pageParam, limit: PAGE_SIZE });
+      if (debouncedSearch) params.set("search", debouncedSearch);
       const result = await customerAPI.getAll(params.toString());
-      // Drop stale search responses if the query changed mid-flight.
-      if (!append && lastQueryRef.current !== searchText) return;
-      const newData = result.customers || [];
-      setCustomers(append ? (prev) => [...prev, ...newData] : newData);
-      setPage(pageNum);
-      setHasMore(newData.length >= 20);
-      setError(null);
-    } catch (err) {
-      if (!append && lastQueryRef.current !== searchText) return;
-      console.error(err.message);
-      setError(err.message || "Failed to load customers");
-      if (!append) setCustomers([]);
-    } finally {
-      if (append || lastQueryRef.current === searchText) {
-        setLoading(false);
-        setRefreshing(false);
-        setLoadingMore(false);
-        setSearching(false);
-      }
-    }
-  };
+      return result.customers || [];
+    },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, allPages) =>
+      lastPage.length >= PAGE_SIZE ? allPages.length + 1 : undefined,
+  });
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchCustomers("", 1);
-    }, [])
-  );
+  // Flatten all loaded pages into one list for the FlatList.
+  const customers = data?.pages.flat() || [];
 
   useEffect(() => {
     return () => {
@@ -86,23 +71,24 @@ export default function CustomerListScreen({ navigation }) {
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
     if (text.length === 0) {
-      // Reset immediately when cleared.
-      fetchCustomers("", 1);
+      setDebouncedSearch(""); // reset immediately when cleared
       return;
     }
-    if (text.length <= 2) return;
+    if (text.length <= 2) return; // don't search on 1-2 chars (matches old behavior)
 
-    setSearching(true);
     debounceRef.current = setTimeout(() => {
-      fetchCustomers(text, 1);
+      setDebouncedSearch(text);
     }, 300);
   };
 
   const handleLoadMore = () => {
-    if (!loadingMore && hasMore && !loading) {
-      fetchCustomers(search, page + 1, true);
+    if (hasNextPage && !isFetchingNextPage && !isLoading) {
+      fetchNextPage();
     }
   };
+
+  // True only while a debounced search query is actively fetching its first page.
+  const searching = search.length > 2 && isLoading;
 
   const handleExport = async () => {
     setExporting(true);
@@ -141,7 +127,7 @@ export default function CustomerListScreen({ navigation }) {
       }
 
       Alert.alert("Import complete", lines.join("\n"));
-      fetchCustomers("", 1); // refresh list
+      refetch(); // refresh list
     } catch (err) {
       Alert.alert("Import failed", err.message || "Could not import customers.");
     }
@@ -276,7 +262,8 @@ export default function CustomerListScreen({ navigation }) {
         {searching ? <ActivityIndicator size="small" color={colors.primary} /> : null}
       </View>
 
-      {loading ? (
+      {/* Skeleton only when first load has no cached data yet. */}
+      {isLoading && customers.length === 0 ? (
         <View style={{ marginTop: 4 }}>
           <SkeletonList count={6} />
         </View>
@@ -291,12 +278,9 @@ export default function CustomerListScreen({ navigation }) {
                 tone="error"
                 icon="cloud-off-outline"
                 title="Couldn't load customers"
-                message={error}
+                message={error.message || "Failed to load customers"}
                 actionLabel="Try again"
-                onAction={() => {
-                  setLoading(true);
-                  fetchCustomers(search, 1);
-                }}
+                onAction={() => refetch()}
               />
             ) : (
               <EmptyState
@@ -315,18 +299,15 @@ export default function CustomerListScreen({ navigation }) {
           contentContainerStyle={{ paddingBottom: 96 }}
           refreshControl={
             <RefreshControl
-              refreshing={refreshing}
+              refreshing={isRefetching}
               tintColor={colors.primary}
-              onRefresh={() => {
-                setRefreshing(true);
-                fetchCustomers(search, 1);
-              }}
+              onRefresh={() => refetch()}
             />
           }
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.3}
           ListFooterComponent={
-            loadingMore ? (
+            isFetchingNextPage ? (
               <ActivityIndicator
                 size="small"
                 color={colors.primary}

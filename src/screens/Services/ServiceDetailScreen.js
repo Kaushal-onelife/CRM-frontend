@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -8,9 +8,10 @@ import {
   Linking,
 } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
-import { useFocusEffect } from "@react-navigation/native";
+import { useQuery } from "@tanstack/react-query";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { serviceAPI } from "../../services/api";
+import { requireOnline } from "../../hooks/useRequireOnline";
 import DatePickerField from "../../components/DatePickerField";
 import { Card, Badge, Button, EmptyState, Skeleton } from "../../components/ui";
 import { useTheme } from "../../context/ThemeContext";
@@ -35,39 +36,29 @@ const STATUS_PRESET = {
 export default function ServiceDetailScreen({ route, navigation }) {
   const { colors, spacing, radius } = useTheme();
   const { id } = route.params;
-  const [service, setService] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [nextContactDate, setNextContactDate] = useState("");
   const [showFollowupForm, setShowFollowupForm] = useState(false);
 
-  const [error, setError] = useState(null);
   const [actionInFlight, setActionInFlight] = useState(null);
 
-  const fetchService = async () => {
-    try {
-      const data = await serviceAPI.getById(id);
-      setService(data);
-      setError(null);
-    } catch (err) {
-      console.error(err.message);
-      setError(err.message || "Failed to load service");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchService();
-    }, [id])
-  );
+  // Cache-first: persisted data shows instantly (incl. offline), then refreshes.
+  const {
+    data: service,
+    error,
+    isLoading,
+    refetch,
+  } = useQuery({
+    queryKey: ["service", id],
+    queryFn: () => serviceAPI.getById(id),
+  });
 
   const handleStatusChange = async (newStatus, extraData = {}, actionKey = newStatus) => {
+    if (!requireOnline()) return;
     if (actionInFlight) return;
     setActionInFlight(actionKey);
     try {
       await serviceAPI.update(id, { status: newStatus, ...extraData });
-      await fetchService();
+      await refetch();
     } catch (error) {
       Alert.alert("Error", error.message);
     } finally {
@@ -83,7 +74,8 @@ export default function ServiceDetailScreen({ route, navigation }) {
     setNextContactDate("");
   };
 
-  if (loading) {
+  // Skeletons only when there's no cached data yet.
+  if (isLoading && !service) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.background, padding: spacing.lg }}>
         <Skeleton width="40%" height={28} radius={radius.full} style={{ alignSelf: "center", marginVertical: spacing.lg }} />
@@ -95,6 +87,7 @@ export default function ServiceDetailScreen({ route, navigation }) {
     );
   }
 
+  // Only show the error screen when we have NO cached data to fall back on.
   if (!service) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.background, justifyContent: "center" }}>
@@ -102,12 +95,9 @@ export default function ServiceDetailScreen({ route, navigation }) {
           tone="error"
           icon="cloud-off-outline"
           title={error ? "Couldn't load service" : "Service not found"}
-          message={error || undefined}
+          message={error?.message || undefined}
           actionLabel="Retry"
-          onAction={() => {
-            setLoading(true);
-            fetchService();
-          }}
+          onAction={() => refetch()}
         />
       </View>
     );

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { View, StyleSheet, ScrollView, Alert } from "react-native";
 import { customerAPI } from "../../services/api";
+import { requireOnline } from "../../hooks/useRequireOnline";
 import { Input, Button } from "../../components/ui";
 import { useTheme } from "../../context/ThemeContext";
 import {
@@ -93,6 +94,7 @@ export default function EditCustomerScreen({ route, navigation }) {
   };
 
   const handleSubmit = async () => {
+    if (!requireOnline()) return;
     // Validate every field; collect all errors so they all light up at once.
     const nextErrors = {};
     for (const f of FIELDS) {

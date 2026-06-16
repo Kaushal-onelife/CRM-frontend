@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useFocusEffect } from "@react-navigation/native";
+import { useQuery } from "@tanstack/react-query";
 import { serviceAPI } from "../../services/api";
 import ServiceCard from "../../components/ServiceCard";
 import { EmptyState, SkeletonList } from "../../components/ui";
@@ -39,13 +39,64 @@ const FILTER_LABELS = {
 
 export default function ServiceListScreen({ navigation }) {
   const { colors, spacing, radius, elevation } = useTheme();
-  const [services, setServices] = useState([]);
   const [activeFilter, setActiveFilter] = useState("all");
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  // Pages beyond the first are appended here; the first page comes from useQuery.
+  const [extraServices, setExtraServices] = useState([]);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+
+  const buildParams = (filter, pageNum) => {
+    const params = new URLSearchParams({ page: pageNum, limit: 20 });
+    if (filter !== "all") params.set("status", filter);
+    return params.toString();
+  };
+
+  // Cache-first first page; reset pagination whenever the filter changes.
+  const {
+    data,
+    error,
+    isLoading,
+    isRefetching,
+    refetch,
+  } = useQuery({
+    queryKey: ["services", activeFilter],
+    queryFn: () => serviceAPI.getAll(buildParams(activeFilter, 1)),
+  });
+
+  const firstPage = data?.services || [];
+  const services = [...firstPage, ...extraServices];
+  // No more pages once the first page came back short, or a later page did.
+  const canLoadMore = firstPage.length >= 20 && hasMore;
+
+  const handleLoadMore = async () => {
+    if (loadingMore || !canLoadMore || isLoading) return;
+    setLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const result = await serviceAPI.getAll(buildParams(activeFilter, nextPage));
+      const newData = result.services || [];
+      setExtraServices((prev) => [...prev, ...newData]);
+      setPage(nextPage);
+      setHasMore(newData.length >= 20);
+    } catch (err) {
+      Alert.alert("Error", "Failed to load services");
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  // Drop any appended pages so we show only the freshly-fetched first page.
+  const resetPagination = () => {
+    setExtraServices([]);
+    setPage(1);
+    setHasMore(true);
+  };
+
+  const handleFilterChange = (filter) => {
+    setActiveFilter(filter);
+    resetPagination();
+  };
 
   const filterColor = (filter) => {
     switch (filter) {
@@ -63,37 +114,6 @@ export default function ServiceListScreen({ navigation }) {
         return colors.danger;
       default:
         return colors.primary;
-    }
-  };
-
-  const fetchServices = async (filter = "all", pageNum = 1, append = false) => {
-    if (append) setLoadingMore(true);
-    try {
-      const params = new URLSearchParams({ page: pageNum, limit: 20 });
-      if (filter !== "all") params.set("status", filter);
-      const result = await serviceAPI.getAll(params.toString());
-      const newData = result.services || [];
-      setServices(append ? (prev) => [...prev, ...newData] : newData);
-      setPage(pageNum);
-      setHasMore(newData.length >= 20);
-    } catch (error) {
-      Alert.alert("Error", "Failed to load services");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-      setLoadingMore(false);
-    }
-  };
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchServices(activeFilter, 1);
-    }, [activeFilter])
-  );
-
-  const handleLoadMore = () => {
-    if (!loadingMore && hasMore && !loading) {
-      fetchServices(activeFilter, page + 1, true);
     }
   };
 
@@ -137,10 +157,7 @@ export default function ServiceListScreen({ navigation }) {
                 backgroundColor: isActive ? fColor : colors.card,
                 borderColor: isActive ? fColor : colors.border,
               }}
-              onPress={() => {
-                setActiveFilter(filter);
-                setLoading(true);
-              }}
+              onPress={() => handleFilterChange(filter)}
             >
               <Text
                 style={{
@@ -156,8 +173,17 @@ export default function ServiceListScreen({ navigation }) {
         })}
       </ScrollView>
 
-      {loading ? (
+      {isLoading && !data ? (
         <SkeletonList count={6} />
+      ) : error && !data ? (
+        <EmptyState
+          tone="error"
+          icon="cloud-off-outline"
+          title="Couldn't load services"
+          message={error.message || "Failed to load services"}
+          actionLabel="Try again"
+          onAction={() => refetch()}
+        />
       ) : (
         <FlatList
           data={services}
@@ -179,11 +205,11 @@ export default function ServiceListScreen({ navigation }) {
           contentContainerStyle={{ paddingBottom: 96, flexGrow: 1 }}
           refreshControl={
             <RefreshControl
-              refreshing={refreshing}
+              refreshing={isRefetching}
               tintColor={colors.primary}
               onRefresh={() => {
-                setRefreshing(true);
-                fetchServices(activeFilter, 1);
+                resetPagination();
+                refetch();
               }}
             />
           }

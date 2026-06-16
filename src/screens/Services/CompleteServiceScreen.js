@@ -12,6 +12,7 @@ import {
 import { useFocusEffect } from "@react-navigation/native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { serviceAPI } from "../../services/api";
+import { requireOnline } from "../../hooks/useRequireOnline";
 import ServiceHistoryModal from "../../components/ServiceHistoryModal";
 import DatePickerField from "../../components/DatePickerField";
 import { Card, Button, Skeleton } from "../../components/ui";
@@ -155,6 +156,7 @@ export default function CompleteServiceScreen({ route, navigation }) {
   const nextDuePreview = getNextDueDate();
 
   const handleComplete = async () => {
+    if (!requireOnline()) return;
     // Inline validation for typed fields — collect all so they light up at once.
     const nErr = maxLength(notes.trim(), 1000, "Notes");
     const cErr = isNonNegativeNumber(serviceCharge || "0", "Service charge");

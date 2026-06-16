@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { customerAPI, billAPI } from "../../services/api";
+import { requireOnline } from "../../hooks/useRequireOnline";
 import { Button, Card, Input } from "../../components/ui";
 import { useTheme } from "../../context/ThemeContext";
 import {
@@ -135,6 +136,7 @@ export default function CreateBillScreen({ route, navigation }) {
     );
 
   const handleSubmit = async () => {
+    if (!requireOnline()) return;
     if (!selectedCustomer) {
       Alert.alert("Missing customer", "Please select a customer from the search results.");
       return;

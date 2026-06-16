@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React from "react";
 import {
   View,
   Text,
@@ -8,8 +8,9 @@ import {
   Alert,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useFocusEffect } from "@react-navigation/native";
+import { useQuery } from "@tanstack/react-query";
 import { amcAPI } from "../../services/api";
+import { requireOnline } from "../../hooks/useRequireOnline";
 import { Card, Badge, Button, EmptyState, Skeleton } from "../../components/ui";
 import { useTheme } from "../../context/ThemeContext";
 
@@ -21,25 +22,17 @@ const formatMoney = (n) => {
 export default function AMCDetailScreen({ route, navigation }) {
   const { colors, elevation } = useTheme();
   const { id } = route.params;
-  const [contract, setContract] = useState(null);
-  const [loading, setLoading] = useState(true);
 
-  const fetchContract = async () => {
-    try {
-      const data = await amcAPI.getById(id);
-      setContract(data);
-    } catch (error) {
-      Alert.alert("Error", "Failed to load AMC details");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchContract();
-    }, [id])
-  );
+  // Cache-first: persisted contract shows instantly (incl. offline), then refreshes.
+  const {
+    data: contract,
+    error,
+    isLoading,
+    refetch,
+  } = useQuery({
+    queryKey: ["amc", id],
+    queryFn: () => amcAPI.getById(id),
+  });
 
   const getDaysRemaining = () => {
     if (!contract) return 0;
@@ -71,13 +64,28 @@ export default function AMCDetailScreen({ route, navigation }) {
     }
   };
 
-  if (loading) {
+  if (isLoading && !contract) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background, padding: 16 }]}>
         <Skeleton width="100%" height={64} radius={16} style={{ marginBottom: 16 }} />
         <Skeleton width="100%" height={180} radius={16} style={{ marginBottom: 16 }} />
         <Skeleton width="100%" height={120} radius={16} style={{ marginBottom: 16 }} />
         <Skeleton width="100%" height={120} radius={16} />
+      </View>
+    );
+  }
+
+  if (error && !contract) {
+    return (
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <EmptyState
+          tone="error"
+          icon="file-remove-outline"
+          title="Contract not found"
+          message={error.message || "This AMC contract could not be loaded."}
+          actionLabel="Try again"
+          onAction={() => refetch()}
+        />
       </View>
     );
   }
@@ -264,6 +272,7 @@ export default function AMCDetailScreen({ route, navigation }) {
             variant="success"
             icon="cash-check"
             onPress={() => {
+              if (!requireOnline()) return;
               Alert.alert("Mark Paid", "Mark this AMC as paid?", [
                 { text: "Cancel", style: "cancel" },
                 {
@@ -271,7 +280,7 @@ export default function AMCDetailScreen({ route, navigation }) {
                   onPress: async () => {
                     try {
                       await amcAPI.update(id, { payment_status: "paid" });
-                      fetchContract();
+                      refetch();
                     } catch (error) {
                       Alert.alert("Error", error.message);
                     }
