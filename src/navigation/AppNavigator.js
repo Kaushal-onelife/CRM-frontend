@@ -206,7 +206,7 @@ export default function AppNavigator() {
         component={DashboardScreen}
         options={{
           headerShown: true,
-          headerTitle: "Water Purifier CRM",
+          headerTitle: "ClientTrack",
           headerStyle: { backgroundColor: colors.card },
           headerTitleStyle: { fontWeight: "700", color: colors.text },
           headerTintColor: colors.text,

@@ -12,15 +12,21 @@
 
 // Raw color ramps — the only place hex values live.
 const ramp = {
-  // Brand — a friendlier, slightly richer blue than the old flat #2563EB.
+  // Brand blue — tuned to the ClientTrack logo's bright blue (the "T").
   blue: {
     50: "#EFF6FF",
     100: "#DBEAFE",
     200: "#BFDBFE",
-    400: "#60A5FA",
-    500: "#3B82F6",
+    400: "#4DA8EE",
+    500: "#2E9BE6", // logo bright blue
     600: "#2563EB",
     700: "#1D4ED8",
+  },
+  // Brand navy — the logo's "C" ring; used as a deep accent / dark-mode primary.
+  navy: {
+    700: "#1E3A8A",
+    800: "#1B3A6B",
+    900: "#13294B",
   },
   green: { 50: "#ECFDF5", 100: "#D1FAE5", 500: "#10B981", 600: "#059669", 400: "#34D399" },
   amber: { 50: "#FFFBEB", 100: "#FEF3C7", 500: "#F59E0B", 400: "#FBBF24" },
@@ -55,11 +61,12 @@ const ramp = {
 // Add a NEW key here and it's instantly available via useTheme().colors.<key>.
 export const palette = {
   light: {
-    primary: ramp.blue[600],
-    primaryDark: ramp.blue[700],
+    primary: ramp.blue[500], // ClientTrack logo bright blue
+    primaryDark: ramp.navy[700],
     primaryLight: ramp.blue[100],
     primarySoft: ramp.blue[50],
     onPrimary: ramp.white,
+    brandNavy: ramp.navy[800], // deep brand color for gradients/hero headers
 
     secondary: ramp.green[500],
     success: ramp.green[500],
@@ -88,10 +95,11 @@ export const palette = {
   },
   dark: {
     primary: ramp.blue[500],
-    primaryDark: ramp.blue[600],
+    primaryDark: ramp.navy[700],
     primaryLight: "#1E3A5F",
     primarySoft: "#172554",
     onPrimary: ramp.white,
+    brandNavy: ramp.navy[900],
 
     secondary: ramp.green[400],
     success: ramp.green[400],

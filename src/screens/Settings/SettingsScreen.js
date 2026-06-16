@@ -63,12 +63,12 @@ export default function SettingsScreen({ navigation }) {
     },
     {
       label: "About",
-      subtitle: "Water Purifier CRM v1.0.0",
+      subtitle: "ClientTrack v1.0.0",
       icon: "information-outline",
       onPress: () =>
         Alert.alert(
           "About",
-          "Water Purifier CRM\nVersion 1.0.0\n\nA simple CRM to manage customers, services and bills."
+          "ClientTrack\nVersion 1.0.0\n\nA simple CRM to manage customers, services and bills."
         ),
     },
     {

@@ -2,13 +2,13 @@ import React, { useState } from "react";
 import {
   View,
   Text,
+  Image,
   StyleSheet,
   Alert,
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
 } from "react-native";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { authAPI } from "../../services/api";
 import { supabase } from "../../services/supabase";
 import { useTheme } from "../../context/ThemeContext";
@@ -16,7 +16,7 @@ import { Button, Card, Input } from "../../components/ui";
 import { isRequired, isEmail } from "../../utils/validators";
 
 export default function LoginScreen({ navigation }) {
-  const { colors, elevation } = useTheme();
+  const { colors } = useTheme();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState({});
@@ -73,20 +73,13 @@ export default function LoginScreen({ navigation }) {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <View style={styles.header}>
-        <View
-          style={[
-            styles.iconBadge,
-            { backgroundColor: colors.primary },
-            elevation("lg"),
-          ]}
-        >
-          <MaterialCommunityIcons name="water" size={36} color={colors.onPrimary} />
-        </View>
-        <Text style={[styles.title, { color: colors.primary }]}>
-          Water Purifier CRM
-        </Text>
+        <Image
+          source={require("../../../assets/logo.png")}
+          style={styles.logo}
+          resizeMode="contain"
+        />
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          Manage your services effortlessly
+          Manage your clients effortlessly
         </Text>
       </View>
 
@@ -150,20 +143,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 32,
   },
-  iconBadge: {
-    width: 72,
-    height: 72,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "800",
-    letterSpacing: -0.3,
-    marginBottom: 6,
-    textAlign: "center",
+  logo: {
+    width: 180,
+    height: 180,
+    marginBottom: 4,
   },
   subtitle: {
     fontSize: 15,

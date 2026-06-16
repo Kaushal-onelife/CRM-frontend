@@ -2,6 +2,7 @@ import React from "react";
 import { View, Text, ScrollView, StyleSheet, RefreshControl } from "react-native";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useQuery } from "@tanstack/react-query";
 import { dashboardAPI, reminderAPI } from "../../services/api";
 import ServiceCard from "../../components/ServiceCard";
@@ -15,6 +16,14 @@ const formatMoney = (n) => {
 const formatCount = (n) => {
   const num = Number(n);
   return Number.isFinite(num) ? String(num) : "0";
+};
+
+// Time-aware greeting for a friendlier, more personal dashboard.
+const greeting = () => {
+  const h = new Date().getHours();
+  if (h < 12) return "Good morning";
+  if (h < 17) return "Good afternoon";
+  return "Good evening";
 };
 
 // Small stat tile — colored icon chip + value + label. Replaces the old StatCard.
@@ -137,36 +146,46 @@ export default function DashboardScreen({ navigation }) {
         />
       }
     >
-      {/* Friendly greeting */}
+      {/* Friendly, time-aware greeting */}
       <Animated.View entering={FadeIn.duration(300)}>
         <Text style={{ color: colors.textSecondary, fontSize: 14, marginTop: 8 }}>
-          Welcome back 👋
+          {greeting()} 👋
         </Text>
         <Text style={{ color: colors.text, fontSize: 26, fontWeight: "800", letterSpacing: -0.5 }}>
           Dashboard
         </Text>
       </Animated.View>
 
-      {/* Hero: revenue this month */}
+      {/* Hero: revenue this month — brand navy→blue gradient (matches logo) */}
       <Animated.View entering={FadeInDown.delay(60).duration(400)} style={{ marginTop: 16 }}>
-        <View
-          style={[
-            {
-              borderRadius: 18,
-              padding: 18,
-              backgroundColor: colors.primary,
-              overflow: "hidden",
-            },
-            elevation("lg"),
-          ]}
+        <LinearGradient
+          colors={[colors.brandNavy, colors.primary]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[{ borderRadius: 18, padding: 18, overflow: "hidden" }, elevation("lg")]}
         >
-          <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 13, fontWeight: "500" }}>
-            Revenue this month
-          </Text>
-          <Text style={{ color: "#fff", fontSize: 32, fontWeight: "800", marginTop: 4 }}>
+          {/* Subtle decorative circle for depth */}
+          <View
+            style={{
+              position: "absolute",
+              top: -40,
+              right: -30,
+              width: 130,
+              height: 130,
+              borderRadius: 65,
+              backgroundColor: "rgba(255,255,255,0.08)",
+            }}
+          />
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <MaterialCommunityIcons name="trending-up" size={16} color="rgba(255,255,255,0.85)" />
+            <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 13, fontWeight: "500", marginLeft: 6 }}>
+              Revenue this month
+            </Text>
+          </View>
+          <Text style={{ color: "#fff", fontSize: 34, fontWeight: "800", marginTop: 4 }}>
             {formatMoney(stats.monthly_revenue)}
           </Text>
-          <View style={{ flexDirection: "row", marginTop: 12, alignItems: "center" }}>
+          <View style={{ flexDirection: "row", marginTop: 14, alignItems: "center" }}>
             <Badge
               label={`${formatCount(stats.completed_this_month)} completed`}
               color="#fff"
@@ -181,7 +200,7 @@ export default function DashboardScreen({ navigation }) {
               size="sm"
             />
           </View>
-        </View>
+        </LinearGradient>
       </Animated.View>
 
       {/* Reminders alert — only when something needs outreach */}
