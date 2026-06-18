@@ -15,6 +15,7 @@ import { useQuery } from "@tanstack/react-query";
 import { inventoryAPI } from "../../services/api";
 import { requireOnline } from "../../hooks/useRequireOnline";
 import { useTheme } from "../../context/ThemeContext";
+import { confirm } from "../../utils/confirm";
 import { Button, Card, Badge, Input, EmptyState, SkeletonList } from "../../components/ui";
 import {
   isRequired,
@@ -131,14 +132,13 @@ export default function InventoryScreen() {
     if (unitPrice > 0 && costPrice > unitPrice) {
       // Warn but don't block — sometimes a part is sold at a loss intentionally
       const proceed = await new Promise((resolve) => {
-        Alert.alert(
-          "Cost exceeds price",
-          `Cost (₹${costPrice}) is higher than selling price (₹${unitPrice}). Save anyway?`,
-          [
-            { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
-            { text: "Save", onPress: () => resolve(true) },
-          ]
-        );
+        confirm({
+          title: "Cost exceeds price",
+          message: `Cost (₹${costPrice}) is higher than selling price (₹${unitPrice}). Save anyway?`,
+          confirmText: "Save",
+          onConfirm: () => resolve(true),
+          onCancel: () => resolve(false),
+        });
       });
       if (!proceed) return;
     }
@@ -171,24 +171,23 @@ export default function InventoryScreen() {
   const handleDelete = (part) => {
     if (deletingId) return;
     if (!requireOnline()) return;
-    Alert.alert("Delete Part", `Delete "${part.name}" from inventory?`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          setDeletingId(part.id);
-          try {
-            await inventoryAPI.delete(part.id);
-            await refetch();
-          } catch (error) {
-            Alert.alert("Error", error.message);
-          } finally {
-            setDeletingId(null);
-          }
-        },
+    confirm({
+      title: "Delete Part",
+      message: `Delete "${part.name}" from inventory?`,
+      confirmText: "Delete",
+      destructive: true,
+      onConfirm: async () => {
+        setDeletingId(part.id);
+        try {
+          await inventoryAPI.delete(part.id);
+          await refetch();
+        } catch (error) {
+          Alert.alert("Error", error.message);
+        } finally {
+          setDeletingId(null);
+        }
       },
-    ]);
+    });
   };
 
   const renderPart = ({ item }) => {

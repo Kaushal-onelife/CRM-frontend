@@ -13,6 +13,7 @@ import { amcAPI } from "../../services/api";
 import { requireOnline } from "../../hooks/useRequireOnline";
 import { Card, Badge, Button, EmptyState, Skeleton } from "../../components/ui";
 import { useTheme } from "../../context/ThemeContext";
+import { confirm } from "../../utils/confirm";
 
 const formatMoney = (n) => {
   const num = Number(n);
@@ -273,20 +274,19 @@ export default function AMCDetailScreen({ route, navigation }) {
             icon="cash-check"
             onPress={() => {
               if (!requireOnline()) return;
-              Alert.alert("Mark Paid", "Mark this AMC as paid?", [
-                { text: "Cancel", style: "cancel" },
-                {
-                  text: "Confirm",
-                  onPress: async () => {
-                    try {
-                      await amcAPI.update(id, { payment_status: "paid" });
-                      refetch();
-                    } catch (error) {
-                      Alert.alert("Error", error.message);
-                    }
-                  },
+              confirm({
+                title: "Mark Paid",
+                message: "Mark this AMC as paid?",
+                confirmText: "Confirm",
+                onConfirm: async () => {
+                  try {
+                    await amcAPI.update(id, { payment_status: "paid" });
+                    refetch();
+                  } catch (error) {
+                    Alert.alert("Error", error.message);
+                  }
                 },
-              ]);
+              });
             }}
           />
         )}

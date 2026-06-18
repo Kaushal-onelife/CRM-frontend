@@ -3,19 +3,24 @@ import {
   View,
   Text,
   TouchableOpacity,
+  Image,
   StyleSheet,
   Alert,
   ScrollView,
   Switch,
+  ActivityIndicator,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { supabase } from "../../services/supabase";
 import { useTheme } from "../../context/ThemeContext";
 import { Button, Card } from "../../components/ui";
+import { confirm } from "../../utils/confirm";
+import { pickAvatar, uploadAvatar } from "../../utils/avatar";
 
 export default function SettingsScreen({ navigation }) {
   const { colors, theme, isDark, toggleTheme, elevation } = useTheme();
   const [user, setUser] = useState(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   useEffect(() => {
     fetchProfile();
@@ -41,17 +46,46 @@ export default function SettingsScreen({ navigation }) {
     }
   };
 
+  const handleChangeAvatar = async () => {
+    try {
+      const picked = await pickAvatar();
+      if (!picked) return; // cancelled
+      if (!user?.id) return;
+
+      setUploadingAvatar(true);
+      const url = await uploadAvatar(user.id, picked.base64, picked.mime);
+
+      // Save the URL on the user row.
+      const { error } = await supabase
+        .from("users")
+        .update({ avatar_url: url })
+        .eq("id", user.id);
+      if (error) throw new Error(error.message);
+
+      setUser((prev) => ({ ...prev, avatar_url: url }));
+    } catch (e) {
+      Alert.alert("Couldn't update photo", e.message || "Please try again.");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
   const handleLogout = () => {
-    Alert.alert("Logout", "Are you sure you want to logout?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Logout",
-        style: "destructive",
-        onPress: async () => {
-          await supabase.auth.signOut();
-        },
+    confirm({
+      title: "Logout",
+      message: "Are you sure you want to logout?",
+      confirmText: "Logout",
+      destructive: true,
+      onConfirm: async () => {
+        // Local scope clears the stored session immediately without a network
+        // round-trip; onAuthStateChange then fires SIGNED_OUT -> navigates to Login.
+        try {
+          await supabase.auth.signOut({ scope: "local" });
+        } catch (e) {
+          await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+        }
       },
-    ]);
+    });
   };
 
   const menuItems = [
@@ -87,16 +121,38 @@ export default function SettingsScreen({ navigation }) {
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Profile */}
       <View style={styles.profileWrap}>
-        <View
-          style={[
-            styles.avatar,
-            { backgroundColor: colors.primaryLight },
-          ]}
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={handleChangeAvatar}
+          disabled={uploadingAvatar || !user}
+          style={styles.avatarWrap}
         >
-          <Text style={[styles.avatarText, { color: colors.primary }]}>
-            {user?.name?.charAt(0)?.toUpperCase() || "?"}
-          </Text>
-        </View>
+          {user?.avatar_url ? (
+            <Image
+              source={{ uri: user.avatar_url }}
+              style={[styles.avatar, { backgroundColor: colors.primaryLight }]}
+            />
+          ) : (
+            <View style={[styles.avatar, { backgroundColor: colors.primaryLight }]}>
+              <Text style={[styles.avatarText, { color: colors.primary }]}>
+                {user?.name?.charAt(0)?.toUpperCase() || "?"}
+              </Text>
+            </View>
+          )}
+
+          {/* Loading overlay while uploading */}
+          {uploadingAvatar && (
+            <View style={[styles.avatar, styles.avatarOverlay]}>
+              <ActivityIndicator color="#fff" />
+            </View>
+          )}
+
+          {/* Camera badge cue */}
+          <View style={[styles.cameraBadge, { backgroundColor: colors.primary, borderColor: colors.background }]}>
+            <MaterialCommunityIcons name="camera" size={14} color={colors.onPrimary} />
+          </View>
+        </TouchableOpacity>
+
         <Text style={[styles.name, { color: colors.text }]}>
           {user?.name || "Loading..."}
         </Text>
@@ -228,15 +284,34 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 30,
   },
-  avatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    justifyContent: "center",
-    alignItems: "center",
+  avatarWrap: {
     marginBottom: 12,
   },
-  avatarText: { fontSize: 28, fontWeight: "700" },
+  avatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  avatarOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    backgroundColor: "rgba(0,0,0,0.4)",
+  },
+  cameraBadge: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+  },
+  avatarText: { fontSize: 30, fontWeight: "700" },
   name: { fontSize: 20, fontWeight: "700", letterSpacing: -0.2 },
   role: {
     fontSize: 15,

@@ -20,10 +20,20 @@ async function getAuthHeaders() {
 
 async function apiCall(endpoint, options = {}) {
   const headers = await getAuthHeaders();
-  const response = await fetch(`${API_URL}${endpoint}`, {
-    ...options,
-    headers: { ...headers, ...options.headers },
-  });
+
+  let response;
+  try {
+    response = await fetch(`${API_URL}${endpoint}`, {
+      ...options,
+      headers: { ...headers, ...options.headers },
+    });
+  } catch (e) {
+    // fetch() throws a TypeError when the device is offline / server unreachable.
+    // Tag it so React Query can skip retries and the UI can fall back to cache.
+    const err = new Error("You appear to be offline. Showing saved data where available.");
+    err.isNetworkError = true;
+    throw err;
+  }
 
   const data = await response.json().catch(() => ({}));
 

@@ -15,6 +15,7 @@ import { requireOnline } from "../../hooks/useRequireOnline";
 import DatePickerField from "../../components/DatePickerField";
 import { Card, Badge, Button, EmptyState, Skeleton } from "../../components/ui";
 import { useTheme } from "../../context/ThemeContext";
+import { confirm } from "../../utils/confirm";
 
 // Helper to determine display status for 'scheduled' services
 function getDisplayStatus(service) {
@@ -306,14 +307,13 @@ export default function ServiceDetailScreen({ route, navigation }) {
             loading={actionInFlight === "rejected"}
             disabled={!!actionInFlight}
             onPress={() =>
-              Alert.alert("Reject Service", "Are you sure?", [
-                { text: "Cancel", style: "cancel" },
-                {
-                  text: "Reject",
-                  style: "destructive",
-                  onPress: () => handleStatusChange("rejected"),
-                },
-              ])
+              confirm({
+                title: "Reject Service",
+                message: "Are you sure?",
+                confirmText: "Reject",
+                destructive: true,
+                onConfirm: () => handleStatusChange("rejected"),
+              })
             }
           />
         </Animated.View>

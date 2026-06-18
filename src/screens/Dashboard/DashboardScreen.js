@@ -4,7 +4,8 @@ import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useQuery } from "@tanstack/react-query";
-import { dashboardAPI, reminderAPI } from "../../services/api";
+import { dashboardAPI } from "../../services/api";
+import { useProfile } from "../../hooks/useProfile";
 import ServiceCard from "../../components/ServiceCard";
 import { Card, Badge, EmptyState, SkeletonList, Skeleton } from "../../components/ui";
 import { useTheme } from "../../context/ThemeContext";
@@ -92,12 +93,8 @@ export default function DashboardScreen({ navigation }) {
     queryFn: () => dashboardAPI.get(),
   });
 
-  // Reminder count — shares the ["reminders"] cache with the Reminders screen.
-  const { data: reminders } = useQuery({
-    queryKey: ["reminders"],
-    queryFn: () => reminderAPI.get(),
-  });
-  const reminderCount = reminders?.counts?.total || 0;
+  // User profile for the personalized greeting (shared ["profile"] cache).
+  const { data: profile } = useProfile();
 
   const goToService = (service) =>
     navigation.navigate("Services", { screen: "ServiceDetail", params: { id: service.id } });
@@ -146,13 +143,13 @@ export default function DashboardScreen({ navigation }) {
         />
       }
     >
-      {/* Friendly, time-aware greeting */}
+      {/* Friendly, time-aware greeting — personalized with the user's name */}
       <Animated.View entering={FadeIn.duration(300)}>
         <Text style={{ color: colors.textSecondary, fontSize: 14, marginTop: 8 }}>
           {greeting()} 👋
         </Text>
         <Text style={{ color: colors.text, fontSize: 26, fontWeight: "800", letterSpacing: -0.5 }}>
-          Dashboard
+          {profile?.name || "Welcome"}
         </Text>
       </Animated.View>
 
@@ -202,28 +199,6 @@ export default function DashboardScreen({ navigation }) {
           </View>
         </LinearGradient>
       </Animated.View>
-
-      {/* Reminders alert — only when something needs outreach */}
-      {reminderCount > 0 && (
-        <Animated.View entering={FadeInDown.delay(90).duration(400)} style={{ marginTop: 12 }}>
-          <Card
-            onPress={() => navigation.navigate("More", { screen: "Reminders" })}
-            haptic
-            style={{ flexDirection: "row", alignItems: "center", backgroundColor: colors.warningSoft }}
-          >
-            <MaterialCommunityIcons name="bell-ring-outline" size={22} color={colors.warning} />
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={{ color: colors.text, fontSize: 15, fontWeight: "700" }}>
-                {reminderCount} customer{reminderCount === 1 ? "" : "s"} need a reminder
-              </Text>
-              <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 1 }}>
-                Service due, overdue, or AMC expiring
-              </Text>
-            </View>
-            <MaterialCommunityIcons name="chevron-right" size={22} color={colors.textMuted} />
-          </Card>
-        </Animated.View>
-      )}
 
       {/* Stat grid */}
       <View style={styles.grid}>

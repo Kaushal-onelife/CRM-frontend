@@ -6,6 +6,7 @@ import {
   DarkTheme,
 } from "@react-navigation/native";
 import { supabase } from "../services/supabase";
+import { queryClient } from "../services/queryClient";
 import AuthNavigator from "./AuthNavigator";
 import AppNavigator from "./AppNavigator";
 import { useTheme } from "../context/ThemeContext";
@@ -30,8 +31,20 @@ export default function RootNavigator() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      // Only drop to the login screen on an explicit sign-out. A null session
+      // from a failed token refresh while OFFLINE must NOT log the user out —
+      // otherwise they get stranded at Login (which needs network) and lose
+      // access to their cached/offline data.
+      if (event === "SIGNED_OUT") {
+        setSession(null);
+        // Clear cached data so the next user can't see the previous user's
+        // persisted queries (the offline cache survives across sessions).
+        queryClient.clear();
+      } else if (session) {
+        setSession(session);
+      }
+      // else: keep the existing session (transient offline refresh failure)
     });
 
     return () => subscription.unsubscribe();

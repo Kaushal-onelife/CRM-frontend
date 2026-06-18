@@ -16,6 +16,7 @@ import { requireOnline } from "../../hooks/useRequireOnline";
 import ServiceCard from "../../components/ServiceCard";
 import { Card, Button, EmptyState, Skeleton } from "../../components/ui";
 import { useTheme } from "../../context/ThemeContext";
+import { confirm } from "../../utils/confirm";
 
 export default function CustomerDetailScreen({ route, navigation }) {
   const { colors, radius, elevation } = useTheme();
@@ -57,27 +58,22 @@ export default function CustomerDetailScreen({ route, navigation }) {
   const handleDelete = () => {
     if (deleting) return;
     if (!requireOnline()) return;
-    Alert.alert(
-      "Delete Customer",
-      `Are you sure you want to delete ${customer.name}? This cannot be undone.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            setDeleting(true);
-            try {
-              await customerAPI.delete(id);
-              navigation.goBack();
-            } catch (error) {
-              Alert.alert("Error", error.message);
-              setDeleting(false);
-            }
-          },
-        },
-      ]
-    );
+    confirm({
+      title: "Delete Customer",
+      message: `Are you sure you want to delete ${customer.name}? This cannot be undone.`,
+      confirmText: "Delete",
+      destructive: true,
+      onConfirm: async () => {
+        setDeleting(true);
+        try {
+          await customerAPI.delete(id);
+          navigation.goBack();
+        } catch (error) {
+          Alert.alert("Error", error.message);
+          setDeleting(false);
+        }
+      },
+    });
   };
 
   // ── Loading: skeleton blocks instead of a blank spinner ──

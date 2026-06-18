@@ -26,6 +26,7 @@ import InventoryScreen from "../screens/Inventory/InventoryScreen";
 import SettingsScreen from "../screens/Settings/SettingsScreen";
 import MoreScreen from "../screens/More/MoreScreen";
 import RemindersScreen from "../screens/Reminders/RemindersScreen";
+import DashboardHeaderRight from "../components/DashboardHeaderRight";
 
 const Tab = createBottomTabNavigator();
 const CustomerStack = createNativeStackNavigator();
@@ -204,15 +205,16 @@ export default function AppNavigator() {
       <Tab.Screen
         name="Dashboard"
         component={DashboardScreen}
-        options={{
+        options={({ navigation }) => ({
           headerShown: true,
           headerTitle: "ClientTrack",
           headerStyle: { backgroundColor: colors.card },
           headerTitleStyle: { fontWeight: "700", color: colors.text },
           headerTintColor: colors.text,
           headerShadowVisible: false,
+          headerRight: () => <DashboardHeaderRight navigation={navigation} />,
           tabBarLabel: "Home",
-        }}
+        })}
       />
       <Tab.Screen
         name="Customers"

@@ -11,10 +11,13 @@ export const queryClient = new QueryClient({
       staleTime: 60 * 1000,
       // Hold cached data for 7 days so it survives restarts and long offline gaps.
       gcTime: 7 * 24 * 60 * 60 * 1000,
-      // Retry a couple of times on flaky signal, then fall back to cache.
-      retry: 2,
-      // Don't auto-refetch the moment the screen mounts if we already have cache;
-      // the persisted data shows instantly, then refreshes per staleTime.
+      // Don't retry true offline errors (they won't recover in the retry window —
+      // we want the persisted cache shown instantly). Retry other failures once.
+      retry: (failureCount, error) => {
+        if (error?.isNetworkError) return false;
+        return failureCount < 1;
+      },
+      // Auto-refetch when connectivity returns.
       refetchOnReconnect: true,
       networkMode: "offlineFirst", // serve cache when offline instead of erroring
     },
