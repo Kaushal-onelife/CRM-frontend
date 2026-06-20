@@ -8,7 +8,7 @@ import {
   Linking,
 } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { serviceAPI } from "../../services/api";
 import { requireOnline } from "../../hooks/useRequireOnline";
@@ -36,6 +36,7 @@ const STATUS_PRESET = {
 
 export default function ServiceDetailScreen({ route, navigation }) {
   const { colors, spacing, radius } = useTheme();
+  const queryClient = useQueryClient();
   const { id } = route.params;
   const [nextContactDate, setNextContactDate] = useState("");
   const [showFollowupForm, setShowFollowupForm] = useState(false);
@@ -60,6 +61,11 @@ export default function ServiceDetailScreen({ route, navigation }) {
     try {
       await serviceAPI.update(id, { status: newStatus, ...extraData });
       await refetch();
+      // Also refresh the list/dashboard/reminders so the status change shows there too.
+      queryClient.invalidateQueries({ queryKey: ["services"] });
+      queryClient.invalidateQueries({ queryKey: ["service", id] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["reminders"] });
     } catch (error) {
       Alert.alert("Error", error.message);
     } finally {

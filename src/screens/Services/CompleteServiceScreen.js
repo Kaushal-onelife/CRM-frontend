@@ -10,6 +10,7 @@ import {
   Platform,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import { useQueryClient } from "@tanstack/react-query";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { serviceAPI } from "../../services/api";
 import { requireOnline } from "../../hooks/useRequireOnline";
@@ -39,6 +40,7 @@ function addMonths(dateStr, months) {
 
 export default function CompleteServiceScreen({ route, navigation }) {
   const { colors, spacing, radius } = useTheme();
+  const queryClient = useQueryClient();
   const serviceId = route.params?.id;
   const [service, setService] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -200,6 +202,12 @@ export default function CompleteServiceScreen({ route, navigation }) {
         payment_status: paymentStatus,
         payment_method: paymentStatus === "paid" ? paymentMethod : null,
       });
+
+      // Completing a service can generate a bill and changes the dashboard/reminders.
+      queryClient.invalidateQueries({ queryKey: ["services"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["reminders"] });
+      queryClient.invalidateQueries({ queryKey: ["bills"] });
 
       navigation.replace("ServiceSuccess", {
         serviceId,

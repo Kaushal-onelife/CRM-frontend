@@ -8,7 +8,7 @@ import {
   Alert,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { amcAPI } from "../../services/api";
 import { requireOnline } from "../../hooks/useRequireOnline";
 import { Card, Badge, Button, EmptyState, Skeleton } from "../../components/ui";
@@ -22,6 +22,7 @@ const formatMoney = (n) => {
 
 export default function AMCDetailScreen({ route, navigation }) {
   const { colors, elevation } = useTheme();
+  const queryClient = useQueryClient();
   const { id } = route.params;
 
   // Cache-first: persisted contract shows instantly (incl. offline), then refreshes.
@@ -282,6 +283,9 @@ export default function AMCDetailScreen({ route, navigation }) {
                   try {
                     await amcAPI.update(id, { payment_status: "paid" });
                     refetch();
+                    // Also refresh the AMC list and dashboard so the paid status shows there.
+                    queryClient.invalidateQueries({ queryKey: ["amc"] });
+                    queryClient.invalidateQueries({ queryKey: ["dashboard"] });
                   } catch (error) {
                     Alert.alert("Error", error.message);
                   }

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { View, StyleSheet, ScrollView, Alert } from "react-native";
+import { useQueryClient } from "@tanstack/react-query";
 import { customerAPI } from "../../services/api";
 import { requireOnline } from "../../hooks/useRequireOnline";
 import { Input, Button } from "../../components/ui";
@@ -76,6 +77,7 @@ function validateField(key, value) {
 
 export default function EditCustomerScreen({ route, navigation }) {
   const { colors } = useTheme();
+  const queryClient = useQueryClient();
   const { id, customer } = route.params;
   // Preserve existing prefill from the passed-in customer record.
   const [form, setForm] = useState({ ...customer });
@@ -118,6 +120,9 @@ export default function EditCustomerScreen({ route, navigation }) {
     setLoading(true);
     try {
       await customerAPI.update(id, cleaned);
+      // Refresh the list and this customer's detail so the edit shows immediately.
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      queryClient.invalidateQueries({ queryKey: ["customer", id] });
       Alert.alert("Success", "Customer updated successfully");
       navigation.goBack();
     } catch (error) {

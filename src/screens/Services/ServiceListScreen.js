@@ -37,9 +37,10 @@ const FILTER_LABELS = {
   rejected: "Rejected",
 };
 
-export default function ServiceListScreen({ navigation }) {
+export default function ServiceListScreen({ navigation, route }) {
   const { colors, spacing, radius, elevation } = useTheme();
-  const [activeFilter, setActiveFilter] = useState("all");
+  // An initial filter can be passed in (e.g. tapping a Dashboard stat card).
+  const [activeFilter, setActiveFilter] = useState(route?.params?.filter || "all");
   // Pages beyond the first are appended here; the first page comes from useQuery.
   const [extraServices, setExtraServices] = useState([]);
   const [page, setPage] = useState(1);

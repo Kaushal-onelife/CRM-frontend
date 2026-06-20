@@ -8,6 +8,7 @@ import {
   Alert,
   ActivityIndicator,
 } from "react-native";
+import { useQueryClient } from "@tanstack/react-query";
 import { customerAPI, serviceAPI } from "../../services/api";
 import { requireOnline } from "../../hooks/useRequireOnline";
 import DatePickerField from "../../components/DatePickerField";
@@ -30,6 +31,7 @@ const SERVICE_TYPES = [
 
 export default function AddServiceScreen({ navigation, route }) {
   const { colors, spacing, radius } = useTheme();
+  const queryClient = useQueryClient();
   const preselectedCustomerId = route.params?.customerId;
   const [customers, setCustomers] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState(
@@ -95,6 +97,10 @@ export default function AddServiceScreen({ navigation, route }) {
         amount: amount ? parseFloat(amount) : 0,
         notes: trimmedNotes,
       });
+      // Refresh the lists this new service affects so it shows immediately.
+      queryClient.invalidateQueries({ queryKey: ["services"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["reminders"] });
       Alert.alert("Success", "Service scheduled successfully");
       navigation.goBack();
     } catch (error) {

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { View, StyleSheet, ScrollView, Alert } from "react-native";
+import { useQueryClient } from "@tanstack/react-query";
 import { customerAPI } from "../../services/api";
 import { requireOnline } from "../../hooks/useRequireOnline";
 import { Input, Button } from "../../components/ui";
@@ -77,6 +78,7 @@ function validateField(key, value) {
 
 export default function AddCustomerScreen({ navigation }) {
   const { colors } = useTheme();
+  const queryClient = useQueryClient();
   const [form, setForm] = useState({});
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -106,6 +108,10 @@ export default function AddCustomerScreen({ navigation }) {
     setLoading(true);
     try {
       await customerAPI.create(trimAll(form));
+      // Refresh the lists this new customer affects so it shows immediately.
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["reminders"] });
       Alert.alert("Success", "Customer added successfully");
       navigation.goBack();
     } catch (error) {

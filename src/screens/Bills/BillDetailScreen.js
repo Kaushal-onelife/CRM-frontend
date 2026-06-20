@@ -5,12 +5,17 @@ import {
   ScrollView,
   StyleSheet,
   Alert,
-  Share,
+  Platform,
 } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import * as Print from "expo-print";
+import * as Sharing from "expo-sharing";
 import { billAPI } from "../../services/api";
 import { requireOnline } from "../../hooks/useRequireOnline";
+import { useProfile } from "../../hooks/useProfile";
+import { buildInvoiceHtml } from "../../utils/invoiceTemplate";
+import { LOGO_DATA_URI } from "../../theme/logoDataUri";
 import { Button, Card, Badge, EmptyState, Skeleton } from "../../components/ui";
 import { useTheme } from "../../context/ThemeContext";
 
@@ -21,7 +26,9 @@ const formatMoney = (n) => {
 
 export default function BillDetailScreen({ route, navigation }) {
   const { colors } = useTheme();
+  const queryClient = useQueryClient();
   const { id } = route.params;
+  const { data: profile } = useProfile();
   const [payingMethod, setPayingMethod] = useState(null);
   const [confirmingMethod, setConfirmingMethod] = useState(null);
 
@@ -56,6 +63,10 @@ export default function BillDetailScreen({ route, navigation }) {
     try {
       await billAPI.markPaid(id, { payment_method: method });
       await refetch();
+      // Also refresh the bills list and dashboard so the paid status shows there.
+      queryClient.invalidateQueries({ queryKey: ["bills"] });
+      queryClient.invalidateQueries({ queryKey: ["bill", id] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     } catch (err) {
       Alert.alert("Error", err.message);
     } finally {
@@ -63,42 +74,44 @@ export default function BillDetailScreen({ route, navigation }) {
     }
   };
 
-  const handleShareBill = async () => {
-    if (!bill) return;
+  const [generating, setGenerating] = useState(false);
 
-    const itemLines = (bill.bill_items || [])
-      .map(
-        (item) =>
-          `  ${item.description} x${item.quantity} = ₹${item.total}`
-      )
-      .join("\n");
-
-    const message = `
---- INVOICE ---
-Bill No: ${bill.bill_number}
-Date: ${new Date(bill.created_at).toLocaleDateString()}
-
-Customer: ${bill.customers?.name}
-Phone: ${bill.customers?.phone}
-
-Items:
-${itemLines}
-
-Subtotal: ₹${bill.amount}
-Tax: ₹${bill.tax}
-━━━━━━━━━━━━━━
-Total: ₹${bill.total}
-
-Payment: ${bill.payment_status.toUpperCase()}
-${bill.payment_method ? `Method: ${bill.payment_method}` : ""}
----
-    `.trim();
-
+  const handleSharePdf = async () => {
+    if (!bill || generating) return;
+    setGenerating(true);
     try {
-      await Share.share({ message });
+      const html = buildInvoiceHtml(
+        bill,
+        {
+          business_name: profile?.tenants?.business_name,
+          address: profile?.tenants?.address,
+          phone: profile?.tenants?.phone,
+          email: profile?.tenants?.email,
+        },
+        LOGO_DATA_URI
+      );
+
+      // Web has no native share sheet: open the browser print dialog so the user
+      // can "Save as PDF" / print directly. Native: render a file + share sheet.
+      if (Platform.OS === "web") {
+        await Print.printAsync({ html });
+      } else {
+        const { uri } = await Print.printToFileAsync({ html });
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(uri, {
+            mimeType: "application/pdf",
+            dialogTitle: `Invoice ${bill.bill_number}`,
+            UTI: "com.adobe.pdf",
+          });
+        } else {
+          Alert.alert("Saved", `PDF generated at: ${uri}`);
+        }
+      }
     } catch (err) {
       console.error(err);
-      Alert.alert("Couldn't share bill", err?.message || "Please try again.");
+      Alert.alert("Couldn't generate PDF", err?.message || "Please try again.");
+    } finally {
+      setGenerating(false);
     }
   };
 
@@ -261,10 +274,11 @@ ${bill.payment_method ? `Method: ${bill.payment_method}` : ""}
       {/* Actions */}
       <Animated.View entering={FadeInDown.delay(200).duration(300)}>
         <Button
-          title="Share Bill"
-          icon="share-variant"
+          title="Share PDF Invoice"
+          icon="file-pdf-box"
           variant="secondary"
-          onPress={handleShareBill}
+          loading={generating}
+          onPress={handleSharePdf}
         />
 
         {!isPaid ? (

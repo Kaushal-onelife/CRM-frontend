@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, ScrollView, StyleSheet, RefreshControl } from "react-native";
+import { View, Text, ScrollView, StyleSheet, RefreshControl, Pressable } from "react-native";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -27,21 +27,23 @@ const greeting = () => {
   return "Good evening";
 };
 
-// Small stat tile — colored icon chip + value + label. Replaces the old StatCard.
-function Stat({ icon, label, value, color, index }) {
+// Small stat tile — colored icon chip + value + label. Tappable when given onPress.
+function Stat({ icon, label, value, color, index, onPress }) {
   const { colors, radius, elevation } = useTheme();
   return (
     <Animated.View
       entering={FadeInDown.delay(100 + index * 60).duration(350)}
       style={{ width: "47%" }}
     >
-      <View
-        style={[
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [
           {
             backgroundColor: colors.card,
             borderRadius: radius.lg,
             padding: 14,
             marginBottom: 12,
+            opacity: pressed ? 0.85 : 1,
           },
           elevation("sm"),
         ]}
@@ -61,7 +63,7 @@ function Stat({ icon, label, value, color, index }) {
         </View>
         <Text style={{ color: colors.text, fontSize: 20, fontWeight: "800" }}>{value}</Text>
         <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>{label}</Text>
-      </View>
+      </Pressable>
     </Animated.View>
   );
 }
@@ -202,10 +204,38 @@ export default function DashboardScreen({ navigation }) {
 
       {/* Stat grid */}
       <View style={styles.grid}>
-        <Stat index={0} icon="account-group" label="Customers" value={formatCount(stats.total_customers)} color={colors.primary} />
-        <Stat index={1} icon="timer-sand" label="Pending" value={formatCount(stats.pending_services)} color={colors.warning} />
-        <Stat index={2} icon="alert-clock" label="Due" value={formatCount(stats.due_count)} color="#F97316" />
-        <Stat index={3} icon="phone-return-outline" label="Follow Up" value={formatCount(stats.followup_services)} color={colors.accent} />
+        <Stat
+          index={0}
+          icon="account-group"
+          label="Customers"
+          value={formatCount(stats.total_customers)}
+          color={colors.primary}
+          onPress={() => navigation.navigate("Customers", { screen: "CustomerList" })}
+        />
+        <Stat
+          index={1}
+          icon="timer-sand"
+          label="Pending"
+          value={formatCount(stats.pending_services)}
+          color={colors.warning}
+          onPress={() => navigation.navigate("Services", { screen: "ServiceList", params: { filter: "pending" } })}
+        />
+        <Stat
+          index={2}
+          icon="alert-clock"
+          label="Due"
+          value={formatCount(stats.due_count)}
+          color="#F97316"
+          onPress={() => navigation.navigate("Services", { screen: "ServiceList", params: { filter: "due" } })}
+        />
+        <Stat
+          index={3}
+          icon="phone-return-outline"
+          label="Follow Up"
+          value={formatCount(stats.followup_services)}
+          color={colors.accent}
+          onPress={() => navigation.navigate("Services", { screen: "ServiceList", params: { filter: "followup" } })}
+        />
       </View>
 
       {/* Today */}

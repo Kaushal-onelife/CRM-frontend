@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { customerAPI, serviceAPI } from "../../services/api";
 import { requireOnline } from "../../hooks/useRequireOnline";
 import ServiceCard from "../../components/ServiceCard";
@@ -20,6 +20,7 @@ import { confirm } from "../../utils/confirm";
 
 export default function CustomerDetailScreen({ route, navigation }) {
   const { colors, radius, elevation } = useTheme();
+  const queryClient = useQueryClient();
   const { id } = route.params;
   const [deleting, setDeleting] = useState(false);
 
@@ -67,6 +68,9 @@ export default function CustomerDetailScreen({ route, navigation }) {
         setDeleting(true);
         try {
           await customerAPI.delete(id);
+          // Refresh the list and dashboard so the deleted customer disappears.
+          queryClient.invalidateQueries({ queryKey: ["customers"] });
+          queryClient.invalidateQueries({ queryKey: ["dashboard"] });
           navigation.goBack();
         } catch (error) {
           Alert.alert("Error", error.message);

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { View, Text, ScrollView, Alert, Linking } from "react-native";
 import Animated, { FadeInDown, ZoomIn } from "react-native-reanimated";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useQueryClient } from "@tanstack/react-query";
 import { serviceAPI } from "../../services/api";
 import { Card, Button, Badge } from "../../components/ui";
 import { useTheme } from "../../context/ThemeContext";
@@ -13,6 +14,7 @@ const safeNum = (n) => {
 
 export default function ServiceSuccessScreen({ route, navigation }) {
   const { colors, spacing, radius } = useTheme();
+  const queryClient = useQueryClient();
   const params = route.params || {};
   const {
     serviceId,
@@ -40,6 +42,9 @@ export default function ServiceSuccessScreen({ route, navigation }) {
       });
       setBillData(result);
       setBillGenerated(true);
+      // Refresh the bills list and dashboard so the new bill shows immediately.
+      queryClient.invalidateQueries({ queryKey: ["bills"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       Alert.alert("Success", `Bill ${result.bill_number} created!`);
     } catch (error) {
       Alert.alert("Error", error.message);
@@ -59,6 +64,9 @@ export default function ServiceSuccessScreen({ route, navigation }) {
         });
         setBillData(result);
         setBillGenerated(true);
+        // Refresh the bills list and dashboard so the new bill shows immediately.
+        queryClient.invalidateQueries({ queryKey: ["bills"] });
+        queryClient.invalidateQueries({ queryKey: ["dashboard"] });
         sendViaWhatsApp(result);
       } catch (error) {
         Alert.alert("Error", error.message);

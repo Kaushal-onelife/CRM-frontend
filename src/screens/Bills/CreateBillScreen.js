@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useQueryClient } from "@tanstack/react-query";
 import { customerAPI, billAPI } from "../../services/api";
 import { requireOnline } from "../../hooks/useRequireOnline";
 import { Button, Card, Input } from "../../components/ui";
@@ -27,6 +28,7 @@ const formatMoney = (n) => {
 
 export default function CreateBillScreen({ route, navigation }) {
   const { colors, radius } = useTheme();
+  const queryClient = useQueryClient();
   const preCustomerId = route.params?.customerId;
   const preServiceId = route.params?.serviceId;
 
@@ -38,6 +40,8 @@ export default function CreateBillScreen({ route, navigation }) {
     { description: "", quantity: "1", unit_price: "" },
   ]);
   const [tax, setTax] = useState("0");
+  const [paymentStatus, setPaymentStatus] = useState("unpaid"); // 'unpaid' | 'paid'
+  const [paymentMethod, setPaymentMethod] = useState("cash");
   const [loading, setLoading] = useState(false);
   const [searching, setSearching] = useState(false);
   // Errors keyed per line item by index, e.g. itemErrors[0] = { description, quantity, unit_price }.
@@ -177,8 +181,14 @@ export default function CreateBillScreen({ route, navigation }) {
         customer_id: selectedCustomer,
         service_id: preServiceId || null,
         tax: taxValue,
+        payment_status: paymentStatus,
+        payment_method: paymentStatus === "paid" ? paymentMethod : null,
         items: billItems,
       });
+
+      // Refresh the lists that this new bill affects so it shows immediately.
+      queryClient.invalidateQueries({ queryKey: ["bills"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
 
       Alert.alert("Success", `Bill ${result.bill_number} created`);
       navigation.goBack();
@@ -377,6 +387,88 @@ export default function CreateBillScreen({ route, navigation }) {
         style={{ marginTop: 20 }}
       />
 
+      {/* Payment status */}
+      <Text style={[styles.sectionLabel, { color: colors.text, marginTop: 8 }]}>
+        Payment Status
+      </Text>
+      <View style={styles.segment}>
+        {[
+          { key: "unpaid", label: "Unpaid", color: colors.danger },
+          { key: "paid", label: "Paid", color: colors.success },
+        ].map((opt) => {
+          const active = paymentStatus === opt.key;
+          return (
+            <TouchableOpacity
+              key={opt.key}
+              activeOpacity={0.7}
+              onPress={() => setPaymentStatus(opt.key)}
+              style={[
+                styles.segmentBtn,
+                {
+                  backgroundColor: active ? opt.color : colors.card,
+                  borderColor: active ? opt.color : colors.border,
+                  borderRadius: radius.md,
+                },
+              ]}
+            >
+              <MaterialCommunityIcons
+                name={opt.key === "paid" ? "check-circle-outline" : "clock-outline"}
+                size={16}
+                color={active ? colors.onPrimary : colors.textSecondary}
+                style={{ marginRight: 6 }}
+              />
+              <Text
+                style={{
+                  color: active ? colors.onPrimary : colors.textSecondary,
+                  fontWeight: "600",
+                  fontSize: 14,
+                }}
+              >
+                {opt.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {/* Payment method — only when marking paid */}
+      {paymentStatus === "paid" && (
+        <View style={{ marginTop: 12 }}>
+          <Text style={[styles.sectionLabel, { color: colors.text }]}>Payment Method</Text>
+          <View style={styles.methodGrid}>
+            {["cash", "upi", "card", "online"].map((m) => {
+              const active = paymentMethod === m;
+              return (
+                <TouchableOpacity
+                  key={m}
+                  activeOpacity={0.7}
+                  onPress={() => setPaymentMethod(m)}
+                  style={[
+                    styles.methodChip,
+                    {
+                      backgroundColor: active ? colors.primary : colors.card,
+                      borderColor: active ? colors.primary : colors.border,
+                      borderRadius: radius.full,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={{
+                      color: active ? colors.onPrimary : colors.textSecondary,
+                      fontWeight: active ? "600" : "500",
+                      fontSize: 13,
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    {m}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+      )}
+
       {/* Summary */}
       <Card style={{ marginTop: 8 }}>
         <View style={styles.summaryRow}>
@@ -456,4 +548,28 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   divider: { height: 1, marginVertical: 10 },
+  segment: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 8,
+  },
+  segmentBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    height: 44,
+    borderWidth: 1,
+  },
+  methodGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 8,
+  },
+  methodChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderWidth: 1,
+  },
 });

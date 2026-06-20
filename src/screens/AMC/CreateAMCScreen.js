@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Switch,
 } from "react-native";
+import { useQueryClient } from "@tanstack/react-query";
 import { customerAPI, amcAPI } from "../../services/api";
 import { requireOnline } from "../../hooks/useRequireOnline";
 import DatePickerField from "../../components/DatePickerField";
@@ -31,6 +32,7 @@ const PLAN_PRESETS = [
 
 export default function CreateAMCScreen({ route, navigation }) {
   const { colors, radius } = useTheme();
+  const queryClient = useQueryClient();
   const preCustomerId = route.params?.customerId;
   const [customers, setCustomers] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState(preCustomerId || null);
@@ -172,6 +174,11 @@ export default function CreateAMCScreen({ route, navigation }) {
         auto_schedule: autoSchedule,
         notes: trimmedNotes,
       });
+      // Refresh AMC list plus services (auto-schedule), dashboard and reminders.
+      queryClient.invalidateQueries({ queryKey: ["amc"] });
+      queryClient.invalidateQueries({ queryKey: ["services"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["reminders"] });
       Alert.alert("Success", "AMC contract created" + (autoSchedule ? " with scheduled services" : ""));
       navigation.goBack();
     } catch (error) {

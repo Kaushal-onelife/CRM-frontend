@@ -1,4 +1,4 @@
-import { Alert } from "react-native";
+import { Alert, Platform } from "react-native";
 import { onlineManager } from "@tanstack/react-query";
 
 // Guard for write actions while Phase-1 (read-only offline) is in place.
@@ -8,6 +8,17 @@ import { onlineManager } from "@tanstack/react-query";
 export function requireOnline(
   message = "You're offline. Reconnect to the internet to save this."
 ) {
+  // On web, NetInfo connectivity detection is unreliable (often reports offline
+  // even when connected), so don't gate writes there — trust the browser. The
+  // offline guard is meant for the native field-app scenario.
+  if (Platform.OS === "web") {
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      Alert.alert("You're offline", message);
+      return false;
+    }
+    return true;
+  }
+
   if (onlineManager.isOnline()) return true;
   Alert.alert("You're offline", message);
   return false;
