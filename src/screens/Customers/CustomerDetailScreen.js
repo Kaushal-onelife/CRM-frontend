@@ -5,7 +5,6 @@ import {
   ScrollView,
   Pressable,
   StyleSheet,
-  Alert,
   Linking,
 } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
@@ -14,13 +13,14 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { customerAPI, serviceAPI } from "../../services/api";
 import { requireOnline } from "../../hooks/useRequireOnline";
 import ServiceCard from "../../components/ServiceCard";
-import { Card, Button, EmptyState, Skeleton } from "../../components/ui";
+import { Card, Button, EmptyState, Skeleton, useToast } from "../../components/ui";
 import { useTheme } from "../../context/ThemeContext";
 import { confirm } from "../../utils/confirm";
 
 export default function CustomerDetailScreen({ route, navigation }) {
   const { colors, radius, elevation } = useTheme();
   const queryClient = useQueryClient();
+  const toast = useToast();
   const { id } = route.params;
   const [deleting, setDeleting] = useState(false);
 
@@ -73,7 +73,7 @@ export default function CustomerDetailScreen({ route, navigation }) {
           queryClient.invalidateQueries({ queryKey: ["dashboard"] });
           navigation.goBack();
         } catch (error) {
-          Alert.alert("Error", error.message);
+          toast.error(error.message || "Something went wrong");
           setDeleting(false);
         }
       },

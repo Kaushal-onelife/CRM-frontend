@@ -5,20 +5,21 @@ import {
   TouchableOpacity,
   Image,
   StyleSheet,
-  Alert,
   ScrollView,
   Switch,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { supabase } from "../../services/supabase";
 import { useTheme } from "../../context/ThemeContext";
-import { Button, Card } from "../../components/ui";
+import { Button, Card, useToast } from "../../components/ui";
 import { confirm } from "../../utils/confirm";
 import { pickAvatar, uploadAvatar } from "../../utils/avatar";
 
 export default function SettingsScreen({ navigation }) {
   const { colors, theme, isDark, toggleTheme, elevation } = useTheme();
+  const toast = useToast();
   const [user, setUser] = useState(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
@@ -42,7 +43,7 @@ export default function SettingsScreen({ navigation }) {
         setUser(data);
       }
     } catch (error) {
-      Alert.alert("Error", "Failed to load profile");
+      toast.error("Failed to load profile");
     }
   };
 
@@ -64,7 +65,7 @@ export default function SettingsScreen({ navigation }) {
 
       setUser((prev) => ({ ...prev, avatar_url: url }));
     } catch (e) {
-      Alert.alert("Couldn't update photo", e.message || "Please try again.");
+      toast.error(e.message || "Couldn't update photo");
     } finally {
       setUploadingAvatar(false);
     }
@@ -99,6 +100,8 @@ export default function SettingsScreen({ navigation }) {
       label: "About",
       subtitle: "ClientTrack v1.0.0",
       icon: "information-outline",
+      // Informational dialog (not a toast) — content the user reads, not a
+      // transient notice.
       onPress: () =>
         Alert.alert(
           "About",

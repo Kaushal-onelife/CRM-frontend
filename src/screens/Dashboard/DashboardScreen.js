@@ -27,7 +27,8 @@ const greeting = () => {
   return "Good evening";
 };
 
-// Small stat tile — colored icon chip + value + label. Tappable when given onPress.
+// Stat tile — value-forward: big number top-left, colored icon chip top-right,
+// label beneath, with a subtle colored left accent bar. Tappable when given onPress.
 function Stat({ icon, label, value, color, index, onPress }) {
   const { colors, radius, elevation } = useTheme();
   return (
@@ -43,27 +44,42 @@ function Stat({ icon, label, value, color, index, onPress }) {
             borderRadius: radius.lg,
             padding: 14,
             marginBottom: 12,
+            overflow: "hidden",
+            borderLeftWidth: 3,
+            borderLeftColor: color,
             opacity: pressed ? 0.85 : 1,
           },
           // Same shadow token as Card / ServiceCard so all boxes read alike.
           elevation("md"),
         ]}
       >
+        {/* Top row: value on the left, icon chip on the right (fills the tile). */}
         <View
           style={{
-            width: 36,
-            height: 36,
-            borderRadius: 10,
-            backgroundColor: `${color}1A`,
+            flexDirection: "row",
             alignItems: "center",
-            justifyContent: "center",
-            marginBottom: 10,
+            justifyContent: "space-between",
           }}
         >
-          <MaterialCommunityIcons name={icon} size={20} color={color} />
+          <Text style={{ color: colors.text, fontSize: 26, fontWeight: "800", letterSpacing: -0.5 }}>
+            {value}
+          </Text>
+          <View
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 10,
+              backgroundColor: `${color}1A`,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <MaterialCommunityIcons name={icon} size={20} color={color} />
+          </View>
         </View>
-        <Text style={{ color: colors.text, fontSize: 20, fontWeight: "800" }}>{value}</Text>
-        <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>{label}</Text>
+        <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: "500", marginTop: 6 }}>
+          {label}
+        </Text>
       </Pressable>
     </Animated.View>
   );
@@ -223,7 +239,7 @@ export default function DashboardScreen({ navigation }) {
         />
         <Stat
           index={2}
-          icon="alert-clock"
+          icon="clock-alert-outline"
           label="Due"
           value={formatCount(stats.due_count)}
           color="#F97316"

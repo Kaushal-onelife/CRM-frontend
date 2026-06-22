@@ -6,13 +6,12 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Alert,
   RefreshControl,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { amcAPI } from "../../services/api";
-import { Card, Badge, EmptyState, SkeletonList } from "../../components/ui";
+import { Card, Badge, EmptyState, SkeletonList, useToast } from "../../components/ui";
 import { useTheme } from "../../context/ThemeContext";
 
 const FILTERS = ["all", "active", "expired"];
@@ -24,6 +23,7 @@ const formatMoney = (n) => {
 
 export default function AMCListScreen({ navigation }) {
   const { colors, elevation } = useTheme();
+  const toast = useToast();
   const [activeFilter, setActiveFilter] = useState("all");
 
   // Helper to build the query params for a given filter + page.
@@ -73,7 +73,7 @@ export default function AMCListScreen({ navigation }) {
       setPage(nextPage);
       setHasMore(newData.length >= 20);
     } catch (e) {
-      Alert.alert("Error", "Failed to load more AMC contracts");
+      toast.error("Failed to load more AMC contracts");
     } finally {
       setLoadingMore(false);
     }

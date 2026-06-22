@@ -14,7 +14,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { customerAPI } from "../../services/api";
-import { Card, EmptyState, SkeletonList } from "../../components/ui";
+import { Card, EmptyState, SkeletonList, useToast } from "../../components/ui";
 import { useTheme } from "../../context/ThemeContext";
 import { downloadCsv, pickCsvText, fileSupported } from "../../utils/fileTransfer";
 
@@ -22,6 +22,7 @@ const PAGE_SIZE = 20;
 
 export default function CustomerListScreen({ navigation }) {
   const { colors, radius, elevation } = useTheme();
+  const toast = useToast();
   const [search, setSearch] = useState("");
   // The actual query term, updated debounced — separate from the input value so
   // typing doesn't refire the query on every keystroke.
@@ -97,7 +98,7 @@ export default function CustomerListScreen({ navigation }) {
       const stamp = new Date().toISOString().split("T")[0];
       downloadCsv(`customers-${stamp}.csv`, csv);
     } catch (err) {
-      Alert.alert("Export failed", err.message || "Could not export customers.");
+      toast.error(err.message || "Could not export customers.");
     }
     setExporting(false);
   };
@@ -126,10 +127,12 @@ export default function CustomerListScreen({ navigation }) {
         if (errors.length > 5) lines.push(`…and ${errors.length - 5} more`);
       }
 
+      // Multi-line import report — show as a dialog the user can read, not a
+      // transient toast.
       Alert.alert("Import complete", lines.join("\n"));
       refetch(); // refresh list
     } catch (err) {
-      Alert.alert("Import failed", err.message || "Could not import customers.");
+      toast.error(err.message || "Could not import customers.");
     }
     setImporting(false);
   };

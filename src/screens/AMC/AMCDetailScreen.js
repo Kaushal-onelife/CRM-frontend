@@ -5,13 +5,12 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Alert,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { amcAPI } from "../../services/api";
 import { requireOnline } from "../../hooks/useRequireOnline";
-import { Card, Badge, Button, EmptyState, Skeleton } from "../../components/ui";
+import { Card, Badge, Button, EmptyState, Skeleton, useToast } from "../../components/ui";
 import { useTheme } from "../../context/ThemeContext";
 import { confirm } from "../../utils/confirm";
 
@@ -22,6 +21,7 @@ const formatMoney = (n) => {
 
 export default function AMCDetailScreen({ route, navigation }) {
   const { colors, elevation } = useTheme();
+  const toast = useToast();
   const queryClient = useQueryClient();
   const { id } = route.params;
 
@@ -287,7 +287,7 @@ export default function AMCDetailScreen({ route, navigation }) {
                     queryClient.invalidateQueries({ queryKey: ["amc"] });
                     queryClient.invalidateQueries({ queryKey: ["dashboard"] });
                   } catch (error) {
-                    Alert.alert("Error", error.message);
+                    toast.error(error.message || "Something went wrong");
                   }
                 },
               });

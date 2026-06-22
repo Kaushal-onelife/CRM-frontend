@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import { View, StyleSheet, ScrollView, Alert } from "react-native";
+import { View, StyleSheet, ScrollView } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import { customerAPI } from "../../services/api";
 import { requireOnline } from "../../hooks/useRequireOnline";
-import { Input, Button } from "../../components/ui";
+import { Input, Button, useToast } from "../../components/ui";
 import { useTheme } from "../../context/ThemeContext";
 import {
   isRequired,
@@ -78,6 +78,7 @@ function validateField(key, value) {
 export default function EditCustomerScreen({ route, navigation }) {
   const { colors } = useTheme();
   const queryClient = useQueryClient();
+  const toast = useToast();
   const { id, customer } = route.params;
   // Preserve existing prefill from the passed-in customer record.
   const [form, setForm] = useState({ ...customer });
@@ -123,10 +124,10 @@ export default function EditCustomerScreen({ route, navigation }) {
       // Refresh the list and this customer's detail so the edit shows immediately.
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       queryClient.invalidateQueries({ queryKey: ["customer", id] });
-      Alert.alert("Success", "Customer updated successfully");
+      toast.success("Customer updated successfully");
       navigation.goBack();
     } catch (error) {
-      Alert.alert("Error", error.message);
+      toast.error(error.message || "Something went wrong");
     }
     setLoading(false);
   };

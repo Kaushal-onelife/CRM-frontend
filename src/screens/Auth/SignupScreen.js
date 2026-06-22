@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  Alert,
   ScrollView,
   TouchableOpacity,
 } from "react-native";
@@ -11,7 +10,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { authAPI } from "../../services/api";
 import { supabase } from "../../services/supabase";
 import { useTheme } from "../../context/ThemeContext";
-import { Button, Card, Input } from "../../components/ui";
+import { Button, Card, Input, useToast } from "../../components/ui";
 import {
   isRequired,
   isEmail,
@@ -46,6 +45,7 @@ function validateField(key, value) {
 
 export default function SignupScreen({ navigation }) {
   const { colors, elevation } = useTheme();
+  const toast = useToast();
   const [form, setForm] = useState({
     name: "",
     businessName: "",
@@ -135,7 +135,7 @@ export default function SignupScreen({ navigation }) {
 
       if (error) throw error;
     } catch (error) {
-      Alert.alert("Signup Failed", error.message);
+      toast.error(error.message || "Signup failed");
     }
     setLoading(false);
   };

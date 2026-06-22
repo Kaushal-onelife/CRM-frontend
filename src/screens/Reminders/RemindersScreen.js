@@ -1,10 +1,10 @@
 import React from "react";
-import { View, Text, ScrollView, StyleSheet, RefreshControl, Linking, Alert } from "react-native";
+import { View, Text, ScrollView, StyleSheet, RefreshControl, Linking } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { reminderAPI } from "../../services/api";
-import { Card, Badge, Button, EmptyState, SkeletonList } from "../../components/ui";
+import { Card, Badge, Button, EmptyState, SkeletonList, useToast } from "../../components/ui";
 import { useTheme } from "../../context/ThemeContext";
 import {
   buildReminderMessage,
@@ -19,8 +19,9 @@ const SECTIONS = [
   { key: "amc_expiring", title: "AMC Expiring", icon: "file-document-alert-outline", tone: "warning" },
 ];
 
-function ReminderRow({ item, businessName, index, onOpenCustomer }) {
-  const { colors, radius, elevation } = useTheme();
+function ReminderRow({ item, businessName, index, onOpenCustomer, reminded, onReminded }) {
+  const { colors } = useTheme();
+  const toast = useToast();
 
   const message = buildReminderMessage({
     customerName: item.customer_name,
@@ -34,22 +35,24 @@ function ReminderRow({ item, businessName, index, onOpenCustomer }) {
 
   const handleWhatsApp = async () => {
     if (!item.customer_phone) {
-      Alert.alert("No phone number", "This customer has no phone number on file.");
+      toast.info("This customer has no phone number on file.");
       return;
     }
     try {
       await Linking.openURL(buildWhatsAppUrl(item.customer_phone, message));
+      onReminded(item, "reminder_whatsapp", message);
     } catch (e) {
-      Alert.alert("Couldn't open WhatsApp", "Make sure WhatsApp is installed.");
+      toast.error("Couldn't open WhatsApp. Make sure WhatsApp is installed.");
     }
   };
 
   const handleCall = () => {
     if (!item.customer_phone) {
-      Alert.alert("No phone number", "This customer has no phone number on file.");
+      toast.info("This customer has no phone number on file.");
       return;
     }
     Linking.openURL(`tel:${item.customer_phone}`);
+    onReminded(item, "reminder_manual", message);
   };
 
   return (
@@ -58,7 +61,7 @@ function ReminderRow({ item, businessName, index, onOpenCustomer }) {
       <Card
         onPress={() => onOpenCustomer(item)}
         haptic
-        style={{ marginBottom: 10 }}
+        style={{ marginBottom: 10, opacity: reminded ? 0.6 : 1 }}
       >
         <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 4 }}>
           <Text style={{ color: colors.text, fontSize: 15, fontWeight: "700", flex: 1 }} numberOfLines={1}>
@@ -75,9 +78,18 @@ function ReminderRow({ item, businessName, index, onOpenCustomer }) {
           {item.customer_phone ? `  ·  ${item.customer_phone}` : ""}
         </Text>
 
+        {reminded ? (
+          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 10 }}>
+            <MaterialCommunityIcons name="check-circle" size={15} color={colors.success} />
+            <Text style={{ color: colors.success, fontSize: 12, fontWeight: "600", marginLeft: 5 }}>
+              Reminded today
+            </Text>
+          </View>
+        ) : null}
+
         <View style={{ flexDirection: "row", gap: 8 }}>
           <Button
-            title="WhatsApp"
+            title={reminded ? "Remind again" : "WhatsApp"}
             icon="whatsapp"
             size="sm"
             fullWidth={false}
@@ -106,6 +118,26 @@ export default function RemindersScreen({ navigation }) {
     queryKey: ["reminders"],
     queryFn: () => reminderAPI.get(),
   });
+
+  // Locally-reminded items this session (instant feedback before refetch).
+  const [justReminded, setJustReminded] = React.useState(() => new Set());
+
+  const logContacted = useMutation({
+    mutationFn: (body) => reminderAPI.logContacted(body),
+  });
+
+  // True if reminded today (from server) or just reminded this session.
+  const isReminded = (item) => item.reminded_today || justReminded.has(item.ref_id);
+
+  const handleReminded = (item, type, message) => {
+    setJustReminded((prev) => new Set(prev).add(item.ref_id));
+    logContacted.mutate({
+      customer_id: item.customer_id,
+      service_id: item.service_id,
+      type,
+      message,
+    });
+  };
 
   // Reminders live in the More tab; CustomerDetail lives in the Customers tab —
   // so this is a cross-tab navigation.
@@ -175,6 +207,8 @@ export default function RemindersScreen({ navigation }) {
                   index={i}
                   businessName={data?.business_name}
                   onOpenCustomer={openCustomer}
+                  reminded={isReminded(item)}
+                  onReminded={handleReminded}
                 />
               ))}
             </View>

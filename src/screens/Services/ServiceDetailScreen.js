@@ -4,7 +4,6 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  Alert,
   Linking,
 } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
@@ -13,7 +12,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { serviceAPI } from "../../services/api";
 import { requireOnline } from "../../hooks/useRequireOnline";
 import DatePickerField from "../../components/DatePickerField";
-import { Card, Badge, Button, EmptyState, Skeleton } from "../../components/ui";
+import { Card, Badge, Button, EmptyState, Skeleton, useToast } from "../../components/ui";
 import { useTheme } from "../../context/ThemeContext";
 import { confirm } from "../../utils/confirm";
 
@@ -37,6 +36,7 @@ const STATUS_PRESET = {
 export default function ServiceDetailScreen({ route, navigation }) {
   const { colors, spacing, radius } = useTheme();
   const queryClient = useQueryClient();
+  const toast = useToast();
   const { id } = route.params;
   const [nextContactDate, setNextContactDate] = useState("");
   const [showFollowupForm, setShowFollowupForm] = useState(false);
@@ -67,7 +67,7 @@ export default function ServiceDetailScreen({ route, navigation }) {
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["reminders"] });
     } catch (error) {
-      Alert.alert("Error", error.message);
+      toast.error(error.message || "Something went wrong");
     } finally {
       setActionInFlight(null);
     }

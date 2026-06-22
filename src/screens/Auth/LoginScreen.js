@@ -4,7 +4,6 @@ import {
   Text,
   Image,
   StyleSheet,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
@@ -12,11 +11,12 @@ import {
 import { authAPI } from "../../services/api";
 import { supabase } from "../../services/supabase";
 import { useTheme } from "../../context/ThemeContext";
-import { Button, Card, Input } from "../../components/ui";
+import { Button, Card, Input, useToast } from "../../components/ui";
 import { isRequired, isEmail } from "../../utils/validators";
 
 export default function LoginScreen({ navigation }) {
   const { colors } = useTheme();
+  const toast = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState({});
@@ -62,7 +62,7 @@ export default function LoginScreen({ navigation }) {
 
       if (error) throw error;
     } catch (error) {
-      Alert.alert("Login Failed", error.message);
+      toast.error(error.message || "Login failed");
     }
     setLoading(false);
   };

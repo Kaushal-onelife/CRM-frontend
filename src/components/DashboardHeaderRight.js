@@ -49,29 +49,43 @@ export default function DashboardHeaderRight({ navigation }) {
         )}
       </Pressable>
 
-      {/* Avatar -> Settings */}
+      {/* Avatar -> Settings. Simple solid brand ring with a white gap so it's
+          clearly visible around the avatar. */}
       <Pressable onPress={() => navigation.navigate("More", { screen: "Settings" })} hitSlop={8}>
-        {profile?.avatar_url ? (
-          <Image
-            source={{ uri: profile.avatar_url }}
-            style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: colors.primaryLight }}
-          />
-        ) : (
-          <View
-            style={{
-              width: 30,
-              height: 30,
-              borderRadius: 15,
-              backgroundColor: colors.primaryLight,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Text style={{ color: colors.primary, fontSize: 13, fontWeight: "700" }}>
-              {profile?.name?.charAt(0)?.toUpperCase() || "?"}
-            </Text>
-          </View>
-        )}
+        <View
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 18,
+            borderWidth: 2,
+            borderColor: colors.primary,
+            backgroundColor: colors.surface,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          {profile?.avatar_url ? (
+            <Image
+              source={{ uri: profile.avatar_url }}
+              style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: colors.primaryLight }}
+            />
+          ) : (
+            <View
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 14,
+                backgroundColor: colors.primaryLight,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Text style={{ color: colors.primary, fontSize: 13, fontWeight: "700" }}>
+                {profile?.name?.charAt(0)?.toUpperCase() || "?"}
+              </Text>
+            </View>
+          )}
+        </View>
       </Pressable>
     </View>
   );

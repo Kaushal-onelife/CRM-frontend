@@ -5,14 +5,13 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  Alert,
   ActivityIndicator,
 } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import { customerAPI, serviceAPI } from "../../services/api";
 import { requireOnline } from "../../hooks/useRequireOnline";
 import DatePickerField from "../../components/DatePickerField";
-import { Input, Button } from "../../components/ui";
+import { Input, Button, useToast } from "../../components/ui";
 import { useTheme } from "../../context/ThemeContext";
 import {
   isRequired,
@@ -32,6 +31,7 @@ const SERVICE_TYPES = [
 export default function AddServiceScreen({ navigation, route }) {
   const { colors, spacing, radius } = useTheme();
   const queryClient = useQueryClient();
+  const toast = useToast();
   const preselectedCustomerId = route.params?.customerId;
   const [customers, setCustomers] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState(
@@ -70,7 +70,7 @@ export default function AddServiceScreen({ navigation, route }) {
   const handleSubmit = async () => {
     if (!requireOnline()) return;
     if (!selectedCustomer) {
-      Alert.alert("Missing customer", "Please select a customer from the search results.");
+      toast.error("Please select a customer from the search results.");
       return;
     }
 
@@ -101,10 +101,10 @@ export default function AddServiceScreen({ navigation, route }) {
       queryClient.invalidateQueries({ queryKey: ["services"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["reminders"] });
-      Alert.alert("Success", "Service scheduled successfully");
+      toast.success("Service scheduled successfully");
       navigation.goBack();
     } catch (error) {
-      Alert.alert("Error", error.message);
+      toast.error(error.message || "Something went wrong");
     }
     setLoading(false);
   };

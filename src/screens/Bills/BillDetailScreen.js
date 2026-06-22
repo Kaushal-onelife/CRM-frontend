@@ -4,7 +4,6 @@ import {
   Text,
   ScrollView,
   StyleSheet,
-  Alert,
   Platform,
 } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
@@ -16,7 +15,7 @@ import { requireOnline } from "../../hooks/useRequireOnline";
 import { useProfile } from "../../hooks/useProfile";
 import { buildInvoiceHtml } from "../../utils/invoiceTemplate";
 import { LOGO_DATA_URI } from "../../theme/logoDataUri";
-import { Button, Card, Badge, EmptyState, Skeleton } from "../../components/ui";
+import { Button, Card, Badge, EmptyState, Skeleton, useToast } from "../../components/ui";
 import { useTheme } from "../../context/ThemeContext";
 
 const formatMoney = (n) => {
@@ -26,6 +25,7 @@ const formatMoney = (n) => {
 
 export default function BillDetailScreen({ route, navigation }) {
   const { colors } = useTheme();
+  const toast = useToast();
   const queryClient = useQueryClient();
   const { id } = route.params;
   const { data: profile } = useProfile();
@@ -68,7 +68,7 @@ export default function BillDetailScreen({ route, navigation }) {
       queryClient.invalidateQueries({ queryKey: ["bill", id] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     } catch (err) {
-      Alert.alert("Error", err.message);
+      toast.error(err.message || "Something went wrong");
     } finally {
       setPayingMethod(null);
     }
@@ -104,12 +104,12 @@ export default function BillDetailScreen({ route, navigation }) {
             UTI: "com.adobe.pdf",
           });
         } else {
-          Alert.alert("Saved", `PDF generated at: ${uri}`);
+          toast.success(`PDF generated at: ${uri}`);
         }
       }
     } catch (err) {
       console.error(err);
-      Alert.alert("Couldn't generate PDF", err?.message || "Please try again.");
+      toast.error(err?.message || "Couldn't generate PDF");
     } finally {
       setGenerating(false);
     }

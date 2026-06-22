@@ -22,7 +22,7 @@ const STATUS_CONFIG = {
     color: "#F97316",
     bg: "#FFF7ED",
     darkBg: "#431407",
-    icon: "alert-clock",
+    icon: "clock-alert-outline",
     label: "Due",
   },
   pending: {

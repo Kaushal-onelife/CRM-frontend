@@ -5,7 +5,6 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   RefreshControl,
   ScrollView,
 } from "react-native";
@@ -14,7 +13,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { serviceAPI } from "../../services/api";
 import ServiceCard from "../../components/ServiceCard";
-import { EmptyState, SkeletonList } from "../../components/ui";
+import { EmptyState, SkeletonList, useToast } from "../../components/ui";
 import { useTheme } from "../../context/ThemeContext";
 
 const FILTERS = [
@@ -39,6 +38,7 @@ const FILTER_LABELS = {
 
 export default function ServiceListScreen({ navigation, route }) {
   const { colors, spacing, radius, elevation } = useTheme();
+  const toast = useToast();
   // An initial filter can be passed in (e.g. tapping a Dashboard stat card).
   const [activeFilter, setActiveFilter] = useState(route?.params?.filter || "all");
   // Pages beyond the first are appended here; the first page comes from useQuery.
@@ -81,7 +81,7 @@ export default function ServiceListScreen({ navigation, route }) {
       setPage(nextPage);
       setHasMore(newData.length >= 20);
     } catch (err) {
-      Alert.alert("Error", "Failed to load services");
+      toast.error("Failed to load services");
     } finally {
       setLoadingMore(false);
     }

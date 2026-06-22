@@ -6,14 +6,13 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Alert,
   RefreshControl,
 } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { billAPI } from "../../services/api";
-import { Card, Badge, EmptyState, SkeletonList } from "../../components/ui";
+import { Card, Badge, EmptyState, SkeletonList, useToast } from "../../components/ui";
 import { useTheme } from "../../context/ThemeContext";
 
 const FILTERS = ["all", "unpaid", "paid"];
@@ -25,6 +24,7 @@ const formatMoney = (n) => {
 
 export default function BillListScreen({ navigation }) {
   const { colors, radius, elevation } = useTheme();
+  const toast = useToast();
   const [activeFilter, setActiveFilter] = useState("all");
   // Pages beyond the first are appended here; the first page comes from useQuery.
   const [extraBills, setExtraBills] = useState([]);
@@ -66,7 +66,7 @@ export default function BillListScreen({ navigation }) {
       setPage(nextPage);
       setHasMore(newData.length >= 20);
     } catch (error) {
-      Alert.alert("Error", "Failed to load bills");
+      toast.error("Failed to load bills");
     } finally {
       setLoadingMore(false);
     }

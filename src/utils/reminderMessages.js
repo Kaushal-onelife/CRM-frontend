@@ -11,16 +11,20 @@ function formatDate(iso) {
 }
 
 // type: 'service_due' | 'service_overdue' | 'amc_expiring'
+// `label` for services is the service_type (e.g. "filter_change"); we humanize it.
 export function buildReminderMessage({ customerName, businessName, type, date, label }) {
   const name = customerName || "there";
   const biz = businessName ? ` from ${businessName}` : "";
   const when = formatDate(date);
+  // Humanize the service type ("filter_change" -> "filter change"); fall back to
+  // a generic phrase if no specific type is available.
+  const svc = label ? label.replace(/_/g, " ") : "water purifier";
 
   switch (type) {
     case "service_due":
-      return `Hi ${name}, your water purifier service${biz} is due on ${when}. Please reply to confirm a convenient time. Thank you!`;
+      return `Hi ${name}, your ${svc} service${biz} is due on ${when}. Please reply to confirm a convenient time. Thank you!`;
     case "service_overdue":
-      return `Hi ${name}, your water purifier service${biz} was due on ${when} and is now pending. Please book at your earliest convenience so your purifier keeps running well.`;
+      return `Hi ${name}, your ${svc} service${biz} was due on ${when} and is now pending. Please book at your earliest convenience so your purifier keeps running well.`;
     case "amc_expiring":
       return `Hi ${name}, your AMC plan${label ? ` "${label}"` : ""}${biz} expires on ${when}. Renew now to keep uninterrupted service and avoid downtime.`;
     default:

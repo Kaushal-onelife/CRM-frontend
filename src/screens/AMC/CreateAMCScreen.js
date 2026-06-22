@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Alert,
   ActivityIndicator,
   Switch,
 } from "react-native";
@@ -13,7 +12,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { customerAPI, amcAPI } from "../../services/api";
 import { requireOnline } from "../../hooks/useRequireOnline";
 import DatePickerField from "../../components/DatePickerField";
-import { Input, Button, Card } from "../../components/ui";
+import { Input, Button, Card, useToast } from "../../components/ui";
 import { useTheme } from "../../context/ThemeContext";
 import {
   isRequired,
@@ -32,6 +31,7 @@ const PLAN_PRESETS = [
 
 export default function CreateAMCScreen({ route, navigation }) {
   const { colors, radius } = useTheme();
+  const toast = useToast();
   const queryClient = useQueryClient();
   const preCustomerId = route.params?.customerId;
   const [customers, setCustomers] = useState([]);
@@ -138,7 +138,7 @@ export default function CreateAMCScreen({ route, navigation }) {
   const handleSubmit = async () => {
     if (!requireOnline()) return;
     if (!selectedCustomer) {
-      Alert.alert("Missing customer", "Please select a customer.");
+      toast.error("Please select a customer.");
       return;
     }
 
@@ -179,10 +179,10 @@ export default function CreateAMCScreen({ route, navigation }) {
       queryClient.invalidateQueries({ queryKey: ["services"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["reminders"] });
-      Alert.alert("Success", "AMC contract created" + (autoSchedule ? " with scheduled services" : ""));
+      toast.success("AMC contract created" + (autoSchedule ? " with scheduled services" : ""));
       navigation.goBack();
     } catch (error) {
-      Alert.alert("Error", error.message);
+      toast.error(error.message || "Something went wrong");
     }
     setLoading(false);
   };

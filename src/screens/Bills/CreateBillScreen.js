@@ -5,14 +5,13 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Alert,
   ActivityIndicator,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { customerAPI, billAPI } from "../../services/api";
 import { requireOnline } from "../../hooks/useRequireOnline";
-import { Button, Card, Input } from "../../components/ui";
+import { Button, Card, Input, useToast } from "../../components/ui";
 import { useTheme } from "../../context/ThemeContext";
 import {
   isRequired,
@@ -28,6 +27,7 @@ const formatMoney = (n) => {
 
 export default function CreateBillScreen({ route, navigation }) {
   const { colors, radius } = useTheme();
+  const toast = useToast();
   const queryClient = useQueryClient();
   const preCustomerId = route.params?.customerId;
   const preServiceId = route.params?.serviceId;
@@ -142,7 +142,7 @@ export default function CreateBillScreen({ route, navigation }) {
   const handleSubmit = async () => {
     if (!requireOnline()) return;
     if (!selectedCustomer) {
-      Alert.alert("Missing customer", "Please select a customer from the search results.");
+      toast.error("Please select a customer from the search results.");
       return;
     }
 
@@ -190,10 +190,10 @@ export default function CreateBillScreen({ route, navigation }) {
       queryClient.invalidateQueries({ queryKey: ["bills"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
 
-      Alert.alert("Success", `Bill ${result.bill_number} created`);
+      toast.success(`Bill ${result.bill_number} created`);
       navigation.goBack();
     } catch (error) {
-      Alert.alert("Error", error.message);
+      toast.error(error.message || "Something went wrong");
     }
     setLoading(false);
   };

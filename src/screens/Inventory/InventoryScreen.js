@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Alert,
   RefreshControl,
   Modal,
 } from "react-native";
@@ -16,7 +15,7 @@ import { inventoryAPI } from "../../services/api";
 import { requireOnline } from "../../hooks/useRequireOnline";
 import { useTheme } from "../../context/ThemeContext";
 import { confirm } from "../../utils/confirm";
-import { Button, Card, Badge, Input, EmptyState, SkeletonList } from "../../components/ui";
+import { Button, Card, Badge, Input, EmptyState, SkeletonList, useToast } from "../../components/ui";
 import {
   isRequired,
   isNonNegativeNumber,
@@ -31,6 +30,7 @@ const formatMoney = (n) => {
 
 export default function InventoryScreen() {
   const { colors, radius, elevation } = useTheme();
+  const toast = useToast();
 
   // Cache-first: persisted inventory shows instantly (incl. offline), then refreshes.
   const {
@@ -163,7 +163,7 @@ export default function InventoryScreen() {
       setShowModal(false);
       refetch();
     } catch (error) {
-      Alert.alert("Error", error.message);
+      toast.error(error.message || "Something went wrong");
     }
     setSaving(false);
   };
@@ -182,7 +182,7 @@ export default function InventoryScreen() {
           await inventoryAPI.delete(part.id);
           await refetch();
         } catch (error) {
-          Alert.alert("Error", error.message);
+          toast.error(error.message || "Something went wrong");
         } finally {
           setDeletingId(null);
         }

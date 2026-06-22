@@ -5,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
@@ -16,7 +15,7 @@ import { serviceAPI } from "../../services/api";
 import { requireOnline } from "../../hooks/useRequireOnline";
 import ServiceHistoryModal from "../../components/ServiceHistoryModal";
 import DatePickerField from "../../components/DatePickerField";
-import { Card, Button, Skeleton } from "../../components/ui";
+import { Card, Button, Skeleton, useToast } from "../../components/ui";
 import { useTheme } from "../../context/ThemeContext";
 import { isRequired, isNonNegativeNumber, maxLength } from "../../utils/validators";
 
@@ -41,6 +40,7 @@ function addMonths(dateStr, months) {
 export default function CompleteServiceScreen({ route, navigation }) {
   const { colors, spacing, radius } = useTheme();
   const queryClient = useQueryClient();
+  const toast = useToast();
   const serviceId = route.params?.id;
   const [service, setService] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -65,7 +65,7 @@ export default function CompleteServiceScreen({ route, navigation }) {
       const data = await serviceAPI.getById(serviceId);
       setService(data);
     } catch (error) {
-      Alert.alert("Error", error.message);
+      toast.error(error.message || "Something went wrong");
       navigation.goBack();
     } finally {
       setLoading(false);
@@ -75,7 +75,7 @@ export default function CompleteServiceScreen({ route, navigation }) {
   useFocusEffect(
     useCallback(() => {
       if (!serviceId) {
-        Alert.alert("Error", "Missing service ID");
+        toast.error("Missing service ID");
         navigation.goBack();
         return;
       }
@@ -181,7 +181,7 @@ export default function CompleteServiceScreen({ route, navigation }) {
     if (nErr || cErr || hasPartError) return;
 
     if (selectedDueOption?.months === null && !customDueDate) {
-      Alert.alert("Missing Date", "Please pick a custom due date.");
+      toast.error("Please pick a custom due date.");
       return;
     }
     setSubmitting(true);
@@ -222,7 +222,7 @@ export default function CompleteServiceScreen({ route, navigation }) {
         nextDueDate: nextDueDate,
       });
     } catch (error) {
-      Alert.alert("Error", error.message);
+      toast.error(error.message || "Something went wrong");
     }
     setSubmitting(false);
   };
