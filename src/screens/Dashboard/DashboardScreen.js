@@ -45,7 +45,8 @@ function Stat({ icon, label, value, color, index, onPress }) {
             marginBottom: 12,
             opacity: pressed ? 0.85 : 1,
           },
-          elevation("sm"),
+          // Same shadow token as Card / ServiceCard so all boxes read alike.
+          elevation("md"),
         ]}
       >
         <View

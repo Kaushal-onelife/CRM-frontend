@@ -69,7 +69,7 @@ const SERVICE_TYPE_ICONS = {
 };
 
 function ServiceCard({ service, onPress }) {
-  const { isDark, colors } = useTheme();
+  const { isDark, colors, elevation } = useTheme();
   const displayStatus = getDisplayStatus(service);
   const status = STATUS_CONFIG[displayStatus] || STATUS_CONFIG.upcoming;
   const badgeBg = isDark ? status.darkBg : status.bg;
@@ -87,11 +87,8 @@ function ServiceCard({ service, onPress }) {
       className="rounded-2xl mb-4"
       style={{
         backgroundColor: colors.card,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: isDark ? 0.3 : 0.08,
-        shadowRadius: 8,
-        elevation: 3,
+        // Shared shadow token (same as Card / Dashboard stats) — single source.
+        ...elevation("md"),
       }}
       onPress={handlePress}
       activeOpacity={0.7}

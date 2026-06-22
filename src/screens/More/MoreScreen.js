@@ -1,7 +1,8 @@
 import React from "react";
-import { View, Text, ScrollView, Pressable } from "react-native";
+import { View, Text, ScrollView, StyleSheet } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Card } from "../../components/ui";
 import { useTheme } from "../../context/ThemeContext";
 import { tap } from "../../utils/haptics";
 
@@ -46,52 +47,43 @@ const ITEMS = [
 ];
 
 function MenuRow({ item, index, onPress }) {
-  const { colors, radius, elevation } = useTheme();
+  const { colors } = useTheme();
   const tint = colors[item.color] || colors.primary;
 
   return (
     <Animated.View entering={FadeInDown.delay(60 + index * 60).duration(320)}>
-      <Pressable
+      {/* Same Card-based row as the Customer list, so both lists look identical. */}
+      <Card
         onPress={() => {
           tap();
           onPress(item.route);
         }}
-        style={({ pressed }) => [
-          {
-            flexDirection: "row",
-            alignItems: "center",
-            backgroundColor: colors.card,
-            borderRadius: radius.lg,
-            padding: 16,
-            marginBottom: 12,
-            opacity: pressed ? 0.85 : 1,
-          },
-          elevation("sm"),
-        ]}
+        style={styles.card}
+        padded={false}
       >
-        <View
-          style={{
-            width: 44,
-            height: 44,
-            borderRadius: 12,
-            backgroundColor: `${tint}1A`,
-            alignItems: "center",
-            justifyContent: "center",
-            marginRight: 14,
-          }}
-        >
-          <MaterialCommunityIcons name={item.icon} size={22} color={tint} />
+        <View style={styles.cardInner}>
+          <View style={[styles.iconChip, { backgroundColor: `${tint}1A` }]}>
+            <MaterialCommunityIcons name={item.icon} size={22} color={tint} />
+          </View>
+          <View style={styles.info}>
+            <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
+              {item.label}
+            </Text>
+            <Text
+              style={[styles.subtitle, { color: colors.textSecondary }]}
+              numberOfLines={1}
+            >
+              {item.subtitle}
+            </Text>
+          </View>
+          <MaterialCommunityIcons
+            name="chevron-right"
+            size={22}
+            color={colors.textMuted}
+            style={{ marginLeft: 4 }}
+          />
         </View>
-        <View style={{ flex: 1 }}>
-          <Text style={{ color: colors.text, fontSize: 15, fontWeight: "600" }}>
-            {item.label}
-          </Text>
-          <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 2 }}>
-            {item.subtitle}
-          </Text>
-        </View>
-        <MaterialCommunityIcons name="chevron-right" size={22} color={colors.textMuted} />
-      </Pressable>
+      </Card>
     </Animated.View>
   );
 }
@@ -116,3 +108,35 @@ export default function MoreScreen({ navigation }) {
     </ScrollView>
   );
 }
+
+// Mirrors CustomerListScreen's row styles so the two lists are visually identical.
+// Only difference: a rounded-square icon chip instead of a round avatar.
+const styles = StyleSheet.create({
+  card: {
+    marginBottom: 10,
+  },
+  cardInner: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+  },
+  iconChip: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  info: {
+    flex: 1,
+  },
+  name: {
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  subtitle: {
+    fontSize: 13,
+    marginTop: 2,
+  },
+});
