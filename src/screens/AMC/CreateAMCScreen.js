@@ -4,10 +4,10 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  ScrollView,
   ActivityIndicator,
   Switch,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { useQueryClient } from "@tanstack/react-query";
 import { customerAPI, amcAPI } from "../../services/api";
 import { requireOnline } from "../../hooks/useRequireOnline";
@@ -188,11 +188,13 @@ export default function CreateAMCScreen({ route, navigation }) {
   };
 
   return (
-    <ScrollView
+    <KeyboardAwareScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
+      enableOnAndroid
+      extraScrollHeight={20}
     >
       {/* Customer Selection */}
       {!preCustomerId && (
@@ -395,7 +397,7 @@ export default function CreateAMCScreen({ route, navigation }) {
         onPress={handleSubmit}
         style={{ marginTop: 24 }}
       />
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 }
 

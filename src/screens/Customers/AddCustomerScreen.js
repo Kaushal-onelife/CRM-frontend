@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { View, StyleSheet, ScrollView } from "react-native";
+import { View, StyleSheet } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { useQueryClient } from "@tanstack/react-query";
 import { customerAPI } from "../../services/api";
 import { requireOnline } from "../../hooks/useRequireOnline";
@@ -122,11 +123,13 @@ export default function AddCustomerScreen({ navigation }) {
   };
 
   return (
-    <ScrollView
+    <KeyboardAwareScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
+      enableOnAndroid
+      extraScrollHeight={20}
     >
       {FIELDS.map((field) => (
         <Input
@@ -163,7 +166,7 @@ export default function AddCustomerScreen({ navigation }) {
           onPress={handleSubmit}
         />
       </View>
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 }
 

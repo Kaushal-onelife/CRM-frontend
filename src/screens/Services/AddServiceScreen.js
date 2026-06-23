@@ -4,9 +4,9 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  ScrollView,
   ActivityIndicator,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { useQueryClient } from "@tanstack/react-query";
 import { customerAPI, serviceAPI } from "../../services/api";
 import { requireOnline } from "../../hooks/useRequireOnline";
@@ -119,10 +119,12 @@ export default function AddServiceScreen({ navigation, route }) {
   };
 
   return (
-    <ScrollView
+    <KeyboardAwareScrollView
       style={{ flex: 1, backgroundColor: colors.background }}
       contentContainerStyle={{ padding: spacing.lg, paddingBottom: 40 }}
       keyboardShouldPersistTaps="handled"
+      enableOnAndroid
+      extraScrollHeight={20}
     >
       {/* Customer Selection */}
       {!preselectedCustomerId && (
@@ -340,6 +342,6 @@ export default function AddServiceScreen({ navigation, route }) {
         disabled={loading}
         style={{ marginTop: spacing["2xl"] }}
       />
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 }

@@ -4,9 +4,9 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  ScrollView,
   ActivityIndicator,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { customerAPI, billAPI } from "../../services/api";
@@ -202,11 +202,13 @@ export default function CreateBillScreen({ route, navigation }) {
   const total = subtotal + (parseFloat(tax) || 0);
 
   return (
-    <ScrollView
+    <KeyboardAwareScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
+      enableOnAndroid
+      extraScrollHeight={20}
     >
       {/* Customer Selection */}
       {!preCustomerId && (
@@ -500,7 +502,7 @@ export default function CreateBillScreen({ route, navigation }) {
         disabled={loading}
         style={{ marginTop: 24 }}
       />
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 }
 

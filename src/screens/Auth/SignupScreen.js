@@ -3,9 +3,9 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { authAPI } from "../../services/api";
 import { supabase } from "../../services/supabase";
@@ -141,9 +141,11 @@ export default function SignupScreen({ navigation }) {
   };
 
   return (
-    <ScrollView
+    <KeyboardAwareScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.content}
+      enableOnAndroid
+      extraScrollHeight={20}
     >
       <View style={styles.header}>
         <View
@@ -202,7 +204,7 @@ export default function SignupScreen({ navigation }) {
       </Card>
 
       <View style={{ height: 32 }} />
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 }
 
