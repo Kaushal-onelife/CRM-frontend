@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, ScrollView, StyleSheet, RefreshControl, Pressable } from "react-native";
+import { View, Text, ScrollView, StyleSheet, RefreshControl, TouchableOpacity } from "react-native";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -27,60 +27,68 @@ const greeting = () => {
   return "Good evening";
 };
 
-// Stat tile — value-forward: big number top-left, colored icon chip top-right,
-// label beneath, with a subtle colored left accent bar. Tappable when given onPress.
+// Convert a #RRGGBB (or #RGB) hex to an rgba() string with the given alpha.
+// Using rgba() avoids 8-digit hex alpha, which renders inconsistently in
+// release builds (and breaks entirely if `hex` isn't a clean 6-digit value).
+const tint = (hex, alpha) => {
+  if (typeof hex !== "string" || hex[0] !== "#") return hex;
+  let h = hex.slice(1);
+  if (h.length === 3) h = h.split("").map((c) => c + c).join(""); // #abc -> #aabbcc
+  if (h.length !== 6) return hex; // unexpected format — fall back to the solid color
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+
+// Stat tile — soft-tinted card: the card background is a light wash of its own
+// color, a solid icon chip up top, a big bold number, then the label. Cohesive
+// colorful grid that ties into the gradient hero. Tappable + dark-mode aware.
 function Stat({ icon, label, value, color, index, onPress }) {
-  const { colors, radius, elevation } = useTheme();
+  const { colors, radius, isDark } = useTheme();
+  // Tint strength: subtle in light mode, a touch stronger in dark so it reads.
+  // rgba() (not 8-digit hex) so it renders reliably in release builds.
+  const tintBg = tint(color, isDark ? 0.18 : 0.1);
   return (
     <Animated.View
       entering={FadeInDown.delay(100 + index * 60).duration(350)}
       style={{ width: "47%" }}
     >
-      <Pressable
+      {/* TouchableOpacity with a STATIC style object — function-style Pressable
+          (style={({pressed})=>...}) failed to apply styles in the release build,
+          which made the whole box (bg/border/shadow) disappear. */}
+      <TouchableOpacity
+        activeOpacity={0.85}
         onPress={onPress}
-        style={({ pressed }) => [
-          {
-            backgroundColor: colors.card,
-            borderRadius: radius.lg,
-            padding: 14,
-            marginBottom: 12,
-            overflow: "hidden",
-            borderLeftWidth: 3,
-            borderLeftColor: color,
-            opacity: pressed ? 0.85 : 1,
-          },
-          // Same shadow token as Card / ServiceCard so all boxes read alike.
-          elevation("md"),
-        ]}
+        style={{
+          backgroundColor: tintBg,
+          borderRadius: radius.lg,
+          padding: 16,
+          marginBottom: 12,
+          overflow: "hidden",
+        }}
       >
-        {/* Top row: value on the left, icon chip on the right (fills the tile). */}
+        {/* Solid icon chip in the brand/stat color. */}
         <View
           style={{
-            flexDirection: "row",
+            width: 40,
+            height: 40,
+            borderRadius: 12,
+            backgroundColor: color,
             alignItems: "center",
-            justifyContent: "space-between",
+            justifyContent: "center",
+            marginBottom: 14,
           }}
         >
-          <Text style={{ color: colors.text, fontSize: 26, fontWeight: "800", letterSpacing: -0.5 }}>
-            {value}
-          </Text>
-          <View
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 10,
-              backgroundColor: `${color}1A`,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <MaterialCommunityIcons name={icon} size={20} color={color} />
-          </View>
+          <MaterialCommunityIcons name={icon} size={22} color="#fff" />
         </View>
-        <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: "500", marginTop: 6 }}>
+        <Text style={{ color: colors.text, fontSize: 26, fontWeight: "800", letterSpacing: -0.5 }}>
+          {value}
+        </Text>
+        <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: "500", marginTop: 2 }}>
           {label}
         </Text>
-      </Pressable>
+      </TouchableOpacity>
     </Animated.View>
   );
 }
