@@ -8,12 +8,11 @@ import {
   ScrollView,
   Switch,
   ActivityIndicator,
-  Alert,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { supabase } from "../../services/supabase";
 import { useTheme } from "../../context/ThemeContext";
-import { Button, Card, useToast } from "../../components/ui";
+import { Button, Card, useToast, alert } from "../../components/ui";
 import { confirm } from "../../utils/confirm";
 import { pickAvatar, uploadAvatar } from "../../utils/avatar";
 
@@ -100,23 +99,22 @@ export default function SettingsScreen({ navigation }) {
       label: "About",
       subtitle: "ClientTrack v1.0.0",
       icon: "information-outline",
-      // Informational dialog (not a toast) — content the user reads, not a
-      // transient notice.
+      // Branded info dialog (not a toast) — content the user reads.
       onPress: () =>
-        Alert.alert(
-          "About",
-          "ClientTrack\nVersion 1.0.0\n\nA simple CRM to manage customers, services and bills."
-        ),
+        alert.show({
+          title: "About",
+          message: "ClientTrack\nVersion 1.0.0\n\nA simple CRM to manage customers, services and bills.",
+        }),
     },
     {
       label: "Help & Support",
       subtitle: "Get help with the app",
       icon: "lifebuoy",
       onPress: () =>
-        Alert.alert(
-          "Help & Support",
-          "For assistance, please contact:\n\nEmail: support@onelifecapital.in"
-        ),
+        alert.show({
+          title: "Help & Support",
+          message: "For assistance, please contact:\n\nEmail: kaushalpc2157@gmail.com\nPhone: +91 9172772157",
+        }),
     },
   ];
 

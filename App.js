@@ -9,7 +9,7 @@ import { ThemeProvider, useTheme } from "./src/context/ThemeContext";
 import { queryClient, asyncStoragePersister } from "./src/services/queryClient";
 import RootNavigator from "./src/navigation/RootNavigator";
 import ErrorBoundary from "./src/components/ErrorBoundary";
-import { ToastProvider } from "./src/components/ui";
+import { ToastProvider, AppAlertProvider } from "./src/components/ui";
 
 // Feed device connectivity into React Query so it knows when it's truly offline
 // (drives offlineFirst behavior + refetch-on-reconnect).
@@ -39,7 +39,9 @@ export default function App() {
         >
           <ThemeProvider>
             <ToastProvider>
-              <AppContent />
+              <AppAlertProvider>
+                <AppContent />
+              </AppAlertProvider>
             </ToastProvider>
           </ThemeProvider>
         </PersistQueryClientProvider>

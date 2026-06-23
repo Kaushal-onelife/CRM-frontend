@@ -6,4 +6,5 @@ export { default as Input } from "./Input";
 export { default as EmptyState } from "./EmptyState";
 export { default as OfflineBanner } from "./OfflineBanner";
 export { ToastProvider, useToast, toast } from "./Toast";
+export { AppAlertProvider, useAppAlert, alert } from "./AppAlert";
 export { Skeleton, SkeletonCard, SkeletonList } from "./Skeleton";

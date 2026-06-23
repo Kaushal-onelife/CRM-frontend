@@ -1,9 +1,8 @@
-import { Alert, Platform } from "react-native";
+import { alert } from "../components/ui/AppAlert";
 
-// Cross-platform confirm dialog.
-// React Native's Alert.alert with multiple buttons does NOT render on
-// react-native-web (browser), so confirmations silently no-op there. This uses
-// the browser's window.confirm on web and Alert.alert on native.
+// Cross-platform confirm dialog — now backed by the branded in-app AppAlert
+// (themed modal that works identically on iOS, Android and web). Keeps the same
+// API so existing callers don't change.
 //
 // Usage:
 //   confirm({
@@ -22,20 +21,13 @@ export function confirm({
   onConfirm,
   onCancel,
 }) {
-  if (Platform.OS === "web") {
-    // eslint-disable-next-line no-undef
-    const ok = window.confirm(message ? `${title}\n\n${message}` : title);
-    if (ok) onConfirm?.();
-    else onCancel?.();
-    return;
-  }
-
-  Alert.alert(title, message, [
-    { text: cancelText, style: "cancel", onPress: () => onCancel?.() },
-    {
-      text: confirmText,
-      style: destructive ? "destructive" : "default",
-      onPress: () => onConfirm?.(),
-    },
-  ]);
+  alert.confirm({
+    title,
+    message,
+    confirmText,
+    cancelText,
+    destructive,
+    onConfirm,
+    onCancel,
+  });
 }

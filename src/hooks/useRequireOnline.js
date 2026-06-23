@@ -1,5 +1,6 @@
-import { Alert, Platform } from "react-native";
+import { Platform } from "react-native";
 import { onlineManager } from "@tanstack/react-query";
+import { alert } from "../components/ui/AppAlert";
 
 // Guard for write actions while Phase-1 (read-only offline) is in place.
 // Returns true if online; if offline, shows a clear message and returns false.
@@ -13,13 +14,13 @@ export function requireOnline(
   // offline guard is meant for the native field-app scenario.
   if (Platform.OS === "web") {
     if (typeof navigator !== "undefined" && navigator.onLine === false) {
-      Alert.alert("You're offline", message);
+      alert.show({ tone: "warning", title: "You're offline", message });
       return false;
     }
     return true;
   }
 
   if (onlineManager.isOnline()) return true;
-  Alert.alert("You're offline", message);
+  alert.show({ tone: "warning", title: "You're offline", message });
   return false;
 }

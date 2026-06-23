@@ -8,13 +8,12 @@ import {
   ActivityIndicator,
   RefreshControl,
   Pressable,
-  Alert,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { customerAPI } from "../../services/api";
-import { Card, EmptyState, SkeletonList, useToast } from "../../components/ui";
+import { Card, EmptyState, SkeletonList, useToast, alert } from "../../components/ui";
 import { useTheme } from "../../context/ThemeContext";
 import { downloadCsv, pickCsvText, fileSupported } from "../../utils/fileTransfer";
 
@@ -127,9 +126,8 @@ export default function CustomerListScreen({ navigation }) {
         if (errors.length > 5) lines.push(`…and ${errors.length - 5} more`);
       }
 
-      // Multi-line import report — show as a dialog the user can read, not a
-      // transient toast.
-      Alert.alert("Import complete", lines.join("\n"));
+      // Multi-line import report — branded dialog the user can read.
+      alert.show({ title: "Import complete", message: lines.join("\n") });
       refetch(); // refresh list
     } catch (err) {
       toast.error(err.message || "Could not import customers.");
