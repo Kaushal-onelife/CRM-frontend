@@ -18,16 +18,41 @@ export default function RootNavigator() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let settled = false;
+    const finish = (s) => {
+      if (settled) return;
+      settled = true;
+      setSession(s);
+      setLoading(false);
+    };
+
+    // Safety net: getSession() can hang offline (it may attempt a network token
+    // refresh that never resolves), leaving the app stuck on the loading screen.
+    // After 2.5s, fall back to reading the persisted session DIRECTLY from
+    // AsyncStorage (instant, local, no network) so a logged-in user still gets in.
+    const timer = setTimeout(async () => {
+      try {
+        const AsyncStorage =
+          require("@react-native-async-storage/async-storage").default;
+        const keys = await AsyncStorage.getAllKeys();
+        const authKey = keys.find((k) => k.startsWith("sb-") && k.endsWith("-auth-token"));
+        const raw = authKey ? await AsyncStorage.getItem(authKey) : null;
+        const stored = raw ? JSON.parse(raw) : null;
+        // Supabase stores the session object (with access_token) under that key.
+        finish(stored?.access_token ? stored : stored?.currentSession || null);
+      } catch (e) {
+        finish(null);
+      }
+    }, 2500);
+
     supabase.auth
       .getSession()
-      .then(({ data: { session } }) => {
-        setSession(session);
-      })
+      .then(({ data: { session } }) => finish(session))
       .catch((error) => {
         console.error("getSession failed:", error?.message || error);
-        setSession(null);
+        finish(null);
       })
-      .finally(() => setLoading(false));
+      .finally(() => clearTimeout(timer));
 
     const {
       data: { subscription },

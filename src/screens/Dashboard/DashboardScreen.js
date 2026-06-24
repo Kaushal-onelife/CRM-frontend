@@ -7,7 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { dashboardAPI } from "../../services/api";
 import { useProfile } from "../../hooks/useProfile";
 import ServiceCard from "../../components/ServiceCard";
-import { Card, Badge, EmptyState, SkeletonList, Skeleton } from "../../components/ui";
+import { Card, Badge, EmptyState, SkeletonDashboard } from "../../components/ui";
 import { useTheme } from "../../context/ThemeContext";
 
 const formatMoney = (n) => {
@@ -126,13 +126,11 @@ export default function DashboardScreen({ navigation }) {
   const goToService = (service) =>
     navigation.navigate("Services", { screen: "ServiceDetail", params: { id: service.id } });
 
-  // ── Loading: skeletons only when there's no cached data yet ──
+  // ── Loading: a dashboard-shaped skeleton so there's no jump when data loads ──
   if (isLoading && !data) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <Skeleton width="55%" height={26} style={{ marginTop: 8, marginBottom: 20 }} />
-        <Skeleton width="100%" height={110} radius={16} style={{ marginBottom: 20 }} />
-        <SkeletonList count={4} />
+        <SkeletonDashboard />
       </View>
     );
   }
