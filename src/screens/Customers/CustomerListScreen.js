@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   Pressable,
+  TouchableOpacity,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
@@ -182,18 +183,17 @@ export default function CustomerListScreen({ navigation }) {
       {/* Export / Import toolbar */}
       {fileSupported ? (
         <View style={styles.toolbar}>
-          <Pressable
+          <TouchableOpacity
             onPress={handleExport}
             disabled={exporting}
-            style={({ pressed }) => [
-              styles.toolBtn,
-              {
-                backgroundColor: colors.card,
-                borderColor: colors.border,
-                borderRadius: radius.md,
-                opacity: pressed || exporting ? 0.7 : 1,
-              },
-            ]}
+            activeOpacity={0.7}
+            style={{
+              ...styles.toolBtn,
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+              borderRadius: radius.md,
+              opacity: exporting ? 0.7 : 1,
+            }}
           >
             {exporting ? (
               <ActivityIndicator size="small" color={colors.primary} />
@@ -201,20 +201,19 @@ export default function CustomerListScreen({ navigation }) {
               <MaterialCommunityIcons name="download-outline" size={18} color={colors.primary} />
             )}
             <Text style={[styles.toolBtnText, { color: colors.text }]}>Export</Text>
-          </Pressable>
+          </TouchableOpacity>
 
-          <Pressable
+          <TouchableOpacity
             onPress={handleImport}
             disabled={importing}
-            style={({ pressed }) => [
-              styles.toolBtn,
-              {
-                backgroundColor: colors.card,
-                borderColor: colors.border,
-                borderRadius: radius.md,
-                opacity: pressed || importing ? 0.7 : 1,
-              },
-            ]}
+            activeOpacity={0.7}
+            style={{
+              ...styles.toolBtn,
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+              borderRadius: radius.md,
+              opacity: importing ? 0.7 : 1,
+            }}
           >
             {importing ? (
               <ActivityIndicator size="small" color={colors.primary} />
@@ -222,7 +221,7 @@ export default function CustomerListScreen({ navigation }) {
               <MaterialCommunityIcons name="upload-outline" size={18} color={colors.primary} />
             )}
             <Text style={[styles.toolBtnText, { color: colors.text }]}>Import</Text>
-          </Pressable>
+          </TouchableOpacity>
         </View>
       ) : null}
 

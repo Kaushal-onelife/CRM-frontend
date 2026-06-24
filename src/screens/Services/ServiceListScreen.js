@@ -1,8 +1,10 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import {
   View,
   Text,
   FlatList,
+  TextInput,
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
@@ -36,24 +38,69 @@ const FILTER_LABELS = {
   rejected: "Rejected",
 };
 
+// Date-range options for the sort/range button. `days` = how far back to include
+// (null = all time). Defaults to 30 days so the list stays focused at scale.
+const RANGES = [
+  { key: "7", label: "Last 7 days", days: 7 },
+  { key: "30", label: "Last 30 days", days: 30 },
+  { key: "90", label: "Last 90 days", days: 90 },
+  { key: "365", label: "This year", days: 365 },
+  { key: "all", label: "All time", days: null },
+];
+
+// Returns a YYYY-MM-DD `from` date N days ago, or "" for all-time.
+const fromDate = (days) => {
+  if (!days) return "";
+  return new Date(Date.now() - days * 86400000).toISOString().split("T")[0];
+};
+
 export default function ServiceListScreen({ navigation, route }) {
   const { colors, spacing, radius, elevation } = useTheme();
   const toast = useToast();
   // An initial filter can be passed in (e.g. tapping a Dashboard stat card).
   const [activeFilter, setActiveFilter] = useState(route?.params?.filter || "all");
+
+  // The screen stays mounted in the tab stack, so a fresh `useState` won't pick
+  // up a new `filter` param on repeat navigations (e.g. tapping a different
+  // Dashboard box). Apply the param every time the screen gains focus, then
+  // clear it so manual filter changes aren't overridden on a later return.
+  useFocusEffect(
+    useCallback(() => {
+      const f = route?.params?.filter;
+      if (f) {
+        setActiveFilter(f);
+        resetPagination();
+        navigation.setParams({ filter: undefined });
+      }
+    }, [route?.params?.filter])
+  );
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [rangeKey, setRangeKey] = useState("30"); // default: last 30 days
+  const [showRange, setShowRange] = useState(false); // range dropdown visibility
   // Pages beyond the first are appended here; the first page comes from useQuery.
   const [extraServices, setExtraServices] = useState([]);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const debounceRef = useRef(null);
 
-  const buildParams = (filter, pageNum) => {
+  const buildParams = (filter, pageNum, searchTerm, rKey) => {
     const params = new URLSearchParams({ page: pageNum, limit: 20 });
     if (filter !== "all") params.set("status", filter);
+    if (searchTerm) params.set("search", searchTerm);
+    // Apply the date window ONLY in the default view — not when searching or when
+    // a status chip is active — so the user never loses matching results.
+    if (!searchTerm && filter === "all") {
+      const range = RANGES.find((r) => r.key === rKey);
+      const from = fromDate(range?.days);
+      if (from) params.set("from", from);
+    }
     return params.toString();
   };
 
-  // Cache-first first page; reset pagination whenever the filter changes.
+  // Cache-first first page; reset pagination whenever filter/search/range changes.
   const {
     data,
     error,
@@ -61,9 +108,29 @@ export default function ServiceListScreen({ navigation, route }) {
     isRefetching,
     refetch,
   } = useQuery({
-    queryKey: ["services", activeFilter],
-    queryFn: () => serviceAPI.getAll(buildParams(activeFilter, 1)),
+    queryKey: ["services", activeFilter, debouncedSearch, rangeKey],
+    queryFn: () => serviceAPI.getAll(buildParams(activeFilter, 1, debouncedSearch, rangeKey)),
   });
+
+  // Debounce the search input (matches the customer-search pattern).
+  const handleSearch = (text) => {
+    setSearch(text);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (text.length === 0) {
+      setDebouncedSearch("");
+      resetPagination();
+      return;
+    }
+    if (text.length <= 2) return; // wait for 3+ chars
+    debounceRef.current = setTimeout(() => {
+      setDebouncedSearch(text);
+      resetPagination();
+    }, 300);
+  };
+
+  useEffect(() => {
+    return () => debounceRef.current && clearTimeout(debounceRef.current);
+  }, []);
 
   const firstPage = data?.services || [];
   const services = [...firstPage, ...extraServices];
@@ -75,7 +142,7 @@ export default function ServiceListScreen({ navigation, route }) {
     setLoadingMore(true);
     try {
       const nextPage = page + 1;
-      const result = await serviceAPI.getAll(buildParams(activeFilter, nextPage));
+      const result = await serviceAPI.getAll(buildParams(activeFilter, nextPage, debouncedSearch, rangeKey));
       const newData = result.services || [];
       setExtraServices((prev) => [...prev, ...newData]);
       setPage(nextPage);
@@ -136,10 +203,118 @@ export default function ServiceListScreen({ navigation, route }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background, paddingHorizontal: spacing.lg }}>
+      {/* Search bar + filter toggle */}
+      <View style={{ flexDirection: "row", alignItems: "center", marginTop: spacing.md, gap: spacing.sm }}>
+        <View
+          style={{
+            flex: 1,
+            flexDirection: "row",
+            alignItems: "center",
+            height: 46,
+            backgroundColor: colors.surface,
+            borderWidth: 1.5,
+            borderColor: searchFocused ? colors.primary : colors.border,
+            borderRadius: radius.md,
+            paddingHorizontal: 12,
+          }}
+        >
+          <MaterialCommunityIcons
+            name="magnify"
+            size={20}
+            color={searchFocused ? colors.primary : colors.textMuted}
+            style={{ marginRight: 8 }}
+          />
+          <TextInput
+            style={{ flex: 1, color: colors.text, fontSize: 15, paddingVertical: 0, outlineStyle: "none", outlineWidth: 0 }}
+            placeholder="Search by customer or service type..."
+            placeholderTextColor={colors.textMuted}
+            value={search}
+            onChangeText={handleSearch}
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setSearchFocused(false)}
+            underlineColorAndroid="transparent"
+          />
+        </View>
+        {/* Date-range (sort) button — only meaningful in the default view. */}
+        {!debouncedSearch && activeFilter === "all" && (
+          <TouchableOpacity
+            onPress={() => setShowRange((s) => !s)}
+            activeOpacity={0.7}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              height: 46,
+              paddingHorizontal: 12,
+              borderRadius: radius.md,
+              borderWidth: 1.5,
+              borderColor: showRange ? colors.primary : colors.border,
+              backgroundColor: showRange ? colors.primarySoft : colors.surface,
+              gap: 4,
+            }}
+          >
+            <MaterialCommunityIcons
+              name="calendar-range"
+              size={18}
+              color={showRange ? colors.primary : colors.textSecondary}
+            />
+            <MaterialCommunityIcons
+              name="chevron-down"
+              size={16}
+              color={showRange ? colors.primary : colors.textMuted}
+            />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* Range dropdown */}
+      {showRange && !debouncedSearch && activeFilter === "all" && (
+        <View
+          style={{
+            marginTop: spacing.sm,
+            backgroundColor: colors.card,
+            borderRadius: radius.md,
+            borderWidth: 1,
+            borderColor: colors.border,
+            overflow: "hidden",
+          }}
+        >
+          {RANGES.map((r, i) => {
+            const active = rangeKey === r.key;
+            return (
+              <TouchableOpacity
+                key={r.key}
+                activeOpacity={0.7}
+                onPress={() => {
+                  setRangeKey(r.key);
+                  setShowRange(false);
+                  resetPagination();
+                }}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  paddingHorizontal: 14,
+                  paddingVertical: 12,
+                  borderTopWidth: i === 0 ? 0 : 1,
+                  borderTopColor: colors.divider,
+                  backgroundColor: active ? colors.primarySoft : "transparent",
+                }}
+              >
+                <Text style={{ color: active ? colors.primary : colors.text, fontSize: 14, fontWeight: active ? "600" : "400" }}>
+                  {r.label}
+                </Text>
+                {active && <MaterialCommunityIcons name="check" size={18} color={colors.primary} />}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
+
+      {/* Filter chips — always visible */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        style={{ maxHeight: 48, marginTop: spacing.md, marginBottom: spacing.md }}
+        style={{ maxHeight: 48, marginTop: spacing.md }}
         contentContainerStyle={{ flexDirection: "row", paddingRight: spacing.lg, alignItems: "center" }}
       >
         {FILTERS.map((filter) => {
@@ -173,6 +348,8 @@ export default function ServiceListScreen({ navigation, route }) {
           );
         })}
       </ScrollView>
+
+      <View style={{ height: spacing.md }} />
 
       {isLoading && !data ? (
         <SkeletonList count={6} />

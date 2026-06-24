@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   View,
   Text,
@@ -15,36 +16,16 @@ import { useTheme } from "../../context/ThemeContext";
 import { Button, Card, useToast, alert } from "../../components/ui";
 import { confirm } from "../../utils/confirm";
 import { pickAvatar, uploadAvatar } from "../../utils/avatar";
+import { useProfile } from "../../hooks/useProfile";
 
 export default function SettingsScreen({ navigation }) {
   const { colors, theme, isDark, toggleTheme, elevation } = useTheme();
   const toast = useToast();
-  const [user, setUser] = useState(null);
+  const queryClient = useQueryClient();
+  // Cached profile (shared ["profile"] query) — opens instantly from cache,
+  // works offline, refreshes in the background. No load-then-flash.
+  const { data: user } = useProfile();
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
-
-  useEffect(() => {
-    fetchProfile();
-  }, []);
-
-  const fetchProfile = async () => {
-    try {
-      const {
-        data: { user: authUser },
-      } = await supabase.auth.getUser();
-
-      if (authUser) {
-        const { data, error } = await supabase
-          .from("users")
-          .select("*, tenants(*)")
-          .eq("id", authUser.id)
-          .single();
-        if (error) throw error;
-        setUser(data);
-      }
-    } catch (error) {
-      toast.error("Failed to load profile");
-    }
-  };
 
   const handleChangeAvatar = async () => {
     try {
@@ -62,7 +43,11 @@ export default function SettingsScreen({ navigation }) {
         .eq("id", user.id);
       if (error) throw new Error(error.message);
 
-      setUser((prev) => ({ ...prev, avatar_url: url }));
+      // Update the cached profile so the new avatar shows everywhere instantly
+      // (Settings + Dashboard header share the ["profile"] cache).
+      queryClient.setQueryData(["profile"], (prev) =>
+        prev ? { ...prev, avatar_url: url } : prev
+      );
     } catch (e) {
       toast.error(e.message || "Couldn't update photo");
     } finally {

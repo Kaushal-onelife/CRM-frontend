@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useRef } from "react";
-import { View, Text, Modal, Pressable, StyleSheet } from "react-native";
+import { View, Text, Modal, Pressable, TouchableOpacity, StyleSheet } from "react-native";
 import Animated, { FadeIn, FadeOut, ZoomIn } from "react-native-reanimated";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTheme } from "../../context/ThemeContext";
@@ -124,24 +124,27 @@ function AlertModal({ dialog, onClose }) {
               const isCancel = btn.style === "cancel";
               const bg = isDestructive ? colors.danger : isPrimary ? colors.primary : "transparent";
               const fg = isCancel ? colors.textSecondary : isDestructive || isPrimary ? colors.onPrimary : colors.text;
+              // STATIC style object (not a ({pressed})=>... function): the
+              // function form silently fails to apply styles in the release/Hermes
+              // build, which dropped the button's fill and made white text on a
+              // blank background -> invisible "Logout" button. TouchableOpacity
+              // gives the press feedback without needing the function style.
               return (
-                <Pressable
+                <TouchableOpacity
                   key={i}
+                  activeOpacity={0.8}
                   onPress={() => handlePress(btn)}
-                  style={({ pressed }) => [
-                    styles.btn,
-                    {
-                      backgroundColor: bg,
-                      borderColor: colors.border,
-                      borderWidth: isCancel ? 1 : 0,
-                      borderRadius: radius.md,
-                      opacity: pressed ? 0.8 : 1,
-                      flex: dialog.buttons.length > 2 ? undefined : 1,
-                    },
-                  ]}
+                  style={{
+                    ...styles.btn,
+                    backgroundColor: bg,
+                    borderColor: colors.border,
+                    borderWidth: isCancel ? 1 : 0,
+                    borderRadius: radius.md,
+                    flex: dialog.buttons.length > 2 ? undefined : 1,
+                  }}
                 >
                   <Text style={{ color: fg, fontWeight: "600", fontSize: 15 }}>{btn.text}</Text>
-                </Pressable>
+                </TouchableOpacity>
               );
             })}
           </View>

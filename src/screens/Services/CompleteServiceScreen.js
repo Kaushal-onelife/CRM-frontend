@@ -27,6 +27,15 @@ const NEXT_DUE_OPTIONS = [
   { label: "No Next Due", months: 0 },
 ];
 
+// Service types for the "next service" the follow-up visit will be.
+const SERVICE_TYPES = [
+  { value: "general_service", label: "General Service" },
+  { value: "filter_change", label: "Filter Change" },
+  { value: "amc", label: "AMC" },
+  { value: "repair", label: "Repair" },
+  { value: "installation", label: "Installation" },
+];
+
 const PAYMENT_METHODS = ["cash", "upi", "online"];
 
 function addMonths(dateStr, months) {
@@ -51,6 +60,7 @@ export default function CompleteServiceScreen({ route, navigation }) {
   const [parts, setParts] = useState([]);
   const [selectedDueOption, setSelectedDueOption] = useState(null);
   const [customDueDate, setCustomDueDate] = useState("");
+  const [nextServiceType, setNextServiceType] = useState("filter_change");
   const [paymentStatus, setPaymentStatus] = useState("paid");
   const [paymentMethod, setPaymentMethod] = useState("cash");
   // Inline validation errors: notes, serviceCharge, and per-part errors keyed by index.
@@ -62,6 +72,9 @@ export default function CompleteServiceScreen({ route, navigation }) {
     try {
       const data = await serviceAPI.getById(serviceId);
       setService(data);
+      // Smart default for the next visit's type: keep the same type for AMC
+      // contract visits; otherwise default to a routine filter change.
+      setNextServiceType(data.amc_id ? data.service_type : "filter_change");
     } catch (error) {
       toast.error(error.message || "Something went wrong");
       navigation.goBack();
@@ -197,6 +210,8 @@ export default function CompleteServiceScreen({ route, navigation }) {
             cost: parseFloat(p.cost) || 0,
           })),
         next_due_date: nextDueDate,
+        // Only meaningful when a next due date is set; the next visit's type.
+        next_service_type: nextDueDate ? nextServiceType : null,
         payment_status: paymentStatus,
         payment_method: paymentStatus === "paid" ? paymentMethod : null,
       });
@@ -505,9 +520,45 @@ export default function CompleteServiceScreen({ route, navigation }) {
           )}
 
           {nextDuePreview && (
-            <Text style={{ color: colors.primary, marginTop: spacing.md, fontWeight: "600" }}>
-              Next service: {nextDuePreview}
-            </Text>
+            <>
+              {/* Which type the next visit will be — usually different from the
+                  one just completed (e.g. repair now -> filter change next). */}
+              <Text style={[labelStyle, { marginTop: spacing.lg }]}>Next Service Type</Text>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.sm }}>
+                {SERVICE_TYPES.map((t) => {
+                  const isSel = nextServiceType === t.value;
+                  return (
+                    <TouchableOpacity
+                      key={t.value}
+                      activeOpacity={0.7}
+                      style={{
+                        paddingHorizontal: spacing.lg,
+                        paddingVertical: spacing.sm,
+                        borderRadius: radius.full,
+                        borderWidth: 1,
+                        backgroundColor: isSel ? colors.primary : colors.background,
+                        borderColor: isSel ? colors.primary : colors.border,
+                      }}
+                      onPress={() => setNextServiceType(t.value)}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontWeight: isSel ? "600" : "500",
+                          color: isSel ? colors.onPrimary : colors.textSecondary,
+                        }}
+                      >
+                        {t.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <Text style={{ color: colors.primary, marginTop: spacing.md, fontWeight: "600" }}>
+                Next service: {SERVICE_TYPES.find((t) => t.value === nextServiceType)?.label} on {nextDuePreview}
+              </Text>
+            </>
           )}
         </Card>
 
