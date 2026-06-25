@@ -15,12 +15,15 @@ import DatePickerField from "../../components/DatePickerField";
 import { Card, Badge, Button, EmptyState, Skeleton, useToast } from "../../components/ui";
 import { useTheme } from "../../context/ThemeContext";
 import { confirm } from "../../utils/confirm";
+import { tint } from "../../utils/color";
+import { formatServiceType } from "../../utils/serviceLabels";
 
 // Helper to determine display status for 'scheduled' services
 function getDisplayStatus(service) {
   if (service.status !== "scheduled") return service.status;
   const today = new Date().toISOString().split("T")[0];
-  return service.scheduled_date >= today ? "upcoming" : "due";
+  // A service scheduled for today is actionable now, so it counts as "due".
+  return service.scheduled_date > today ? "upcoming" : "due";
 }
 
 // Map raw display status -> Badge status preset + accent color helper key.
@@ -73,6 +76,33 @@ export default function ServiceDetailScreen({ route, navigation }) {
     }
   };
 
+  const handleEdit = () => {
+    navigation.navigate("EditService", { service });
+  };
+
+  const handleDelete = () => {
+    if (!requireOnline()) return;
+    confirm({
+      title: "Delete Service",
+      message:
+        "Delete this service? This can't be undone. (A completed service or one with a bill can't be deleted.)",
+      confirmText: "Delete",
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          await serviceAPI.remove(id);
+          queryClient.invalidateQueries({ queryKey: ["services"] });
+          queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+          queryClient.invalidateQueries({ queryKey: ["reminders"] });
+          toast.success("Service deleted");
+          navigation.goBack();
+        } catch (error) {
+          toast.error(error.message || "Couldn't delete this service.");
+        }
+      },
+    });
+  };
+
   const handleFollowup = async () => {
     const extra = {};
     if (nextContactDate) extra.next_contact_date = nextContactDate;
@@ -116,7 +146,7 @@ export default function ServiceDetailScreen({ route, navigation }) {
   const isActionable = ["scheduled", "pending", "followup"].includes(service.status);
 
   const detailRows = [
-    { label: "Type", value: service.service_type.replace(/_/g, " ") },
+    { label: "Type", value: formatServiceType(service.service_type) },
     { label: "Scheduled Date", value: service.scheduled_date },
     { label: "Completed Date", value: service.completed_date },
     { label: "Next Due Date", value: service.next_due_date },
@@ -143,9 +173,54 @@ export default function ServiceDetailScreen({ route, navigation }) {
       {/* Service Info */}
       <Animated.View entering={FadeInDown.delay(60).duration(350)}>
         <Card style={{ marginBottom: spacing.md }}>
-          <Text style={{ color: colors.text, fontSize: 17, fontWeight: "700", marginBottom: spacing.md }}>
-            Service Details
-          </Text>
+          {/* Title row with Edit/Delete as compact icon actions (secondary).
+              Hidden for completed services — those are locked. */}
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginBottom: spacing.md,
+            }}
+          >
+            <Text style={{ color: colors.text, fontSize: 17, fontWeight: "700" }}>
+              Service Details
+            </Text>
+            {service.status !== "completed" && (
+              <View style={{ flexDirection: "row", gap: 6 }}>
+                <TouchableOpacity
+                  onPress={handleEdit}
+                  hitSlop={8}
+                  disabled={!!actionInFlight}
+                  style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: 17,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: tint(colors.primary, 0.12),
+                  }}
+                >
+                  <MaterialCommunityIcons name="pencil-outline" size={18} color={colors.primary} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleDelete}
+                  hitSlop={8}
+                  disabled={!!actionInFlight}
+                  style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: 17,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: tint(colors.danger, 0.12),
+                  }}
+                >
+                  <MaterialCommunityIcons name="trash-can-outline" size={18} color={colors.danger} />
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
           {detailRows.map((item) => (
             <View
               key={item.label}
@@ -157,7 +232,7 @@ export default function ServiceDetailScreen({ route, navigation }) {
               }}
             >
               <Text style={{ color: colors.textSecondary, fontSize: 14, width: 130 }}>{item.label}</Text>
-              <Text style={{ color: colors.text, fontSize: 14, flex: 1, textTransform: "capitalize" }}>
+              <Text style={{ color: colors.text, fontSize: 14, flex: 1 }}>
                 {item.value}
               </Text>
             </View>
@@ -244,23 +319,11 @@ export default function ServiceDetailScreen({ route, navigation }) {
         </Animated.View>
       )}
 
-      {/* Action Buttons */}
+      {/* Action Buttons — clear hierarchy: ONE solid primary (Complete), the
+          rest soft-tinted secondaries, Reject as a quiet outline. */}
       {isActionable && (
-        <Animated.View entering={FadeInDown.delay(180).duration(350)} style={{ gap: spacing.md }}>
-          {/* Pending - customer accepted */}
-          {(service.status === "scheduled" || service.status === "followup") && (
-            <Button
-              title="Customer Accepted (Pending)"
-              icon="check"
-              variant="primary"
-              style={{ backgroundColor: colors.warning }}
-              loading={actionInFlight === "pending"}
-              disabled={!!actionInFlight}
-              onPress={() => handleStatusChange("pending")}
-            />
-          )}
-
-          {/* Complete - navigate to completion form */}
+        <Animated.View entering={FadeInDown.delay(180).duration(350)} style={{ gap: spacing.sm }}>
+          {/* PRIMARY: Complete — the action taken most often. */}
           <Button
             title="Mark as Completed"
             icon="check-circle"
@@ -269,14 +332,37 @@ export default function ServiceDetailScreen({ route, navigation }) {
             onPress={() => navigation.navigate("CompleteService", { id: service.id })}
           />
 
-          {/* Follow Up */}
+          {/* SECONDARY: Accepted — soft amber (light bg, colored text + border). */}
+          {(service.status === "scheduled" || service.status === "followup") && (
+            <Button
+              title="Customer Accepted (Pending)"
+              icon="check"
+              variant="primary"
+              style={{
+                backgroundColor: tint(colors.warning, 0.12),
+                borderWidth: 1,
+                borderColor: tint(colors.warning, 0.4),
+              }}
+              textColor={colors.warning}
+              loading={actionInFlight === "pending"}
+              disabled={!!actionInFlight}
+              onPress={() => handleStatusChange("pending")}
+            />
+          )}
+
+          {/* SECONDARY: Follow Up — soft accent. */}
           {(service.status === "scheduled" || service.status === "followup") && (
             <>
               <Button
                 title="Mark as Follow Up"
                 icon="phone-return-outline"
                 variant="primary"
-                style={{ backgroundColor: colors.accent }}
+                style={{
+                  backgroundColor: tint(colors.accent, 0.12),
+                  borderWidth: 1,
+                  borderColor: tint(colors.accent, 0.4),
+                }}
+                textColor={colors.accent}
                 disabled={!!actionInFlight}
                 onPress={() => setShowFollowupForm(!showFollowupForm)}
               />
@@ -305,11 +391,13 @@ export default function ServiceDetailScreen({ route, navigation }) {
             </>
           )}
 
-          {/* Reject */}
+          {/* Reject — quiet outline (rare, negative action; shouldn't shout). */}
           <Button
             title="Reject"
             icon="close-circle"
-            variant="danger"
+            variant="secondary"
+            textColor={colors.danger}
+            style={{ borderColor: tint(colors.danger, 0.4), marginTop: spacing.xs }}
             loading={actionInFlight === "rejected"}
             disabled={!!actionInFlight}
             onPress={() =>

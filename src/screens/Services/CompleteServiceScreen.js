@@ -28,13 +28,16 @@ const NEXT_DUE_OPTIONS = [
 ];
 
 // Service types for the "next service" the follow-up visit will be.
-const SERVICE_TYPES = [
+// 'amc' is only offered when the current service belongs to an AMC contract
+// (so the follow-up stays linked via amc_id). For non-AMC services it's omitted
+// to avoid creating an orphan AMC visit with no contract.
+const BASE_SERVICE_TYPES = [
   { value: "general_service", label: "General Service" },
   { value: "filter_change", label: "Filter Change" },
-  { value: "amc", label: "AMC" },
   { value: "repair", label: "Repair" },
   { value: "installation", label: "Installation" },
 ];
+const AMC_TYPE = { value: "amc", label: "AMC" };
 
 const PAYMENT_METHODS = ["cash", "upi", "online"];
 
@@ -167,6 +170,12 @@ export default function CompleteServiceScreen({ route, navigation }) {
     return addMonths(new Date().toISOString().split("T")[0], months);
   };
   const nextDuePreview = getNextDueDate();
+
+  // Offer "AMC" as a next-service type ONLY for AMC contract visits, so the
+  // follow-up stays linked (amc_id) instead of becoming an orphan AMC.
+  const serviceTypeOptions = service?.amc_id
+    ? [...BASE_SERVICE_TYPES, AMC_TYPE]
+    : BASE_SERVICE_TYPES;
 
   const handleComplete = async () => {
     if (!requireOnline()) return;
@@ -525,7 +534,7 @@ export default function CompleteServiceScreen({ route, navigation }) {
                   one just completed (e.g. repair now -> filter change next). */}
               <Text style={[labelStyle, { marginTop: spacing.lg }]}>Next Service Type</Text>
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.sm }}>
-                {SERVICE_TYPES.map((t) => {
+                {serviceTypeOptions.map((t) => {
                   const isSel = nextServiceType === t.value;
                   return (
                     <TouchableOpacity
@@ -556,7 +565,7 @@ export default function CompleteServiceScreen({ route, navigation }) {
               </View>
 
               <Text style={{ color: colors.primary, marginTop: spacing.md, fontWeight: "600" }}>
-                Next service: {SERVICE_TYPES.find((t) => t.value === nextServiceType)?.label} on {nextDuePreview}
+                Next service: {serviceTypeOptions.find((t) => t.value === nextServiceType)?.label} on {nextDuePreview}
               </Text>
             </>
           )}

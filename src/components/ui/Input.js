@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, TextInput } from "react-native";
+import { View, Text, TextInput, TouchableOpacity } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTheme } from "../../context/ThemeContext";
 
@@ -14,10 +14,13 @@ export default function Input({
   style,
   onBlur,
   multiline,
+  secureTextEntry,
   ...rest
 }) {
   const { colors, radius } = useTheme();
   const [focused, setFocused] = useState(false);
+  // Show/hide toggle for password fields. Only active when secureTextEntry is set.
+  const [hidden, setHidden] = useState(true);
 
   const borderColor = error
     ? colors.danger
@@ -61,6 +64,10 @@ export default function Input({
           placeholder={placeholder}
           placeholderTextColor={colors.textMuted}
           multiline={multiline}
+          secureTextEntry={secureTextEntry && hidden}
+          // Android multiline defaults to vertically-centered text, which looks
+          // broken in a tall box — force it to start at the top (web/iOS already do).
+          textAlignVertical={multiline ? "top" : "center"}
           onFocus={() => setFocused(true)}
           onBlur={(e) => {
             setFocused(false);
@@ -80,6 +87,21 @@ export default function Input({
           }}
           {...rest}
         />
+        {secureTextEntry ? (
+          <TouchableOpacity
+            onPress={() => setHidden((h) => !h)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityRole="button"
+            accessibilityLabel={hidden ? "Show password" : "Hide password"}
+          >
+            <MaterialCommunityIcons
+              name={hidden ? "eye-outline" : "eye-off-outline"}
+              size={18}
+              color={iconColor}
+              style={{ marginLeft: 8 }}
+            />
+          </TouchableOpacity>
+        ) : null}
       </View>
       {error ? (
         <Text style={{ color: colors.danger, fontSize: 12, marginTop: 4 }}>{error}</Text>

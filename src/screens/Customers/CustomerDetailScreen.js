@@ -16,6 +16,7 @@ import ServiceCard from "../../components/ServiceCard";
 import { Card, Button, EmptyState, Skeleton, useToast } from "../../components/ui";
 import { useTheme } from "../../context/ThemeContext";
 import { confirm } from "../../utils/confirm";
+import { tint } from "../../utils/color";
 
 export default function CustomerDetailScreen({ route, navigation }) {
   const { colors, radius, elevation } = useTheme();
@@ -181,7 +182,7 @@ export default function CustomerDetailScreen({ route, navigation }) {
         <View style={styles.actions}>
           {actions.map((a) => (
             <Pressable key={a.label} style={styles.actionBtn} onPress={a.onPress}>
-              <View style={[styles.actionIconWrap, { backgroundColor: `${a.color}1A` }]}>
+              <View style={[styles.actionIconWrap, { backgroundColor: tint(a.color, 0.1) }]}>
                 <MaterialCommunityIcons name={a.icon} size={22} color={a.color} />
               </View>
               <Text style={[styles.actionLabel, { color: colors.textSecondary }]}>

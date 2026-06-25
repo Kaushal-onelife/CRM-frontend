@@ -14,6 +14,7 @@ import EditCustomerScreen from "../screens/Customers/EditCustomerScreen";
 import ServiceListScreen from "../screens/Services/ServiceListScreen";
 import AddServiceScreen from "../screens/Services/AddServiceScreen";
 import ServiceDetailScreen from "../screens/Services/ServiceDetailScreen";
+import EditServiceScreen from "../screens/Services/EditServiceScreen";
 import CompleteServiceScreen from "../screens/Services/CompleteServiceScreen";
 import ServiceSuccessScreen from "../screens/Services/ServiceSuccessScreen";
 import BillListScreen from "../screens/Bills/BillListScreen";
@@ -22,6 +23,7 @@ import CreateBillScreen from "../screens/Bills/CreateBillScreen";
 import AMCListScreen from "../screens/AMC/AMCListScreen";
 import AMCDetailScreen from "../screens/AMC/AMCDetailScreen";
 import CreateAMCScreen from "../screens/AMC/CreateAMCScreen";
+import EditAMCScreen from "../screens/AMC/EditAMCScreen";
 import InventoryScreen from "../screens/Inventory/InventoryScreen";
 import SettingsScreen from "../screens/Settings/SettingsScreen";
 import MoreScreen from "../screens/More/MoreScreen";
@@ -99,6 +101,11 @@ function ServiceNavigator() {
         options={{ title: "Service Details" }}
       />
       <ServiceStack.Screen
+        name="EditService"
+        component={EditServiceScreen}
+        options={{ title: "Edit Service" }}
+      />
+      <ServiceStack.Screen
         name="CompleteService"
         component={CompleteServiceScreen}
         options={{ title: "Complete Service" }}
@@ -133,6 +140,7 @@ function MoreNavigator() {
       <MoreStack.Screen name="AMC" component={AMCListScreen} options={{ title: "AMC Contracts" }} />
       <MoreStack.Screen name="AMCDetail" component={AMCDetailScreen} options={{ title: "AMC Details" }} />
       <MoreStack.Screen name="CreateAMC" component={CreateAMCScreen} options={{ title: "New AMC Contract" }} />
+      <MoreStack.Screen name="EditAMC" component={EditAMCScreen} options={{ title: "Edit AMC" }} />
 
       {/* Inventory */}
       <MoreStack.Screen name="Inventory" component={InventoryScreen} options={{ title: "Parts Inventory" }} />

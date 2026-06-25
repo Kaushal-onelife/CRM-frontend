@@ -88,6 +88,11 @@ export default function AMCListScreen({ navigation }) {
   const getStatusBadge = (item) => {
     const daysLeft = getDaysRemaining(item.end_date);
     const isExpiringSoon = item.status === "active" && daysLeft <= 30 && daysLeft > 0;
+    // A renewed (superseded) contract gets its own badge so it isn't confused
+    // with one that simply expired and was forgotten.
+    if (item.is_renewed) {
+      return { color: colors.primary, label: "Renewed", daysLeft, isExpiringSoon: false };
+    }
     if (item.status === "active") {
       return isExpiringSoon
         ? { color: colors.warning, label: "Expiring soon", daysLeft, isExpiringSoon }

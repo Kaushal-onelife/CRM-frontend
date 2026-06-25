@@ -2,12 +2,14 @@ import React from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
+import { formatServiceType } from "../utils/serviceLabels";
 
 // Helper to determine display status for 'scheduled' services
 function getDisplayStatus(service) {
   if (service.status !== "scheduled") return service.status;
   const today = new Date().toISOString().split("T")[0];
-  return service.scheduled_date >= today ? "upcoming" : "due";
+  // A service scheduled for today is actionable now, so it counts as "due".
+  return service.scheduled_date > today ? "upcoming" : "due";
 }
 
 const STATUS_CONFIG = {
@@ -62,11 +64,13 @@ const SERVICE_TYPE_ICONS = {
   filter_replacement: "filter",
   filter_change: "filter",
   amc: "shield-check-outline",
+  amc_service: "shield-check-outline", // legacy orphan type
   general_service: "water-pump",
   inspection: "clipboard-check-outline",
   complaint: "alert-circle-outline",
   default: "water-pump",
 };
+
 
 function ServiceCard({ service, onPress }) {
   const { isDark, colors, elevation } = useTheme();
@@ -132,10 +136,10 @@ function ServiceCard({ service, onPress }) {
               {service.customers?.name}
             </Text>
             <Text
-              className="text-sm capitalize mt-0.5"
+              className="text-sm mt-0.5"
               style={{ color: colors.textSecondary }}
             >
-              {service.service_type.replace(/_/g, " ")}
+              {formatServiceType(service.service_type)}
             </Text>
           </View>
 

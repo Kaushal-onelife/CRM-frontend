@@ -13,10 +13,12 @@ import {
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { supabase } from "../../services/supabase";
 import { useTheme } from "../../context/ThemeContext";
-import { Button, Card, useToast, alert } from "../../components/ui";
+import { Button, Card, Input, useToast, alert } from "../../components/ui";
 import { confirm } from "../../utils/confirm";
 import { pickAvatar, uploadAvatar } from "../../utils/avatar";
 import { useProfile } from "../../hooks/useProfile";
+import { tenantAPI } from "../../services/api";
+import { requireOnline } from "../../hooks/useRequireOnline";
 
 export default function SettingsScreen({ navigation }) {
   const { colors, theme, isDark, toggleTheme, elevation } = useTheme();
@@ -26,6 +28,53 @@ export default function SettingsScreen({ navigation }) {
   // works offline, refreshes in the background. No load-then-flash.
   const { data: user } = useProfile();
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  // Edit business info (incl. bill terms). Form opens prefilled from the tenant.
+  const [editingBiz, setEditingBiz] = useState(false);
+  const [savingBiz, setSavingBiz] = useState(false);
+  const [bizForm, setBizForm] = useState({});
+
+  const startEditBiz = () => {
+    const t = user?.tenants || {};
+    setBizForm({
+      business_name: t.business_name || "",
+      owner_name: t.owner_name || "",
+      email: t.email || "",
+      address: t.address || "",
+      bill_terms: t.bill_terms || "",
+      amc_terms: t.amc_terms || "",
+    });
+    setEditingBiz(true);
+  };
+
+  const setBiz = (key) => (v) => setBizForm((f) => ({ ...f, [key]: v }));
+
+  const handleSaveBiz = async () => {
+    if (!requireOnline()) return;
+    if (!bizForm.business_name?.trim()) {
+      toast.error("Business name can't be empty.");
+      return;
+    }
+    if (!user?.tenant_id) return;
+    setSavingBiz(true);
+    try {
+      await tenantAPI.update(user.tenant_id, {
+        business_name: bizForm.business_name.trim(),
+        owner_name: bizForm.owner_name.trim(),
+        email: bizForm.email.trim() || null,
+        address: bizForm.address.trim() || null,
+        bill_terms: bizForm.bill_terms.trim() || null,
+        amc_terms: bizForm.amc_terms.trim() || null,
+      });
+      // Refresh the shared profile so Settings + bill PDFs see the new values.
+      await queryClient.invalidateQueries({ queryKey: ["profile"] });
+      setEditingBiz(false);
+      toast.success("Business info updated");
+    } catch (error) {
+      toast.error(error.message || "Couldn't save. Please try again.");
+    }
+    setSavingBiz(false);
+  };
 
   const handleChangeAvatar = async () => {
     try {
@@ -150,29 +199,117 @@ export default function SettingsScreen({ navigation }) {
       {/* Business Info */}
       {user?.tenants && (
         <Card style={styles.card}>
-          <Text style={[styles.cardTitle, { color: colors.text }]}>Business Info</Text>
-          {[
-            { label: "Business Name", value: user.tenants.business_name },
-            { label: "Owner", value: user.tenants.owner_name },
-            { label: "Phone", value: user.tenants.phone },
-            { label: "Email", value: user.tenants.email },
-            { label: "Address", value: user.tenants.address },
-            { label: "Subscription", value: user.tenants.subscription_status },
-          ]
-            .filter((item) => item.value)
-            .map((item) => (
-              <View
-                key={item.label}
-                style={[styles.detailRow, { borderBottomColor: colors.divider }]}
-              >
-                <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>
-                  {item.label}
-                </Text>
-                <Text style={[styles.detailValue, { color: colors.text }]}>
-                  {item.value}
-                </Text>
+          <View style={styles.cardTitleRow}>
+            <Text style={[styles.cardTitle, { color: colors.text, marginBottom: 0 }]}>
+              Business Info
+            </Text>
+            {!editingBiz && (
+              <TouchableOpacity onPress={startEditBiz} hitSlop={8} style={styles.editLink}>
+                <MaterialCommunityIcons name="pencil-outline" size={16} color={colors.primary} />
+                <Text style={{ color: colors.primary, fontWeight: "600", fontSize: 13 }}>Edit</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {!editingBiz ? (
+            // Read-only view
+            [
+              { label: "Business Name", value: user.tenants.business_name },
+              { label: "Owner", value: user.tenants.owner_name },
+              { label: "Phone", value: user.tenants.phone },
+              { label: "Email", value: user.tenants.email },
+              { label: "Address", value: user.tenants.address },
+              { label: "Bill Terms", value: user.tenants.bill_terms },
+              { label: "AMC Terms", value: user.tenants.amc_terms },
+              { label: "Subscription", value: user.tenants.subscription_status },
+            ]
+              .filter((item) => item.value)
+              .map((item) => (
+                <View
+                  key={item.label}
+                  style={[styles.detailRow, { borderBottomColor: colors.divider }]}
+                >
+                  <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>
+                    {item.label}
+                  </Text>
+                  <Text
+                    style={[styles.detailValue, { color: colors.text }]}
+                    numberOfLines={3}
+                  >
+                    {item.value}
+                  </Text>
+                </View>
+              ))
+          ) : (
+            // Edit form
+            <View style={{ marginTop: 8 }}>
+              <Input
+                label="Business Name"
+                value={bizForm.business_name}
+                onChangeText={setBiz("business_name")}
+                placeholder="Your business name"
+              />
+              <Input
+                label="Owner Name"
+                value={bizForm.owner_name}
+                onChangeText={setBiz("owner_name")}
+                placeholder="Owner name"
+              />
+              <Input
+                label="Email"
+                value={bizForm.email}
+                onChangeText={setBiz("email")}
+                placeholder="business@email.com"
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+              <Input
+                label="Address"
+                value={bizForm.address}
+                onChangeText={setBiz("address")}
+                placeholder="Business address (shown on bills)"
+                multiline
+              />
+              <Input
+                label="Bill Terms & Conditions"
+                value={bizForm.bill_terms}
+                onChangeText={setBiz("bill_terms")}
+                placeholder="e.g. Replaced parts carry a 3-month warranty. Payment due within 7 days."
+                multiline
+              />
+              <Text style={[styles.fieldHint, { color: colors.textMuted }]}>
+                Printed at the bottom of regular service/parts bills.
+              </Text>
+              <Input
+                label="AMC Terms & Conditions"
+                value={bizForm.amc_terms}
+                onChangeText={setBiz("amc_terms")}
+                placeholder="e.g. Covers scheduled services only. Spare parts charged separately. Non-refundable."
+                multiline
+              />
+              <Text style={[styles.fieldHint, { color: colors.textMuted }]}>
+                Printed on AMC contract bills. Leave terms blank to hide them.
+              </Text>
+
+              <View style={styles.editActions}>
+                <Button
+                  title="Cancel"
+                  variant="secondary"
+                  onPress={() => setEditingBiz(false)}
+                  disabled={savingBiz}
+                  style={{ flex: 1 }}
+                />
+                <Button
+                  title="Save"
+                  icon="content-save-outline"
+                  onPress={handleSaveBiz}
+                  loading={savingBiz}
+                  disabled={savingBiz}
+                  style={{ flex: 1 }}
+                />
               </View>
-            ))}
+            </View>
+          )}
         </Card>
       )}
 
@@ -309,6 +446,15 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   cardTitle: { fontSize: 17, fontWeight: "600", marginBottom: 8 },
+  cardTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  editLink: { flexDirection: "row", alignItems: "center", gap: 4 },
+  fieldHint: { fontSize: 11, marginTop: -4, marginBottom: 4, lineHeight: 15 },
+  editActions: { flexDirection: "row", gap: 12, marginTop: 8 },
   detailRow: {
     flexDirection: "row",
     paddingVertical: 10,

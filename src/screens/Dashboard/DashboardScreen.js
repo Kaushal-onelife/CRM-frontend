@@ -9,6 +9,7 @@ import { useProfile } from "../../hooks/useProfile";
 import ServiceCard from "../../components/ServiceCard";
 import { Card, Badge, EmptyState, SkeletonDashboard } from "../../components/ui";
 import { useTheme } from "../../context/ThemeContext";
+import { tint } from "../../utils/color";
 
 const formatMoney = (n) => {
   const num = Number(n);
@@ -30,17 +31,6 @@ const greeting = () => {
 // Convert a #RRGGBB (or #RGB) hex to an rgba() string with the given alpha.
 // Using rgba() avoids 8-digit hex alpha, which renders inconsistently in
 // release builds (and breaks entirely if `hex` isn't a clean 6-digit value).
-const tint = (hex, alpha) => {
-  if (typeof hex !== "string" || hex[0] !== "#") return hex;
-  let h = hex.slice(1);
-  if (h.length === 3) h = h.split("").map((c) => c + c).join(""); // #abc -> #aabbcc
-  if (h.length !== 6) return hex; // unexpected format — fall back to the solid color
-  const r = parseInt(h.slice(0, 2), 16);
-  const g = parseInt(h.slice(2, 4), 16);
-  const b = parseInt(h.slice(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-};
-
 // Stat tile — soft-tinted card: the card background is a light wash of its own
 // color, a solid icon chip up top, a big bold number, then the label. Cohesive
 // colorful grid that ties into the gradient hero. Tappable + dark-mode aware.

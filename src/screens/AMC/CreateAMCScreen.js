@@ -11,6 +11,7 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view
 import { useQueryClient } from "@tanstack/react-query";
 import { customerAPI, amcAPI } from "../../services/api";
 import { requireOnline } from "../../hooks/useRequireOnline";
+import { confirm } from "../../utils/confirm";
 import DatePickerField from "../../components/DatePickerField";
 import { Input, Button, Card, useToast } from "../../components/ui";
 import { useTheme } from "../../context/ThemeContext";
@@ -34,22 +35,46 @@ export default function CreateAMCScreen({ route, navigation }) {
   const toast = useToast();
   const queryClient = useQueryClient();
   const preCustomerId = route.params?.customerId;
+  // Renewal mode: when renewFrom is set we call amcAPI.renew(oldId,...) instead
+  // of create, and the form is prefilled from the old contract.
+  const renewFrom = route.params?.renewFrom || null;
+  const prefill = route.params?.prefill || null;
+  const renewCustomerName = route.params?.customerName;
+
+  // Default the new start to the day AFTER the old contract's end (continuous
+  // coverage); the owner can change it.
+  const dayAfter = (iso) => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().split("T")[0];
+  };
+
   const [customers, setCustomers] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState(preCustomerId || null);
-  const [customerSearch, setCustomerSearch] = useState("");
+  const [customerSearch, setCustomerSearch] = useState(renewCustomerName || "");
   const [showDropdown, setShowDropdown] = useState(false);
   const [searching, setSearching] = useState(false);
 
-  const [selectedPlan, setSelectedPlan] = useState(null);
-  const [planName, setPlanName] = useState("");
-  const [startDate, setStartDate] = useState("");
+  const [selectedPlan, setSelectedPlan] = useState(prefill ? "Custom" : null);
+  const [planName, setPlanName] = useState(prefill?.plan_name || "");
+  const [startDate, setStartDate] = useState(prefill ? dayAfter(prefill.start_date) : "");
   const [endDate, setEndDate] = useState("");
-  const [totalServices, setTotalServices] = useState("4");
-  const [amount, setAmount] = useState("");
+  const [totalServices, setTotalServices] = useState(prefill?.total_services || "4");
+  const [amount, setAmount] = useState(prefill?.amount || "");
   const [autoSchedule, setAutoSchedule] = useState(true);
-  const [notes, setNotes] = useState("");
+  // Most AMC customers pay upfront -> default Paid. A bill is auto-generated on
+  // submit (paid or unpaid) so the customer always has a record.
+  const [isPaid, setIsPaid] = useState(true);
+  const [paymentMethod, setPaymentMethod] = useState("cash");
+  const [notes, setNotes] = useState(prefill?.notes || "");
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+
+  // Reflect renewal vs new-contract mode in the header title.
+  useEffect(() => {
+    navigation.setOptions({ title: renewFrom ? "Renew AMC" : "New AMC Contract" });
+  }, [renewFrom, navigation]);
 
   // Per-field validation — returns an error string or null. Used on blur + submit.
   const validateField = (key, value) => {
@@ -164,7 +189,7 @@ export default function CreateAMCScreen({ route, navigation }) {
 
     setLoading(true);
     try {
-      await amcAPI.create({
+      const body = {
         customer_id: selectedCustomer,
         plan_name: trimmedPlan,
         start_date: startDate,
@@ -172,15 +197,45 @@ export default function CreateAMCScreen({ route, navigation }) {
         total_services: parseInt(totalServices, 10),
         amount: parseFloat(amount) || 0,
         auto_schedule: autoSchedule,
+        payment_status: isPaid ? "paid" : "unpaid",
+        payment_method: isPaid ? paymentMethod : null,
         notes: trimmedNotes,
-      });
-      // Refresh AMC list plus services (auto-schedule), dashboard and reminders.
+      };
+
+      // Both create + renew return the new contract plus the auto-generated
+      // bill (or bill: null when amount was 0 / billing failed).
+      const result = renewFrom
+        ? await amcAPI.renew(renewFrom, body)
+        : await amcAPI.create(body);
+
+      // Refresh AMC list, services (auto-schedule), bills (auto-generated AMC
+      // bill), dashboard and reminders.
       queryClient.invalidateQueries({ queryKey: ["amc"] });
       queryClient.invalidateQueries({ queryKey: ["services"] });
+      queryClient.invalidateQueries({ queryKey: ["bills"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["reminders"] });
-      toast.success("AMC contract created" + (autoSchedule ? " with scheduled services" : ""));
-      navigation.goBack();
+      toast.success(
+        renewFrom
+          ? "AMC renewed with a new contract"
+          : "AMC contract created" + (autoSchedule ? " with scheduled services" : "")
+      );
+
+      // If a bill was generated, offer to open it so the owner can share the
+      // PDF / WhatsApp it. Otherwise just return to the list.
+      const billId = result?.bill?.id;
+      if (billId) {
+        confirm({
+          title: "Bill generated",
+          message: `Bill ${result.bill.bill_number || ""} was created for this AMC. Open it to share the PDF?`,
+          confirmText: "View & Share",
+          cancelText: "Not now",
+          onConfirm: () => navigation.replace("BillDetail", { id: billId }),
+          onCancel: () => navigation.goBack(),
+        });
+      } else {
+        navigation.goBack();
+      }
     } catch (error) {
       toast.error(error.message || "Something went wrong");
     }
@@ -354,6 +409,74 @@ export default function CreateAMCScreen({ route, navigation }) {
         keyboardType="numeric"
       />
 
+      {/* Payment status — a bill is auto-generated either way. */}
+      <Text style={[styles.fieldLabel, { color: colors.text }]}>Payment</Text>
+      <View style={styles.segmentRow}>
+        {[
+          { key: true, label: "Paid" },
+          { key: false, label: "Unpaid" },
+        ].map((opt) => {
+          const active = isPaid === opt.key;
+          return (
+            <TouchableOpacity
+              key={opt.label}
+              activeOpacity={0.7}
+              onPress={() => setIsPaid(opt.key)}
+              style={[
+                styles.segment,
+                {
+                  backgroundColor: active ? colors.primary : colors.surface,
+                  borderColor: active ? colors.primary : colors.border,
+                },
+              ]}
+            >
+              <Text
+                style={{
+                  fontWeight: active ? "700" : "500",
+                  color: active ? colors.onPrimary : colors.textSecondary,
+                }}
+              >
+                {opt.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {/* Payment method — only when paid. */}
+      {isPaid && (
+        <View style={[styles.segmentRow, { marginTop: 8 }]}>
+          {["cash", "upi", "online"].map((m) => {
+            const active = paymentMethod === m;
+            return (
+              <TouchableOpacity
+                key={m}
+                activeOpacity={0.7}
+                onPress={() => setPaymentMethod(m)}
+                style={[
+                  styles.segment,
+                  {
+                    backgroundColor: active ? colors.primarySoft : colors.surface,
+                    borderColor: active ? colors.primary : colors.border,
+                  },
+                ]}
+              >
+                <Text
+                  style={{
+                    fontWeight: active ? "700" : "500",
+                    color: active ? colors.primary : colors.textSecondary,
+                    textTransform: "uppercase",
+                    fontSize: 12,
+                  }}
+                >
+                  {m}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
+
       {/* Auto-schedule toggle */}
       <View
         style={[
@@ -390,8 +513,8 @@ export default function CreateAMCScreen({ route, navigation }) {
       />
 
       <Button
-        title="Create AMC Contract"
-        icon="file-document-plus-outline"
+        title={renewFrom ? "Renew AMC" : "Create AMC Contract"}
+        icon={renewFrom ? "autorenew" : "file-document-plus-outline"}
         loading={loading}
         disabled={loading}
         onPress={handleSubmit}
@@ -431,4 +554,14 @@ const styles = StyleSheet.create({
   },
   switchLabel: { fontSize: 14, fontWeight: "500" },
   switchHint: { fontSize: 12, marginTop: 2, lineHeight: 16 },
+  fieldLabel: { fontSize: 13, fontWeight: "500", marginBottom: 6, marginTop: 14 },
+  segmentRow: { flexDirection: "row", gap: 8 },
+  segment: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
 });

@@ -45,9 +45,13 @@ export default function Button({
   fullWidth = true,
   haptic = true,
   style,
+  textColor, // overrides the variant's foreground (icon + text) color
 }) {
   const { colors, radius } = useTheme();
   const v = useVariantStyle(variant, colors);
+  // Allow callers to recolor the foreground (e.g. soft-tinted buttons that need
+  // colored text/icon instead of the variant's default white).
+  if (textColor) v.fg = textColor;
   const s = SIZE[size] || SIZE.md;
   const scale = useSharedValue(1);
 

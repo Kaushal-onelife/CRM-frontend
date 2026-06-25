@@ -13,6 +13,7 @@ import { requireOnline } from "../../hooks/useRequireOnline";
 import { Card, Badge, Button, EmptyState, Skeleton, useToast } from "../../components/ui";
 import { useTheme } from "../../context/ThemeContext";
 import { confirm } from "../../utils/confirm";
+import { tint } from "../../utils/color";
 
 const formatMoney = (n) => {
   const num = Number(n);
@@ -42,9 +43,50 @@ export default function AMCDetailScreen({ route, navigation }) {
     return Math.ceil(diff / (1000 * 60 * 60 * 24));
   };
 
+  const handleEdit = () => {
+    navigation.navigate("EditAMC", { contract });
+  };
+
+  const handleDelete = () => {
+    if (!requireOnline()) return;
+    confirm({
+      title: "Delete AMC",
+      message:
+        "Delete this AMC contract and its scheduled visits? Any bill already generated stays in Bills (delete it there if needed). This can't be undone.",
+      confirmText: "Delete",
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          await amcAPI.remove(id);
+          queryClient.invalidateQueries({ queryKey: ["amc"] });
+          queryClient.invalidateQueries({ queryKey: ["services"] });
+          queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+          queryClient.invalidateQueries({ queryKey: ["reminders"] });
+          toast.success("AMC contract deleted");
+          navigation.goBack();
+        } catch (error) {
+          // 409 = guarded (completed visits / already renewed) — show the reason.
+          toast.error(error.message || "Couldn't delete this contract.");
+        }
+      },
+    });
+  };
+
   const handleRenew = () => {
+    // Open CreateAMC in RENEW mode — prefilled from this contract, customer
+    // locked, submit calls amcAPI.renew(oldId,...) which creates the new linked
+    // contract and closes this one out.
     navigation.navigate("CreateAMC", {
+      renewFrom: contract.id,
       customerId: contract.customer_id,
+      customerName: contract.customers?.name,
+      prefill: {
+        plan_name: contract.plan_name,
+        total_services: String(contract.total_services),
+        amount: contract.amount != null ? String(contract.amount) : "",
+        start_date: contract.end_date, // CreateAMC will default new start = old end + 1
+        notes: contract.notes || "",
+      },
     });
   };
 
@@ -121,9 +163,13 @@ export default function AMCDetailScreen({ route, navigation }) {
     statusLabel = "CANCELLED";
   }
 
-  const servicesRemaining = contract.total_services - contract.services_used;
+  // services_used + services_remaining come computed from the API (from actual
+  // completed visits). Fall back to a local calc + clamp so the bar never breaks.
+  const servicesRemaining =
+    contract.services_remaining ??
+    Math.max(0, (contract.total_services || 0) - (contract.services_used || 0));
   const progressPct = contract.total_services
-    ? (contract.services_used / contract.total_services) * 100
+    ? Math.min(100, ((contract.services_used || 0) / contract.total_services) * 100)
     : 0;
 
   const details = [
@@ -147,7 +193,7 @@ export default function AMCDetailScreen({ route, navigation }) {
       <View
         style={[
           styles.statusBanner,
-          { backgroundColor: `${statusColor}1A` },
+          { backgroundColor: tint(statusColor, 0.1) },
           elevation("sm"),
         ]}
       >
@@ -164,7 +210,31 @@ export default function AMCDetailScreen({ route, navigation }) {
 
       {/* Contract Info */}
       <Card style={{ marginTop: 16 }}>
-        <Text style={[styles.cardTitle, { color: colors.text }]}>Contract Details</Text>
+        {/* Title row with Edit/Delete as compact icon actions. Edit hidden once
+            renewed (closed); Delete is guarded server-side. */}
+        <View style={styles.cardTitleRow}>
+          <Text style={[styles.cardTitle, { color: colors.text, marginBottom: 0 }]}>
+            Contract Details
+          </Text>
+          <View style={{ flexDirection: "row", gap: 6 }}>
+            {!contract.renewed_to && (
+              <TouchableOpacity
+                onPress={handleEdit}
+                hitSlop={8}
+                style={[styles.iconAction, { backgroundColor: tint(colors.primary, 0.12) }]}
+              >
+                <MaterialCommunityIcons name="pencil-outline" size={18} color={colors.primary} />
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              onPress={handleDelete}
+              hitSlop={8}
+              style={[styles.iconAction, { backgroundColor: tint(colors.danger, 0.12) }]}
+            >
+              <MaterialCommunityIcons name="trash-can-outline" size={18} color={colors.danger} />
+            </TouchableOpacity>
+          </View>
+        </View>
         {details.map((item, idx) => (
           <View
             key={item.label}
@@ -295,13 +365,35 @@ export default function AMCDetailScreen({ route, navigation }) {
           />
         )}
 
-        {(contract.status === "expired" || daysLeft <= 30) && (
+        {/* Renew — only when NOT already renewed. An already-renewed contract is
+            closed; offering Renew again would create a duplicate chain. */}
+        {!contract.renewed_to && (contract.status === "expired" || daysLeft <= 30) && (
           <Button
             title="Renew Contract"
             variant="primary"
             icon="autorenew"
             onPress={handleRenew}
           />
+        )}
+
+        {/* Already renewed -> link to the contract that replaced this one. */}
+        {contract.renewed_to && (
+          <TouchableOpacity
+            onPress={() =>
+              navigation.replace("AMCDetail", { id: contract.renewed_to.id })
+            }
+            activeOpacity={0.7}
+            style={[
+              styles.renewedBanner,
+              { backgroundColor: tint(colors.success, 0.1), borderColor: colors.success },
+            ]}
+          >
+            <MaterialCommunityIcons name="check-decagram" size={18} color={colors.success} />
+            <Text style={[styles.renewedText, { color: colors.success }]}>
+              Renewed — view new contract
+            </Text>
+            <MaterialCommunityIcons name="chevron-right" size={18} color={colors.success} />
+          </TouchableOpacity>
         )}
       </View>
     </ScrollView>
@@ -321,6 +413,19 @@ const styles = StyleSheet.create({
   statusText: { fontSize: 15, fontWeight: "700", letterSpacing: 1 },
   daysLeft: { fontSize: 13, marginTop: 2 },
   cardTitle: { fontSize: 17, fontWeight: "600", marginBottom: 12 },
+  cardTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  iconAction: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   detailRow: {
     flexDirection: "row",
     paddingVertical: 10,
@@ -349,4 +454,14 @@ const styles = StyleSheet.create({
   serviceType: { fontSize: 14, fontWeight: "500", textTransform: "capitalize" },
   serviceDate: { fontSize: 13, marginTop: 2 },
   actions: { marginTop: 20, gap: 12 },
+  renewedBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  renewedText: { fontWeight: "700", fontSize: 14 },
 });

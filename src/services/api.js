@@ -65,6 +65,12 @@ export const authAPI = {
     apiCall("/auth/login", { method: "POST", body: JSON.stringify(body) }),
 };
 
+// Tenant / business profile (business info + bill terms)
+export const tenantAPI = {
+  update: (id, body) =>
+    apiCall(`/tenants/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+};
+
 // Dashboard
 export const dashboardAPI = {
   get: () => apiCall("/dashboard"),
@@ -107,6 +113,7 @@ export const serviceAPI = {
     apiCall("/services", { method: "POST", body: JSON.stringify(body) }),
   update: (id, body) =>
     apiCall(`/services/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+  remove: (id) => apiCall(`/services/${id}`, { method: "DELETE" }),
   markCompleted: (id, body) =>
     apiCall(`/services/${id}/complete`, {
       method: "PATCH",
@@ -148,6 +155,10 @@ export const amcAPI = {
   update: (id, body) =>
     apiCall(`/amc/${id}`, { method: "PUT", body: JSON.stringify(body) }),
   checkExpired: () => apiCall("/amc/check-expired", { method: "POST" }),
+  // Renew an existing contract — creates a new linked contract, closes the old.
+  renew: (id, body) =>
+    apiCall(`/amc/${id}/renew`, { method: "POST", body: JSON.stringify(body) }),
+  remove: (id) => apiCall(`/amc/${id}`, { method: "DELETE" }),
 };
 
 // Parts Inventory

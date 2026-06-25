@@ -5,6 +5,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Card } from "../../components/ui";
 import { useTheme } from "../../context/ThemeContext";
 import { tap } from "../../utils/haptics";
+import { tint as withAlpha } from "../../utils/color";
 
 // Secondary features live here instead of cluttering the bottom tab bar.
 // Each row navigates into its own stack (registered in MoreNavigator).
@@ -62,7 +63,7 @@ function MenuRow({ item, index, onPress }) {
         padded={false}
       >
         <View style={styles.cardInner}>
-          <View style={[styles.iconChip, { backgroundColor: `${tint}1A` }]}>
+          <View style={[styles.iconChip, { backgroundColor: withAlpha(tint, 0.1) }]}>
             <MaterialCommunityIcons name={item.icon} size={22} color={tint} />
           </View>
           <View style={styles.info}>

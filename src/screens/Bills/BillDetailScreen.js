@@ -80,6 +80,16 @@ export default function BillDetailScreen({ route, navigation }) {
     if (!bill || generating) return;
     setGenerating(true);
     try {
+      // Pick AMC vs general terms. An AMC bill is identified by a line item whose
+      // description starts with "AMC" (set when the AMC bill is generated) — more
+      // reliable than service_id, since manual bills also have no service_id.
+      const isAmcBill = (bill.bill_items || []).some((it) =>
+        /^amc\b/i.test((it.description || "").trim())
+      );
+      const terms = isAmcBill
+        ? profile?.tenants?.amc_terms
+        : profile?.tenants?.bill_terms;
+
       const html = buildInvoiceHtml(
         bill,
         {
@@ -88,7 +98,8 @@ export default function BillDetailScreen({ route, navigation }) {
           phone: profile?.tenants?.phone,
           email: profile?.tenants?.email,
         },
-        LOGO_DATA_URI
+        LOGO_DATA_URI,
+        terms
       );
 
       // Web has no native share sheet: open the browser print dialog so the user

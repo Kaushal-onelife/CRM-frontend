@@ -20,9 +20,12 @@ import {
   firstError,
 } from "../../utils/validators";
 
+// Note: 'amc' is intentionally NOT here. AMC visits must come from creating an
+// AMC Contract (which auto-schedules + links them via amc_id) — picking 'amc'
+// as a one-off service type would create an orphan visit with no contract that
+// never shows in the AMC list or counts toward a contract.
 const SERVICE_TYPES = [
   "installation",
-  "amc",
   "repair",
   "filter_change",
   "general_service",

@@ -166,25 +166,6 @@ export default function ServiceListScreen({ navigation, route }) {
     resetPagination();
   };
 
-  const filterColor = (filter) => {
-    switch (filter) {
-      case "upcoming":
-        return colors.primary;
-      case "due":
-        return "#F97316";
-      case "pending":
-        return colors.warning;
-      case "followup":
-        return colors.accent;
-      case "completed":
-        return colors.success;
-      case "rejected":
-        return colors.danger;
-      default:
-        return colors.primary;
-    }
-  };
-
   const handleServicePress = useCallback(
     (service) => navigation.navigate("ServiceDetail", { id: service.id }),
     [navigation]
@@ -310,47 +291,77 @@ export default function ServiceListScreen({ navigation, route }) {
         </View>
       )}
 
-      {/* Filter chips — always visible */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={{ maxHeight: 48, marginTop: spacing.md }}
-        contentContainerStyle={{ flexDirection: "row", paddingRight: spacing.lg, alignItems: "center" }}
-      >
-        {FILTERS.map((filter) => {
-          const isActive = activeFilter === filter;
-          const fColor = filterColor(filter);
-          return (
-            <TouchableOpacity
-              key={filter}
-              activeOpacity={0.7}
-              style={{
-                paddingHorizontal: spacing.lg,
-                paddingVertical: spacing.sm,
-                borderRadius: radius.full,
-                marginRight: spacing.sm,
-                borderWidth: 1,
-                backgroundColor: isActive ? fColor : colors.card,
-                borderColor: isActive ? fColor : colors.border,
-              }}
-              onPress={() => handleFilterChange(filter)}
-            >
-              <Text
+      {/* Filter chips — always visible, horizontally scrollable on one row.
+          Each chip uses flexShrink:0 so react-native-web can't squish it (a
+          horizontal ScrollView on web otherwise collapses the children's
+          padding/shape, making them look flat). Hidden during cold-load. */}
+      {!(isLoading && !data) && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          // flexGrow:0 keeps the row from stretching to fill vertical space, but
+          // we intentionally DON'T pin a fixed height: the chips carry a 1px
+          // border, so a hard 34px viewport clipped the pills top & bottom on
+          // web. Letting the content define the height keeps them fully visible.
+          // Negative horizontal margins cancel the screen's paddingHorizontal so
+          // the row bleeds edge-to-edge; the content padding then re-aligns the
+          // first chip with the content and lets the last chip scroll fully into
+          // view instead of being clipped flush against the screen edge.
+          style={{
+            marginTop: spacing.md,
+            marginHorizontal: -spacing.lg,
+            flexGrow: 0,
+          }}
+          contentContainerStyle={{
+            paddingHorizontal: spacing.lg,
+            paddingVertical: 2,
+            alignItems: "center",
+          }}
+        >
+          {FILTERS.map((filter) => {
+            const isActive = activeFilter === filter;
+            return (
+              <TouchableOpacity
+                key={filter}
+                activeOpacity={0.7}
                 style={{
-                  fontSize: 13,
-                  fontWeight: isActive ? "600" : "500",
-                  color: isActive ? colors.onPrimary : colors.textSecondary,
+                  flexShrink: 0,
+                  height: 34,
+                  justifyContent: "center",
+                  paddingHorizontal: 14,
+                  borderRadius: radius.full,
+                  marginRight: spacing.sm,
+                  borderWidth: 1,
+                  backgroundColor: isActive ? colors.primary : colors.surface,
+                  borderColor: isActive ? colors.primary : colors.border,
                 }}
+                onPress={() => handleFilterChange(filter)}
               >
-                {FILTER_LABELS[filter] || filter}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+                <Text
+                  numberOfLines={1}
+                  style={{
+                    fontSize: 13,
+                    // Keep a CONSTANT weight for active + inactive. Bold text is
+                    // wider than regular, so switching weight changed the chip's
+                    // width and made the spacing appear to jump. The solid blue
+                    // background is enough to mark the active chip.
+                    fontWeight: "600",
+                    color: isActive ? colors.onPrimary : colors.textSecondary,
+                  }}
+                >
+                  {FILTER_LABELS[filter] || filter}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      )}
 
-      <View style={{ height: spacing.md }} />
+      <View style={{ height: spacing.sm }} />
 
+      {/* flex:1 wrapper claims all remaining space below the chips so the list
+          scrolls inside its own bounds and can't overlap the chips above. */}
+      <View style={{ flex: 1 }}>
       {isLoading && !data ? (
         <SkeletonList count={6} />
       ) : error && !data ? (
@@ -367,6 +378,10 @@ export default function ServiceListScreen({ navigation, route }) {
           data={services}
           keyExtractor={keyExtractor}
           renderItem={renderServiceItem}
+          // flex:1 bounds the list to the space left below the chips. Without it
+          // the list (on web) grows to full content height and its scroll area
+          // overflows upward, sliding cards over the filter chips.
+          style={{ flex: 1 }}
           ListEmptyComponent={
             <EmptyState
               icon="clipboard-text-outline"
@@ -408,6 +423,7 @@ export default function ServiceListScreen({ navigation, route }) {
           }
         />
       )}
+      </View>
 
       <TouchableOpacity
         activeOpacity={0.85}

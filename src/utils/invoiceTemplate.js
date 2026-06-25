@@ -34,7 +34,9 @@ const formatDate = (iso) => {
 //         payment_method, customers:{name,phone,address}, bill_items:[...] }
 // business: { business_name, address, phone, email }
 // logoDataUri: optional base64 data URI string for the logo image
-export function buildInvoiceHtml(bill, business = {}, logoDataUri = "") {
+// `terms` (optional) is the terms & conditions text to print above the footer.
+// Newlines become line breaks; blank/whitespace => no terms section.
+export function buildInvoiceHtml(bill, business = {}, logoDataUri = "", terms = "") {
   const items = bill.bill_items || [];
   const isPaid = bill.payment_status === "paid";
   const hasTax = Number(bill.tax) > 0;
@@ -57,6 +59,44 @@ export function buildInvoiceHtml(bill, business = {}, logoDataUri = "") {
 
   const statusColor = isPaid ? "#10B981" : "#F59E0B";
   const statusSoft = isPaid ? "#ECFDF5" : "#FFFBEB";
+
+  // Terms & conditions block — only when the owner has set terms. Each non-empty
+  // line becomes one auto-numbered item (1. 2. 3.); blank lines are skipped.
+  //
+  // We avoid double-numbering ("1. 1. ...") in two passes so the owner can type
+  // however they like:
+  //  1) Strip an EXPLICIT marker with a separator/bullet ("1.", "2)", "a.", "-",
+  //     "•") — unambiguous, always a list marker.
+  //  2) Strip a BARE leading number ("1 Covers") ONLY if the lines form a real
+  //     1,2,3… sequence. A lone "3 months warranty" is then kept intact, since it
+  //     isn't part of a sequence.
+  const stripExplicitMarker = (l) =>
+    l.replace(/^\s*(?:\d+[.)]|[a-zA-Z][.)]|[-*•·–])\s+/, "").trim();
+
+  let termsLines = (terms || "")
+    .split("\n")
+    .map((l) => stripExplicitMarker(l.trim()))
+    .filter(Boolean);
+
+  // Detect a bare-number sequence: every line begins with "<n> " and the numbers
+  // run 1,2,3… in order. Only then strip those leading numbers.
+  const looksSequential =
+    termsLines.length >= 2 &&
+    termsLines.every((l, i) => {
+      const m = l.match(/^(\d+)\s+\S/);
+      return m && parseInt(m[1], 10) === i + 1;
+    });
+  if (looksSequential) {
+    termsLines = termsLines.map((l) => l.replace(/^\d+\s+/, "").trim());
+  }
+  const termsHtml = termsLines.length
+    ? `<div class="terms">
+        <div class="terms-title">Terms &amp; Conditions</div>
+        <ol class="terms-list">
+          ${termsLines.map((l) => `<li>${esc(l)}</li>`).join("\n          ")}
+        </ol>
+      </div>`
+    : "";
 
   return `<!DOCTYPE html>
 <html>
@@ -83,6 +123,10 @@ export function buildInvoiceHtml(bill, business = {}, logoDataUri = "") {
   .total-box td { padding:12px 14px; font-size:16px; font-weight:800; }
   .badge { display:inline-block; padding:4px 12px; border-radius:999px; font-weight:700; font-size:12px; color:${statusColor}; background:${statusSoft}; }
   .footer { margin-top:40px; padding-top:16px; border-top:1px solid ${BORDER}; color:${MUTED}; font-size:11px; text-align:center; }
+  .terms { margin-top:32px; padding-top:14px; border-top:1px solid ${BORDER}; }
+  .terms-title { font-size:11px; text-transform:uppercase; letter-spacing:0.5px; color:${MUTED}; font-weight:700; margin-bottom:6px; }
+  .terms-list { color:${MUTED}; font-size:11px; line-height:1.6; margin:0; padding-left:18px; }
+  .terms-list li { margin-bottom:3px; padding-left:2px; }
 </style>
 </head>
 <body>
@@ -143,6 +187,8 @@ export function buildInvoiceHtml(bill, business = {}, logoDataUri = "") {
   </div>
 
   ${bill.payment_method ? `<div style="margin-top:18px;color:${MUTED};">Payment Method: <span class="val" style="text-transform:capitalize;">${esc(bill.payment_method)}</span></div>` : ""}
+
+  ${termsHtml}
 
   <div class="footer">
     Thank you for your business!<br/>
