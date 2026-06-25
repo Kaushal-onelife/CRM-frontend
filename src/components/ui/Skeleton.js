@@ -10,6 +10,10 @@ import Animated, {
 import { useTheme } from "../../context/ThemeContext";
 
 // A single shimmering placeholder block.
+// The animated opacity lives on an OUTER wrapper; the sized box is a plain inner
+// View. This isolates the Reanimated worklet from layout (percentage widths on
+// an Animated.View can collapse/mis-size in release builds) so the shape is
+// always correct even if the shimmer animation is degraded.
 export function Skeleton({ width = "100%", height = 16, radius: r, style }) {
   const { colors, radius } = useTheme();
   const progress = useSharedValue(0);
@@ -23,18 +27,21 @@ export function Skeleton({ width = "100%", height = 16, radius: r, style }) {
   }));
 
   return (
-    <Animated.View
-      style={[
-        {
-          width,
-          height,
-          borderRadius: r ?? radius.sm,
-          backgroundColor: colors.divider,
-        },
-        animStyle,
-        style,
-      ]}
-    />
+    // Plain View owns the sizing (incl. percentage width) — reliable in release.
+    <View style={[{ width, height }, style]}>
+      {/* Animated fill provides the shimmer opacity; fixed-fraction sizing only. */}
+      <Animated.View
+        style={[
+          {
+            width: "100%",
+            height: "100%",
+            borderRadius: r ?? radius.sm,
+            backgroundColor: colors.divider,
+          },
+          animStyle,
+        ]}
+      />
+    </View>
   );
 }
 
