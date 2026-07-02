@@ -19,6 +19,7 @@ import { pickAvatar, uploadAvatar } from "../../utils/avatar";
 import { useProfile } from "../../hooks/useProfile";
 import { tenantAPI } from "../../services/api";
 import { requireOnline } from "../../hooks/useRequireOnline";
+import NotificationPrefs from "../../components/NotificationPrefs";
 
 export default function SettingsScreen({ navigation }) {
   const { colors, theme, isDark, toggleTheme, elevation } = useTheme();
@@ -343,6 +344,9 @@ export default function SettingsScreen({ navigation }) {
           />
         </View>
       </Card>
+
+      {/* Notification preferences (per-category push toggles) */}
+      <NotificationPrefs />
 
       {/* Menu */}
       <Card style={styles.card}>

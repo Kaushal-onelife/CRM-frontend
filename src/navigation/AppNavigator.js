@@ -28,6 +28,7 @@ import InventoryScreen from "../screens/Inventory/InventoryScreen";
 import SettingsScreen from "../screens/Settings/SettingsScreen";
 import MoreScreen from "../screens/More/MoreScreen";
 import RemindersScreen from "../screens/Reminders/RemindersScreen";
+import NotificationsScreen from "../screens/Notifications/NotificationsScreen";
 import DashboardHeaderRight from "../components/DashboardHeaderRight";
 
 const Tab = createBottomTabNavigator();
@@ -128,8 +129,11 @@ function MoreNavigator() {
     <MoreStack.Navigator screenOptions={screenOptions}>
       <MoreStack.Screen name="MoreMenu" component={MoreScreen} options={{ title: "More" }} />
 
+      {/* Notification Center */}
+      <MoreStack.Screen name="Notifications" component={NotificationsScreen} options={{ title: "Notifications" }} />
+
       {/* Reminders */}
-      <MoreStack.Screen name="Reminders" component={RemindersScreen} options={{ title: "Reminders" }} />
+      <MoreStack.Screen name="Reminders" component={RemindersScreen} options={{ title: "Follow-ups" }} />
 
       {/* Bills */}
       <MoreStack.Screen name="Bills" component={BillListScreen} options={{ title: "Bills" }} />

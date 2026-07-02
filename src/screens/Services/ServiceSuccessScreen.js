@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, ScrollView, Linking } from "react-native";
+import { View, Text, ScrollView } from "react-native";
 import Animated, { FadeInDown, ZoomIn } from "react-native-reanimated";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
@@ -13,14 +13,13 @@ const safeNum = (n) => {
 };
 
 export default function ServiceSuccessScreen({ route, navigation }) {
-  const { colors, spacing, radius } = useTheme();
+  const { colors, spacing } = useTheme();
   const queryClient = useQueryClient();
   const toast = useToast();
   const params = route.params || {};
   const {
     serviceId,
     customerName,
-    customerPhone,
     paymentStatus,
     paymentMethod,
     nextDueDate,
@@ -30,9 +29,10 @@ export default function ServiceSuccessScreen({ route, navigation }) {
   const totalAmount = safeNum(params.totalAmount);
 
   const [generatingBill, setGeneratingBill] = useState(false);
-  const [billGenerated, setBillGenerated] = useState(false);
-  const [billData, setBillData] = useState(null);
 
+  // Generate the bill, then hand off to the canonical Bill Details screen — the
+  // single place that renders/shares the PDF invoice (expo-print). This keeps one
+  // billing path across the whole app instead of a separate plain-text sender.
   const handleGenerateBill = async () => {
     setGeneratingBill(true);
     try {
@@ -41,72 +41,20 @@ export default function ServiceSuccessScreen({ route, navigation }) {
         payment_status: paymentStatus,
         payment_method: paymentMethod,
       });
-      setBillData(result);
-      setBillGenerated(true);
       // Refresh the bills list and dashboard so the new bill shows immediately.
       queryClient.invalidateQueries({ queryKey: ["bills"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       toast.success(`Bill ${result.bill_number} created!`);
+      // BillDetail lives in the "More" tab's stack; jump there cross-tab. Use
+      // navigate (not replace) so the back button returns to this success screen.
+      navigation.navigate("More", {
+        screen: "BillDetail",
+        params: { id: result.id },
+      });
     } catch (error) {
       toast.error(error.message || "Something went wrong");
     }
     setGeneratingBill(false);
-  };
-
-  const handleSendBill = async () => {
-    if (!billGenerated) {
-      // Generate bill first, then send
-      setGeneratingBill(true);
-      try {
-        const result = await serviceAPI.generateBill({
-          service_id: serviceId,
-          payment_status: paymentStatus,
-          payment_method: paymentMethod,
-        });
-        setBillData(result);
-        setBillGenerated(true);
-        // Refresh the bills list and dashboard so the new bill shows immediately.
-        queryClient.invalidateQueries({ queryKey: ["bills"] });
-        queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-        sendViaWhatsApp(result);
-      } catch (error) {
-        toast.error(error.message || "Something went wrong");
-      }
-      setGeneratingBill(false);
-    } else {
-      sendViaWhatsApp(billData);
-    }
-  };
-
-  const sendViaWhatsApp = (bill) => {
-    const phone = customerPhone?.replace(/\D/g, "");
-    const number = phone?.startsWith("91") ? phone : `91${phone}`;
-
-    const partsText = bill.items
-      ?.filter((item) => !item.description?.startsWith("Service Charge"))
-      .map(
-        (item) =>
-          `  ${item.description} x${item.quantity} = ${safeNum(item.total).toFixed(2)}`
-      )
-      .join("\n") || "";
-
-    const message = [
-      `*Bill: ${bill.bill_number}*`,
-      `Customer: ${customerName}`,
-      ``,
-      `Service Charge: ${serviceCharge.toFixed(2)}`,
-      partsText ? `Parts:\n${partsText}` : "",
-      `*Total: ${totalAmount.toFixed(2)}*`,
-      `Payment: ${paymentStatus === "paid" ? `Paid (${paymentMethod})` : "Pending"}`,
-      nextDueDate ? `\nNext Service Due: ${nextDueDate}` : "",
-      `\nThank you!`,
-    ]
-      .filter(Boolean)
-      .join("\n");
-
-    Linking.openURL(
-      `whatsapp://send?phone=${number}&text=${encodeURIComponent(message)}`
-    );
   };
 
   const handleDone = () => {
@@ -206,41 +154,11 @@ export default function ServiceSuccessScreen({ route, navigation }) {
 
       {/* Action Buttons */}
       <Animated.View entering={FadeInDown.delay(350).duration(400)} style={{ marginTop: spacing["2xl"], gap: spacing.md }}>
-        {!billGenerated ? (
-          <Button
-            title="Generate Bill"
-            icon="receipt"
-            variant="primary"
-            onPress={handleGenerateBill}
-            loading={generatingBill}
-            disabled={generatingBill}
-          />
-        ) : (
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: spacing.md,
-              backgroundColor: colors.successSoft,
-              borderRadius: radius.md,
-              borderWidth: 1,
-              borderColor: colors.success,
-            }}
-          >
-            <MaterialCommunityIcons name="check" size={18} color={colors.success} />
-            <Text style={{ color: colors.success, fontWeight: "600", marginLeft: spacing.xs }}>
-              Bill {billData?.bill_number} Created
-            </Text>
-          </View>
-        )}
-
         <Button
-          title="Send Bill via WhatsApp"
-          icon="whatsapp"
+          title="Generate Bill"
+          icon="receipt"
           variant="primary"
-          style={{ backgroundColor: "#25D366" }}
-          onPress={handleSendBill}
+          onPress={handleGenerateBill}
           loading={generatingBill}
           disabled={generatingBill}
         />

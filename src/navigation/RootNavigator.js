@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { View } from "react-native";
 import {
   NavigationContainer,
@@ -7,6 +7,9 @@ import {
 } from "@react-navigation/native";
 import { supabase } from "../services/supabase";
 import { queryClient } from "../services/queryClient";
+import { pushAPI } from "../services/api";
+import { registerForPushNotifications, addNotificationTapListener } from "../utils/push";
+import { navigateToDeepLink } from "../utils/notificationNav";
 import AuthNavigator from "./AuthNavigator";
 import AppNavigator from "./AppNavigator";
 import { useTheme } from "../context/ThemeContext";
@@ -16,6 +19,19 @@ export default function RootNavigator() {
   const { colors, isDark } = useTheme();
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
+  const navigationRef = useRef(null);
+
+  // Route a tapped notification's deep_link to the right screen. Falls back to
+  // the Notification Center if the payload has no usable target.
+  const handleDeepLink = (data) => {
+    const nav = navigationRef.current;
+    if (!nav) return;
+    if (data && data.screen) {
+      navigateToDeepLink(nav, data);
+    } else {
+      nav.navigate("More", { screen: "Notifications" });
+    }
+  };
 
   useEffect(() => {
     let settled = false;
@@ -75,6 +91,33 @@ export default function RootNavigator() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Register this device for push once the user is logged in. Runs when a
+  // session appears (login or app-start with a stored session). Failures are
+  // swallowed — push is a bonus; the in-app Reminder Center works regardless.
+  useEffect(() => {
+    if (!session) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await registerForPushNotifications();
+        if (token && !cancelled) {
+          await pushAPI.saveToken(token);
+        }
+      } catch (e) {
+        console.log("[push] registration skipped:", e?.message || e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [session]);
+
+  // Route notification taps to their deep-link target. Mounted once.
+  useEffect(() => {
+    const unsubscribe = addNotificationTapListener((data) => handleDeepLink(data));
+    return unsubscribe;
+  }, []);
+
   // Drive React Navigation's own theme from our tokens so headers, card
   // backgrounds, and the container respond to light/dark automatically.
   const navTheme = {
@@ -99,7 +142,7 @@ export default function RootNavigator() {
   }
 
   return (
-    <NavigationContainer theme={navTheme}>
+    <NavigationContainer ref={navigationRef} theme={navTheme}>
       {/* Banner renders inline only when offline; when online it returns null and
           takes no space, so the navigator's own safe-area handling is untouched. */}
       <OfflineBanner topInset />

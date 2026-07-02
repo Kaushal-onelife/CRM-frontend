@@ -28,7 +28,14 @@
     },
     "plugins": [
       "@react-native-community/datetimepicker",
-      "expo-sharing"
+      "expo-sharing",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/android-icon-monochrome.png",
+          "color": "#2E9BE6"
+        }
+      ]
     ],
     "extra": {
       "eas": {

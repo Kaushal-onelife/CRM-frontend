@@ -4,26 +4,27 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { useTheme } from "../context/ThemeContext";
 import { useProfile } from "../hooks/useProfile";
-import { reminderAPI } from "../services/api";
+import { notificationAPI } from "../services/api";
 
-// Header-right cluster for the Dashboard: a bell with the reminder count
-// (-> Reminders) and the user's avatar (-> Settings). Both reuse shared query
-// caches so they don't add extra fetches.
+// Header-right cluster for the Dashboard: a bell with the UNREAD notification
+// count (-> Notification Center) and the user's avatar (-> Settings). The badge
+// count is polled lightly and shared under ["notifications","unread"].
 export default function DashboardHeaderRight({ navigation }) {
   const { colors } = useTheme();
   const { data: profile } = useProfile();
 
-  const { data: reminders } = useQuery({
-    queryKey: ["reminders"],
-    queryFn: () => reminderAPI.get(),
+  const { data: unread } = useQuery({
+    queryKey: ["notifications", "unread"],
+    queryFn: () => notificationAPI.unreadCount(),
+    refetchInterval: 60000, // keep the badge fresh while the app is open
   });
-  const count = reminders?.counts?.total || 0;
+  const count = unread?.count || 0;
 
   return (
     <View style={{ flexDirection: "row", alignItems: "center", marginRight: 14, gap: 14 }}>
-      {/* Bell -> Reminders */}
+      {/* Bell -> Notification Center */}
       <Pressable
-        onPress={() => navigation.navigate("More", { screen: "Reminders" })}
+        onPress={() => navigation.navigate("More", { screen: "Notifications" })}
         hitSlop={8}
       >
         <MaterialCommunityIcons name="bell-outline" size={24} color={colors.text} />

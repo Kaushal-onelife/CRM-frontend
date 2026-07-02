@@ -146,6 +146,29 @@ export const reminderAPI = {
     apiCall("/reminders/contacted", { method: "POST", body: JSON.stringify(body) }),
 };
 
+// Push notifications — register this device's Expo token so the daily reminder
+// cron can notify the logged-in staff user. `null` token unregisters the device.
+export const pushAPI = {
+  saveToken: (token) =>
+    apiCall("/me/push-token", { method: "POST", body: JSON.stringify({ token }) }),
+  test: () => apiCall("/me/push-token/test", { method: "POST" }),
+};
+
+// Notification Center — the in-app inbox of everything the system has flagged
+// (payments, due services, AMC expiries, etc.), with read state + deep-links.
+export const notificationAPI = {
+  list: (params = "") => apiCall(`/me/notifications?${params}`),
+  unreadCount: () => apiCall("/me/notifications/unread-count"),
+  markRead: (id) => apiCall(`/me/notifications/${id}/read`, { method: "POST" }),
+  markAllRead: () => apiCall("/me/notifications/read-all", { method: "POST" }),
+  getPrefs: () => apiCall("/me/notify-prefs"),
+  setPref: (category, enabled) =>
+    apiCall("/me/notify-prefs", {
+      method: "PATCH",
+      body: JSON.stringify({ category, enabled }),
+    }),
+};
+
 // AMC Contracts
 export const amcAPI = {
   getAll: (params = "") => apiCall(`/amc?${params}`),

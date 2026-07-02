@@ -11,10 +11,17 @@ import { tint as withAlpha } from "../../utils/color";
 // Each row navigates into its own stack (registered in MoreNavigator).
 const ITEMS = [
   {
+    route: "Notifications",
+    label: "Notifications",
+    subtitle: "Payments, alerts & activity",
+    icon: "bell-outline",
+    color: "primary",
+  },
+  {
     route: "Reminders",
-    label: "Reminders",
-    subtitle: "Service due, overdue & AMC expiring",
-    icon: "bell-ring-outline",
+    label: "Follow-ups",
+    subtitle: "Customers to call today — due, overdue & AMC",
+    icon: "phone-outline",
     color: "warning",
   },
   {
