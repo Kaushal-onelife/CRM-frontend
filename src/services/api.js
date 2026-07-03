@@ -74,6 +74,10 @@ export const tenantAPI = {
 // Dashboard
 export const dashboardAPI = {
   get: () => apiCall("/dashboard"),
+  // Monthly revenue report (collected/billed/outstanding) over the last N months
+  // ending at `end` (a "YYYY-MM" anchor; omit for the current month).
+  getRevenue: (months = 6, end = null) =>
+    apiCall(`/dashboard/revenue?months=${months}${end ? `&end=${end}` : ""}`),
 };
 
 // Customers

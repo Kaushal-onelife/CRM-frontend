@@ -233,6 +233,10 @@ export default function CompleteServiceScreen({ route, navigation }) {
 
       navigation.replace("ServiceSuccess", {
         serviceId,
+        // Bill is auto-created on completion; pass its id so the success screen
+        // links straight to it (null only if auto-billing failed — the success
+        // screen falls back to generating one on demand).
+        billId: result?.bill?.id || null,
         customerId: service.customer_id,
         customerName: service.customers?.name,
         customerPhone: service.customers?.phone,

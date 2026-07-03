@@ -17,6 +17,7 @@ import ServiceDetailScreen from "../screens/Services/ServiceDetailScreen";
 import EditServiceScreen from "../screens/Services/EditServiceScreen";
 import CompleteServiceScreen from "../screens/Services/CompleteServiceScreen";
 import ServiceSuccessScreen from "../screens/Services/ServiceSuccessScreen";
+import RevenueScreen from "../screens/Revenue/RevenueScreen";
 import BillListScreen from "../screens/Bills/BillListScreen";
 import BillDetailScreen from "../screens/Bills/BillDetailScreen";
 import CreateBillScreen from "../screens/Bills/CreateBillScreen";
@@ -134,6 +135,9 @@ function MoreNavigator() {
 
       {/* Reminders */}
       <MoreStack.Screen name="Reminders" component={RemindersScreen} options={{ title: "Follow-ups" }} />
+
+      {/* Revenue */}
+      <MoreStack.Screen name="Revenue" component={RevenueScreen} options={{ title: "Revenue" }} />
 
       {/* Bills */}
       <MoreStack.Screen name="Bills" component={BillListScreen} options={{ title: "Bills" }} />

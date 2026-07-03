@@ -19,6 +19,7 @@ export default function ServiceSuccessScreen({ route, navigation }) {
   const params = route.params || {};
   const {
     serviceId,
+    billId,
     customerName,
     paymentStatus,
     paymentMethod,
@@ -30,26 +31,33 @@ export default function ServiceSuccessScreen({ route, navigation }) {
 
   const [generatingBill, setGeneratingBill] = useState(false);
 
-  // Generate the bill, then hand off to the canonical Bill Details screen — the
-  // single place that renders/shares the PDF invoice (expo-print). This keeps one
-  // billing path across the whole app instead of a separate plain-text sender.
-  const handleGenerateBill = async () => {
+  // The bill is auto-created when the service is completed, so normally we just
+  // hand off to the canonical Bill Details screen (the single place that
+  // renders/shares the PDF invoice via expo-print). If auto-billing failed
+  // (billId is null), fall back to generating it on demand — generateBill is
+  // idempotent, so this can never create a duplicate.
+  const handleViewBill = async () => {
     setGeneratingBill(true);
     try {
-      const result = await serviceAPI.generateBill({
-        service_id: serviceId,
-        payment_status: paymentStatus,
-        payment_method: paymentMethod,
-      });
-      // Refresh the bills list and dashboard so the new bill shows immediately.
+      let id = billId;
+      if (!id) {
+        const result = await serviceAPI.generateBill({
+          service_id: serviceId,
+          payment_status: paymentStatus,
+          payment_method: paymentMethod,
+        });
+        id = result.id;
+        toast.success(`Bill ${result.bill_number} created!`);
+      }
+      // Refresh the bills list and dashboard so the bill shows immediately.
       queryClient.invalidateQueries({ queryKey: ["bills"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      toast.success(`Bill ${result.bill_number} created!`);
+      queryClient.invalidateQueries({ queryKey: ["revenue"] });
       // BillDetail lives in the "More" tab's stack; jump there cross-tab. Use
       // navigate (not replace) so the back button returns to this success screen.
       navigation.navigate("More", {
         screen: "BillDetail",
-        params: { id: result.id },
+        params: { id },
       });
     } catch (error) {
       toast.error(error.message || "Something went wrong");
@@ -155,10 +163,10 @@ export default function ServiceSuccessScreen({ route, navigation }) {
       {/* Action Buttons */}
       <Animated.View entering={FadeInDown.delay(350).duration(400)} style={{ marginTop: spacing["2xl"], gap: spacing.md }}>
         <Button
-          title="Generate Bill"
+          title="View Bill"
           icon="receipt"
           variant="primary"
-          onPress={handleGenerateBill}
+          onPress={handleViewBill}
           loading={generatingBill}
           disabled={generatingBill}
         />

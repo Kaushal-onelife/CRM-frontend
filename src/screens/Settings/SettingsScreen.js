@@ -223,6 +223,15 @@ export default function SettingsScreen({ navigation }) {
               { label: "Bill Terms", value: user.tenants.bill_terms },
               { label: "AMC Terms", value: user.tenants.amc_terms },
               { label: "Subscription", value: user.tenants.subscription_status },
+              {
+                label: "Member Since",
+                value: user.tenants.created_at
+                  ? new Date(user.tenants.created_at).toLocaleDateString("en-US", {
+                      month: "long",
+                      year: "numeric",
+                    })
+                  : null,
+              },
             ]
               .filter((item) => item.value)
               .map((item) => (

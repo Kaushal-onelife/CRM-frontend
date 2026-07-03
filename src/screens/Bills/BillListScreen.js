@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useLayoutEffect } from "react";
 import {
   View,
   Text,
@@ -22,10 +22,26 @@ const formatMoney = (n) => {
   return Number.isFinite(num) ? `₹${num.toLocaleString("en-IN")}` : "₹0";
 };
 
-export default function BillListScreen({ navigation }) {
+// First day of the month AFTER the given "YYYY-MM" (exclusive upper bound).
+const nextMonthStart = (monthKey) => {
+  const [y, m] = monthKey.split("-").map(Number);
+  const d = new Date(Date.UTC(y, m, 1)); // m is already next month (0-indexed)
+  return d.toISOString().split("T")[0];
+};
+
+export default function BillListScreen({ navigation, route }) {
   const { colors, radius, elevation } = useTheme();
   const toast = useToast();
   const [activeFilter, setActiveFilter] = useState("all");
+  // When arriving from the Revenue screen's month drill-down, scope to that month.
+  const month = route?.params?.month || null;
+
+  // Title reflects the month scope (e.g. "Bills · Jul 2026") when drilled in.
+  useLayoutEffect(() => {
+    if (route?.params?.title) {
+      navigation.setOptions({ title: `Bills · ${route.params.title}` });
+    }
+  }, [navigation, route?.params?.title]);
   // Pages beyond the first are appended here; the first page comes from useQuery.
   const [extraBills, setExtraBills] = useState([]);
   const [page, setPage] = useState(1);
@@ -35,6 +51,10 @@ export default function BillListScreen({ navigation }) {
   const buildParams = (filter, pageNum) => {
     const params = new URLSearchParams({ page: pageNum, limit: 20 });
     if (filter !== "all") params.set("payment_status", filter);
+    if (month) {
+      params.set("from", `${month}-01`);
+      params.set("to", nextMonthStart(month));
+    }
     return params.toString();
   };
 
@@ -46,7 +66,7 @@ export default function BillListScreen({ navigation }) {
     isRefetching,
     refetch,
   } = useQuery({
-    queryKey: ["bills", activeFilter],
+    queryKey: ["bills", activeFilter, month],
     queryFn: () => billAPI.getAll(buildParams(activeFilter, 1)),
   });
 

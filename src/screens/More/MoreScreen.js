@@ -25,6 +25,13 @@ const ITEMS = [
     color: "warning",
   },
   {
+    route: "Revenue",
+    label: "Revenue",
+    subtitle: "Monthly earnings, collected & dues",
+    icon: "chart-line",
+    color: "success",
+  },
+  {
     route: "Bills",
     label: "Bills",
     subtitle: "Invoices and payments",
