@@ -24,9 +24,9 @@ import {
 } from "../../utils/validators";
 
 const PLAN_PRESETS = [
-  { name: "Annual Basic (4 services)", services: 4, months: 12 },
-  { name: "Annual Premium (6 services)", services: 6, months: 12 },
-  { name: "Half-Yearly (2 services)", services: 2, months: 6 },
+  { name: "Annual Basic (1 service)", services: 1, months: 12 },
+  { name: "Annual Premium (3 services)", services: 3, months: 12 },
+  { name: "Half-Yearly (1 service)", services: 1, months: 6 },
   { name: "Custom", services: 0, months: 0 },
 ];
 
