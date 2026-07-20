@@ -35,6 +35,12 @@ export default function SettingsScreen({ navigation }) {
   const [savingBiz, setSavingBiz] = useState(false);
   const [bizForm, setBizForm] = useState({});
 
+  // Terms & conditions live in their own card with their own edit state, so
+  // editing them doesn't require opening the Business Info form.
+  const [editingTerms, setEditingTerms] = useState(false);
+  const [savingTerms, setSavingTerms] = useState(false);
+  const [termsForm, setTermsForm] = useState({});
+
   const startEditBiz = () => {
     const t = user?.tenants || {};
     setBizForm({
@@ -42,13 +48,37 @@ export default function SettingsScreen({ navigation }) {
       owner_name: t.owner_name || "",
       email: t.email || "",
       address: t.address || "",
-      bill_terms: t.bill_terms || "",
-      amc_terms: t.amc_terms || "",
     });
     setEditingBiz(true);
   };
 
   const setBiz = (key) => (v) => setBizForm((f) => ({ ...f, [key]: v }));
+
+  const startEditTerms = () => {
+    const t = user?.tenants || {};
+    setTermsForm({ bill_terms: t.bill_terms || "", amc_terms: t.amc_terms || "" });
+    setEditingTerms(true);
+  };
+
+  const setTerms = (key) => (v) => setTermsForm((f) => ({ ...f, [key]: v }));
+
+  const handleSaveTerms = async () => {
+    if (!requireOnline()) return;
+    if (!user?.tenant_id) return;
+    setSavingTerms(true);
+    try {
+      await tenantAPI.update(user.tenant_id, {
+        bill_terms: termsForm.bill_terms.trim() || null,
+        amc_terms: termsForm.amc_terms.trim() || null,
+      });
+      await queryClient.invalidateQueries({ queryKey: ["profile"] });
+      setEditingTerms(false);
+      toast.success("Terms updated");
+    } catch (error) {
+      toast.error(error.message || "Couldn't save. Please try again.");
+    }
+    setSavingTerms(false);
+  };
 
   const handleSaveBiz = async () => {
     if (!requireOnline()) return;
@@ -64,8 +94,6 @@ export default function SettingsScreen({ navigation }) {
         owner_name: bizForm.owner_name.trim(),
         email: bizForm.email.trim() || null,
         address: bizForm.address.trim() || null,
-        bill_terms: bizForm.bill_terms.trim() || null,
-        amc_terms: bizForm.amc_terms.trim() || null,
       });
       // Refresh the shared profile so Settings + bill PDFs see the new values.
       await queryClient.invalidateQueries({ queryKey: ["profile"] });
@@ -220,8 +248,6 @@ export default function SettingsScreen({ navigation }) {
               { label: "Phone", value: user.tenants.phone },
               { label: "Email", value: user.tenants.email },
               { label: "Address", value: user.tenants.address },
-              { label: "Bill Terms", value: user.tenants.bill_terms },
-              { label: "AMC Terms", value: user.tenants.amc_terms },
               { label: "Subscription", value: user.tenants.subscription_status },
               {
                 label: "Member Since",
@@ -280,27 +306,6 @@ export default function SettingsScreen({ navigation }) {
                 placeholder="Business address (shown on bills)"
                 multiline
               />
-              <Input
-                label="Bill Terms & Conditions"
-                value={bizForm.bill_terms}
-                onChangeText={setBiz("bill_terms")}
-                placeholder="e.g. Replaced parts carry a 3-month warranty. Payment due within 7 days."
-                multiline
-              />
-              <Text style={[styles.fieldHint, { color: colors.textMuted }]}>
-                Printed at the bottom of regular service/parts bills.
-              </Text>
-              <Input
-                label="AMC Terms & Conditions"
-                value={bizForm.amc_terms}
-                onChangeText={setBiz("amc_terms")}
-                placeholder="e.g. Covers scheduled services only. Spare parts charged separately. Non-refundable."
-                multiline
-              />
-              <Text style={[styles.fieldHint, { color: colors.textMuted }]}>
-                Printed on AMC contract bills. Leave terms blank to hide them.
-              </Text>
-
               <View style={styles.editActions}>
                 <Button
                   title="Cancel"
@@ -315,6 +320,97 @@ export default function SettingsScreen({ navigation }) {
                   onPress={handleSaveBiz}
                   loading={savingBiz}
                   disabled={savingBiz}
+                  style={{ flex: 1 }}
+                />
+              </View>
+            </View>
+          )}
+        </Card>
+      )}
+
+      {/* Terms & Conditions — printed on bills, so edited independently of business info */}
+      {user?.tenants && (
+        <Card style={styles.card}>
+          <View style={styles.cardTitleRow}>
+            <Text style={[styles.cardTitle, { color: colors.text, marginBottom: 0 }]}>
+              Terms & Conditions
+            </Text>
+            {!editingTerms && (
+              <TouchableOpacity onPress={startEditTerms} hitSlop={8} style={styles.editLink}>
+                <MaterialCommunityIcons name="pencil-outline" size={16} color={colors.primary} />
+                <Text style={{ color: colors.primary, fontWeight: "600", fontSize: 13 }}>Edit</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {!editingTerms ? (
+            <>
+              <View style={[styles.detailRow, { borderBottomColor: colors.divider }]}>
+                <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>
+                  Bill Terms
+                </Text>
+                <Text
+                  style={[
+                    styles.detailValue,
+                    { color: user.tenants.bill_terms ? colors.text : colors.textMuted },
+                  ]}
+                  numberOfLines={3}
+                >
+                  {user.tenants.bill_terms || "Not set"}
+                </Text>
+              </View>
+              <View style={[styles.detailRow, { borderBottomColor: colors.divider }]}>
+                <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>
+                  AMC Terms
+                </Text>
+                <Text
+                  style={[
+                    styles.detailValue,
+                    { color: user.tenants.amc_terms ? colors.text : colors.textMuted },
+                  ]}
+                  numberOfLines={3}
+                >
+                  {user.tenants.amc_terms || "Not set"}
+                </Text>
+              </View>
+            </>
+          ) : (
+            <View style={{ marginTop: 8 }}>
+              <Input
+                label="Bill Terms & Conditions"
+                value={termsForm.bill_terms}
+                onChangeText={setTerms("bill_terms")}
+                placeholder="e.g. Replaced parts carry a 3-month warranty. Payment due within 7 days."
+                multiline
+              />
+              <Text style={[styles.fieldHint, { color: colors.textMuted }]}>
+                Printed at the bottom of regular service/parts bills.
+              </Text>
+              <Input
+                label="AMC Terms & Conditions"
+                value={termsForm.amc_terms}
+                onChangeText={setTerms("amc_terms")}
+                placeholder="e.g. Covers scheduled services only. Spare parts charged separately. Non-refundable."
+                multiline
+              />
+              <Text style={[styles.fieldHint, { color: colors.textMuted }]}>
+                Printed on AMC contract bills. Leave terms blank to hide them.
+              </Text>
+
+              <View style={styles.editActions}>
+                <Button
+                  title="Cancel"
+                  variant="secondary"
+                  onPress={() => setEditingTerms(false)}
+                  disabled={savingTerms}
+                  style={{ flex: 1 }}
+                />
+                <Button
+                  title="Save"
+                  icon="content-save-outline"
+                  onPress={handleSaveTerms}
+                  loading={savingTerms}
+                  disabled={savingTerms}
                   style={{ flex: 1 }}
                 />
               </View>

@@ -4,6 +4,7 @@ import {
   Text,
   ScrollView,
   Pressable,
+  TouchableOpacity,
   StyleSheet,
   Linking,
 } from "react-native";
@@ -197,7 +198,22 @@ export default function CustomerDetailScreen({ route, navigation }) {
         {/* Details Card */}
         <Animated.View entering={FadeInDown.delay(80).duration(350)} style={{ marginTop: 16 }}>
           <Card>
-            <Text style={[styles.cardTitle, { color: colors.text }]}>Details</Text>
+            {/* Edit sits beside the heading (mirrors Settings > Business Info) so
+                the common action is reachable without scrolling past services. */}
+            <View style={styles.cardTitleRow}>
+              <Text style={[styles.cardTitle, { color: colors.text, marginBottom: 0 }]}>
+                Details
+              </Text>
+              <TouchableOpacity
+                onPress={() => navigation.navigate("EditCustomer", { id, customer })}
+                disabled={deleting}
+                hitSlop={8}
+                style={styles.editLink}
+              >
+                <MaterialCommunityIcons name="pencil-outline" size={16} color={colors.primary} />
+                <Text style={{ color: colors.primary, fontWeight: "600", fontSize: 13 }}>Edit</Text>
+              </TouchableOpacity>
+            </View>
             {details.length === 0 ? (
               <Text style={{ color: colors.textMuted, paddingVertical: 8 }}>
                 No additional details
@@ -259,26 +275,17 @@ export default function CustomerDetailScreen({ route, navigation }) {
           )}
         </Animated.View>
 
-        {/* Edit / Delete */}
+        {/* Delete stays at the bottom and is deliberately low-prominence: it's
+            rare and irreversible, so it shouldn't compete with Edit. */}
         <View style={styles.bottomActions}>
-          <View style={{ flex: 1 }}>
-            <Button
-              title="Edit Customer"
-              icon="pencil-outline"
-              disabled={deleting}
-              onPress={() => navigation.navigate("EditCustomer", { id, customer })}
-            />
-          </View>
-          <View style={{ width: 120 }}>
-            <Button
-              title="Delete"
-              variant="danger"
-              icon="trash-can-outline"
-              loading={deleting}
-              disabled={deleting}
-              onPress={handleDelete}
-            />
-          </View>
+          <Button
+            title="Delete Customer"
+            variant="danger"
+            icon="trash-can-outline"
+            loading={deleting}
+            disabled={deleting}
+            onPress={handleDelete}
+          />
         </View>
 
         <View style={{ height: 40 }} />
@@ -362,9 +369,18 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginBottom: 10,
   },
-  bottomActions: {
+  cardTitleRow: {
     flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  editLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  bottomActions: {
     marginTop: 20,
-    gap: 12,
   },
 });
