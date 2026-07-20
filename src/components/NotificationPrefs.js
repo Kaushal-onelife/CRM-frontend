@@ -79,8 +79,10 @@ export default function NotificationPrefs() {
 }
 
 const styles = StyleSheet.create({
-  card: { marginBottom: 16, padding: 16 },
-  cardTitle: { fontSize: 13, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8, opacity: 0.7 },
+  // marginHorizontal matches the sibling Cards in SettingsScreen so this block
+  // lines up with them instead of running edge-to-edge.
+  card: { marginHorizontal: 16, marginBottom: 16 },
+  cardTitle: { fontSize: 17, fontWeight: "600", marginBottom: 8 },
   row: { flexDirection: "row", alignItems: "center", paddingVertical: 12 },
   left: { flexDirection: "row", alignItems: "center", flex: 1, marginRight: 12 },
   icon: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center", marginRight: 12 },
