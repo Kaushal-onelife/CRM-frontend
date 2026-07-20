@@ -16,6 +16,7 @@
     },
     "android": {
       "package": "com.onelifecapital.crm",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/android-icon-foreground.png",

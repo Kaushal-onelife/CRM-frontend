@@ -45,3 +45,6 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Firebase client config (identifies the FCM project; keep out of source control)
+google-services.json
