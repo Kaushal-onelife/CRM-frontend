@@ -32,8 +32,14 @@ const FIELDS = [
     keyboardType: "email-address",
     icon: "email-outline",
   },
-  { key: "address", label: "Address", placeholder: "Full address", icon: "map-marker-outline", max: 300 },
-  { key: "city", label: "City", placeholder: "City", icon: "city-variant-outline", max: 80 },
+  {
+    key: "address",
+    label: "Address",
+    placeholder: "Flat/House no., Building, Street, Area, Landmark",
+    icon: "map-marker-outline",
+    max: 300,
+  },
+  { key: "city", label: "City", placeholder: "e.g. Pune", icon: "city-variant-outline", max: 80 },
   {
     key: "purifier_brand",
     label: "Purifier Brand",
