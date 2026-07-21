@@ -168,8 +168,15 @@ export default function DashboardScreen({ navigation }) {
         </Text>
       </Animated.View>
 
-      {/* Hero: revenue this month — brand navy→blue gradient (matches logo) */}
+      {/* Hero: revenue this month — brand navy→blue gradient (matches logo).
+          Taps through to the full Revenue report (More stack). */}
       <Animated.View entering={FadeInDown.delay(60).duration(400)} style={{ marginTop: 16 }}>
+        <TouchableOpacity
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Revenue this month. Opens the revenue report."
+          onPress={() => navigation.navigate("More", { screen: "Revenue" })}
+        >
         <LinearGradient
           colors={[colors.brandNavy, colors.primary]}
           start={{ x: 0, y: 0 }}
@@ -193,6 +200,13 @@ export default function DashboardScreen({ navigation }) {
             <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 13, fontWeight: "500", marginLeft: 6 }}>
               Revenue this month
             </Text>
+            {/* Chevron signals the card is tappable. */}
+            <View style={{ flex: 1 }} />
+            <MaterialCommunityIcons
+              name="chevron-right"
+              size={20}
+              color="rgba(255,255,255,0.85)"
+            />
           </View>
           <Text style={{ color: "#fff", fontSize: 34, fontWeight: "800", marginTop: 4 }}>
             {formatMoney(stats.monthly_revenue)}
@@ -213,6 +227,7 @@ export default function DashboardScreen({ navigation }) {
             />
           </View>
         </LinearGradient>
+        </TouchableOpacity>
       </Animated.View>
 
       {/* Stat grid */}

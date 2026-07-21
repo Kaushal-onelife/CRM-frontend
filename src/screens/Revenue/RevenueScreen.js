@@ -24,6 +24,7 @@ const currentMonthKey = () => {
   const d = new Date();
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 };
+const currentYear = () => new Date().getUTCFullYear();
 const CHART_HEIGHT = 160; // px available for the tallest column
 
 // "collected" = cash actually received (paid bills). "billed" = everything
@@ -71,6 +72,9 @@ export default function RevenueScreen({ navigation }) {
   // Which month within the window drives the headline; null => the anchor month.
   const [selectedMonth, setSelectedMonth] = useState(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  // The totals card is scoped to a CALENDAR YEAR, independent of the 6-month
+  // window that drives the chart/headline above.
+  const [totalsYear, setTotalsYear] = useState(currentYear());
 
   // The account's registration month bounds how far back the picker can go —
   // there's no revenue data before the business existed.
@@ -78,14 +82,30 @@ export default function RevenueScreen({ navigation }) {
   const minKey = profile?.tenants?.created_at
     ? String(profile.tenants.created_at).slice(0, 7) // "YYYY-MM"
     : null;
+  // The totals year can't go back before the business existed.
+  const minYear = minKey ? Number(minKey.slice(0, 4)) : currentYear() - 5;
 
   const { data, error, isLoading, isRefetching, refetch } = useQuery({
     queryKey: ["revenue", MONTHS_WINDOW, endMonth],
     queryFn: () => dashboardAPI.getRevenue(MONTHS_WINDOW, endMonth),
   });
 
+  // Totals card: its own year-scoped fetch (Jan..Dec, or Jan..this month for the
+  // ongoing year so we never request future buckets).
+  const yearEnd = useMemo(() => {
+    const nowKey = currentMonthKey();
+    const decKey = `${totalsYear}-12`;
+    return decKey > nowKey ? nowKey : decKey;
+  }, [totalsYear]);
+  const yearMonths = Number(yearEnd.split("-")[1]);
+
+  const { data: yearData, isLoading: yearLoading } = useQuery({
+    queryKey: ["revenue", yearMonths, yearEnd],
+    queryFn: () => dashboardAPI.getRevenue(yearMonths, yearEnd),
+  });
+
   const months = data?.months || [];
-  const totals = data?.totals || { collected: 0, billed: 0, outstanding: 0 };
+  const totals = yearData?.totals || { collected: 0, billed: 0, outstanding: 0 };
 
   // API returns newest-first. Chart reads left(oldest) -> right(newest).
   const chartMonths = useMemo(() => [...months].reverse(), [months]);
@@ -313,6 +333,51 @@ export default function RevenueScreen({ navigation }) {
       {/* Window totals */}
       <Animated.View entering={FadeInDown.delay(160).duration(340)}>
         <Card style={{ marginTop: spacing.md }}>
+          {/* Year scope — names the period AND lets you switch it, so these
+              figures can't be misread as all-time totals. */}
+          <View style={styles.totalsHeader}>
+            <Text style={{ color: colors.text, fontSize: 16, fontWeight: "700" }}>Totals</Text>
+            <View style={styles.yearStepper}>
+              <TouchableOpacity
+                onPress={() => setTotalsYear((y) => y - 1)}
+                disabled={totalsYear <= minYear}
+                hitSlop={8}
+              >
+                <MaterialCommunityIcons
+                  name="chevron-left"
+                  size={22}
+                  color={totalsYear <= minYear ? colors.textMuted : colors.primary}
+                />
+              </TouchableOpacity>
+              <Text
+                style={{
+                  color: colors.text,
+                  fontSize: 14,
+                  fontWeight: "700",
+                  minWidth: 46,
+                  textAlign: "center",
+                }}
+              >
+                {totalsYear}
+              </Text>
+              <TouchableOpacity
+                onPress={() => setTotalsYear((y) => y + 1)}
+                disabled={totalsYear >= currentYear()}
+                hitSlop={8}
+              >
+                <MaterialCommunityIcons
+                  name="chevron-right"
+                  size={22}
+                  color={totalsYear >= currentYear() ? colors.textMuted : colors.primary}
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+          {totalsYear === currentYear() && (
+            <Text style={{ color: colors.textMuted, fontSize: 11, marginBottom: 6 }}>
+              Jan–{monthTick(yearEnd)} {totalsYear} (year to date)
+            </Text>
+          )}
           <View style={styles.totalRow}>
             <Text style={{ color: colors.textSecondary, fontSize: 14 }}>Total collected</Text>
             <Text style={{ color: colors.success, fontSize: 15, fontWeight: "700" }}>
@@ -412,6 +477,17 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "700",
     marginBottom: 4,
+  },
+  totalsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 4,
+  },
+  yearStepper: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
   },
   totalRow: {
     flexDirection: "row",
