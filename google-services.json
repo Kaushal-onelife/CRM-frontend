@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "615983573572",
+    "project_id": "clienttrack-crm",
+    "storage_bucket": "clienttrack-crm.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:615983573572:android:02f913a70bfcf05369ea11",
+        "android_client_info": {
+          "package_name": "com.onelifecapital.crm"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCIVNF_YxLuRglDdg_qco9GGwaUTC4usbs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
