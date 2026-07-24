@@ -208,6 +208,28 @@ export default function AMCDetailScreen({ route, navigation }) {
         )}
       </View>
 
+      {/* Renewed -> prominent jump to the active contract that replaced this one.
+          Sits right under the status banner so a renewed contract immediately
+          points the user at the live one, instead of looking dead-expired. */}
+      {contract.renewed_to && (
+        <TouchableOpacity
+          onPress={() => navigation.replace("AMCDetail", { id: contract.renewed_to.id })}
+          activeOpacity={0.8}
+          style={[
+            styles.renewedCta,
+            { backgroundColor: colors.success, marginTop: 12 },
+            elevation("sm"),
+          ]}
+        >
+          <MaterialCommunityIcons name="check-decagram" size={20} color={colors.onPrimary} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.renewedCtaTitle}>This contract was renewed</Text>
+            <Text style={styles.renewedCtaSub}>Tap to open the active contract</Text>
+          </View>
+          <MaterialCommunityIcons name="arrow-right" size={22} color={colors.onPrimary} />
+        </TouchableOpacity>
+      )}
+
       {/* Contract Info */}
       <Card style={{ marginTop: 16 }}>
         {/* Title row with Edit/Delete as compact icon actions. Edit hidden once
@@ -376,25 +398,6 @@ export default function AMCDetailScreen({ route, navigation }) {
           />
         )}
 
-        {/* Already renewed -> link to the contract that replaced this one. */}
-        {contract.renewed_to && (
-          <TouchableOpacity
-            onPress={() =>
-              navigation.replace("AMCDetail", { id: contract.renewed_to.id })
-            }
-            activeOpacity={0.7}
-            style={[
-              styles.renewedBanner,
-              { backgroundColor: tint(colors.success, 0.1), borderColor: colors.success },
-            ]}
-          >
-            <MaterialCommunityIcons name="check-decagram" size={18} color={colors.success} />
-            <Text style={[styles.renewedText, { color: colors.success }]}>
-              Renewed — view new contract
-            </Text>
-            <MaterialCommunityIcons name="chevron-right" size={18} color={colors.success} />
-          </TouchableOpacity>
-        )}
       </View>
     </ScrollView>
   );
@@ -454,14 +457,14 @@ const styles = StyleSheet.create({
   serviceType: { fontSize: 14, fontWeight: "500", textTransform: "capitalize" },
   serviceDate: { fontSize: 13, marginTop: 2 },
   actions: { marginTop: 20, gap: 12 },
-  renewedBanner: {
+  renewedCta: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
+    gap: 12,
     paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1,
+    paddingHorizontal: 16,
+    borderRadius: 14,
   },
-  renewedText: { fontWeight: "700", fontSize: 14 },
+  renewedCtaTitle: { color: "#fff", fontWeight: "700", fontSize: 15 },
+  renewedCtaSub: { color: "rgba(255,255,255,0.85)", fontSize: 12, marginTop: 1 },
 });

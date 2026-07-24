@@ -243,7 +243,7 @@ export default function DashboardScreen({ navigation }) {
         <Stat
           index={1}
           icon="timer-sand"
-          label="Pending"
+          label="To do"
           value={formatCount(stats.pending_services)}
           color={colors.warning}
           onPress={() => navigation.navigate("Services", { screen: "ServiceList", params: { filter: "pending" } })}

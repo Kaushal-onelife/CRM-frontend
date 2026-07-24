@@ -335,7 +335,7 @@ export default function ServiceDetailScreen({ route, navigation }) {
           {/* SECONDARY: Accepted — soft amber (light bg, colored text + border). */}
           {(service.status === "scheduled" || service.status === "followup") && (
             <Button
-              title="Customer Accepted (Pending)"
+              title="Customer Accepted (To do)"
               icon="check"
               variant="primary"
               style={{

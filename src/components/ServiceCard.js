@@ -32,7 +32,7 @@ const STATUS_CONFIG = {
     bg: "#FFFBEB",
     darkBg: "#422006",
     icon: "timer-sand",
-    label: "Pending",
+    label: "To do",
   },
   completed: {
     color: "#10B981",

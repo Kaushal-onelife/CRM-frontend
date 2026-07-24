@@ -32,7 +32,7 @@ const FILTER_LABELS = {
   all: "All",
   upcoming: "Upcoming",
   due: "Due",
-  pending: "Pending",
+  pending: "To do",
   followup: "Follow Up",
   completed: "Completed",
   rejected: "Rejected",
