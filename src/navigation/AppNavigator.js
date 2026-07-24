@@ -4,6 +4,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
+import { tint } from "../utils/color";
 
 // Screens
 import DashboardScreen from "../screens/Dashboard/DashboardScreen";
@@ -200,7 +201,7 @@ export default function AppNavigator() {
               style={
                 focused
                   ? {
-                      backgroundColor: colors.primarySoft,
+                      backgroundColor: tint(colors.primary, 0.14),
                       borderRadius: 12,
                       paddingHorizontal: 14,
                       paddingVertical: 4,
