@@ -189,12 +189,19 @@ export default function AMCDetailScreen({ route, navigation }) {
       contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
       showsVerticalScrollIndicator={false}
     >
-      {/* Status Banner */}
+      {/* Status Banner — flat tinted panel with a subtle colored border. No
+          elevation: a black Android shadow bleeds through the translucent fill
+          and muddies the color (the grey halo around ACTIVE/EXPIRED). The border
+          reads as a clean edge and is driven by statusColor, so it adapts to
+          active/expired/expiring automatically. */}
       <View
         style={[
           styles.statusBanner,
-          { backgroundColor: tint(statusColor, 0.1) },
-          elevation("sm"),
+          {
+            backgroundColor: tint(statusColor, 0.1),
+            borderWidth: 1,
+            borderColor: tint(statusColor, 0.35),
+          },
         ]}
       >
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
