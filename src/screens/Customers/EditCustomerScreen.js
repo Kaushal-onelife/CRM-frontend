@@ -12,6 +12,7 @@ import {
   isPhone,
   maxLength,
   trimAll,
+  normalizeIndianMobile,
 } from "../../utils/validators";
 
 const FIELDS = [
@@ -157,10 +158,10 @@ export default function EditCustomerScreen({ route, navigation }) {
           value={form[field.key] || ""}
           error={errors[field.key]}
           onChangeText={(v) => {
-            // Phone: strip anything that isn't a digit and cap length — so
-            // letters simply can't be entered, and it can't exceed 10 digits.
+            // Phone: normalize away any +91/91/0 prefix and cap at 10 digits, so
+            // pasting "919172772157" keeps the real number instead of truncating.
             if (field.numeric) {
-              v = v.replace(/\D/g, "").slice(0, field.maxDigits || 15);
+              v = normalizeIndianMobile(v);
             } else if (field.max) {
               v = v.slice(0, field.max);
             }

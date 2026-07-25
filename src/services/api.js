@@ -63,6 +63,18 @@ export const authAPI = {
     apiCall("/auth/signup", { method: "POST", body: JSON.stringify(body) }),
   login: (body) =>
     apiCall("/auth/login", { method: "POST", body: JSON.stringify(body) }),
+  // Step 1: request a recovery code be emailed. Always resolves (generic message).
+  forgotPassword: (body) =>
+    apiCall("/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  // Step 2: verify code + set new password. Returns token/refresh_token/user like login.
+  resetPassword: (body) =>
+    apiCall("/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 };
 
 // Tenant / business profile (business info + bill terms)

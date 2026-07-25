@@ -16,6 +16,23 @@ export function isEmail(value, fieldName = "Email") {
   return null;
 }
 
+// Normalize a pasted/typed Indian mobile into its bare 10-digit subscriber
+// number. Handles +91 / 91 / 0091 country codes and a leading STD "0", which
+// would otherwise get counted into the first 10 digits and truncate the real
+// number (e.g. "919172772157" -> "9172772157", not "9191727721").
+export function normalizeIndianMobile(input) {
+  let digits = String(input ?? "").replace(/\D/g, "");
+  // Strip a country/STD prefix ONLY when the total length exactly matches a
+  // prefixed pattern. This keeps paste (+91 / 91 / 0091 / 0) working while NOT
+  // misreading a normal 11th keystroke as a prefix — a valid 10-digit number
+  // can itself start with "91" (e.g. 9172772157), so we never strip at length 10.
+  if (digits.length === 14 && digits.startsWith("0091")) digits = digits.slice(4);
+  else if (digits.length === 12 && digits.startsWith("91")) digits = digits.slice(2);
+  else if (digits.length === 11 && digits.startsWith("0")) digits = digits.slice(1);
+  // Anything else (including extra typed digits): keep the first 10.
+  return digits.slice(0, 10);
+}
+
 // 10-digit Indian mobile number. Adjust if you need international.
 export function isPhone(value, fieldName = "Phone") {
   if (!value) return null;

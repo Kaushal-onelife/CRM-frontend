@@ -17,6 +17,7 @@ import {
   isPhone,
   minLength,
   maxLength,
+  normalizeIndianMobile,
 } from "../../utils/validators";
 
 // Per-field validation — returns an error string or null. Used on blur + submit.
@@ -172,9 +173,10 @@ export default function SignupScreen({ navigation }) {
             value={form[field.key]}
             error={errors[field.key]}
             onChangeText={(v) => {
-              // Phone: strip non-digits and cap at 10 — letters can't be typed.
+              // Phone: normalize away any +91/91/0 prefix and cap at 10 digits,
+              // so pasting "919172772157" keeps the real number, not the first 10.
               if (field.numeric) {
-                v = v.replace(/\D/g, "").slice(0, field.maxDigits || 15);
+                v = normalizeIndianMobile(v);
               }
               updateForm(field.key, v);
             }}
